@@ -19,26 +19,19 @@ local COLORS = {
 }
 
 local CMD_COLORS = {
-    ["0"] = Color3.fromRGB(0, 0, 0),
-    ["1"] = Color3.fromRGB(0, 0, 128),
-    ["2"] = Color3.fromRGB(0, 128, 0),
-    ["3"] = Color3.fromRGB(0, 128, 128),
-    ["4"] = Color3.fromRGB(128, 0, 0),
-    ["5"] = Color3.fromRGB(128, 0, 128),
-    ["6"] = Color3.fromRGB(128, 128, 0),
-    ["7"] = Color3.fromRGB(192, 192, 192),
-    ["8"] = Color3.fromRGB(128, 128, 128),
-    ["9"] = Color3.fromRGB(0, 0, 255),
-    ["A"] = Color3.fromRGB(0, 255, 0),
-    ["B"] = Color3.fromRGB(0, 255, 255),
-    ["C"] = Color3.fromRGB(255, 0, 0),
-    ["D"] = Color3.fromRGB(255, 0, 255),
-    ["E"] = Color3.fromRGB(255, 255, 0),
-    ["F"] = Color3.fromRGB(255, 255, 255),
+    ["0"] = Color3.fromRGB(0, 0, 0), ["1"] = Color3.fromRGB(0, 0, 128),
+    ["2"] = Color3.fromRGB(0, 128, 0), ["3"] = Color3.fromRGB(0, 128, 128),
+    ["4"] = Color3.fromRGB(128, 0, 0), ["5"] = Color3.fromRGB(128, 0, 128),
+    ["6"] = Color3.fromRGB(128, 128, 0), ["7"] = Color3.fromRGB(192, 192, 192),
+    ["8"] = Color3.fromRGB(128, 128, 128), ["9"] = Color3.fromRGB(0, 0, 255),
+    ["A"] = Color3.fromRGB(0, 255, 0), ["B"] = Color3.fromRGB(0, 255, 255),
+    ["C"] = Color3.fromRGB(255, 0, 0), ["D"] = Color3.fromRGB(255, 0, 255),
+    ["E"] = Color3.fromRGB(255, 255, 0), ["F"] = Color3.fromRGB(255, 255, 255),
 }
 
 local commandHistory = {}
 local historyIndex = 0
+local closed = false
 
 local function getGuiParent()
     if type(gethui) == "function" then
@@ -53,19 +46,21 @@ local function getGuiParent()
 end
 
 local guiParent = getGuiParent()
-if not guiParent then
-    return
-end
+if not guiParent then return end
 
-if guiParent:FindFirstChild("SimpleConsole") then
-    guiParent.SimpleConsole:Destroy()
-end
+if guiParent:FindFirstChild("SimpleConsole") then guiParent.SimpleConsole:Destroy() end
+if guiParent:FindFirstChild("XConsole_Cursor") then guiParent.XConsole_Cursor:Destroy() end
+pcall(function()
+    local cg = game:GetService("CoreGui")
+    if cg:FindFirstChild("XConsole_Cursor") then cg.XConsole_Cursor:Destroy() end
+end)
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SimpleConsole"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 5000
 ScreenGui.Parent = guiParent
 
 local ConsoleFrame = Instance.new("Frame")
@@ -121,9 +116,7 @@ CloseBtn.Font = CONFIG.Font
 CloseBtn.TextSize = 14
 CloseBtn.BorderSizePixel = 0
 CloseBtn.Parent = Header
-local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 4)
-closeCorner.Parent = CloseBtn
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
 
 local LogFrame = Instance.new("ScrollingFrame")
 LogFrame.Name = "Log"
@@ -183,10 +176,48 @@ ResizeHandle.TextSize = 12
 ResizeHandle.BorderSizePixel = 0
 ResizeHandle.ZIndex = 5
 ResizeHandle.Parent = ConsoleFrame
-local resizeCorner = Instance.new("UICorner")
-resizeCorner.CornerRadius = UDim.new(0, 4)
-resizeCorner.Parent = ResizeHandle
+Instance.new("UICorner", ResizeHandle).CornerRadius = UDim.new(0, 4)
 
+-- === CUSTOM CURSOR (X-shape) ===
+local cursorGui = Instance.new("ScreenGui")
+cursorGui.Name = "XConsole_Cursor"
+cursorGui.ResetOnSpawn = false
+cursorGui.DisplayOrder = 9999
+cursorGui.IgnoreGuiInset = true
+cursorGui.Enabled = false
+cursorGui.Parent = guiParent
+
+local cursorFrame = Instance.new("Frame")
+cursorFrame.Size = UDim2.new(0, 18, 0, 18)
+cursorFrame.BackgroundTransparency = 1
+cursorFrame.BorderSizePixel = 0
+cursorFrame.Parent = cursorGui
+
+local line1 = Instance.new("Frame")
+line1.Size = UDim2.new(1, 0, 0, 2)
+line1.Position = UDim2.new(0, 0, 0.5, -1)
+line1.BackgroundColor3 = Color3.new(1, 1, 1)
+line1.BorderSizePixel = 0
+line1.Rotation = 45
+line1.Parent = cursorFrame
+local stroke1 = Instance.new("UIStroke", line1)
+stroke1.Color = Color3.new(0, 0, 0)
+stroke1.Thickness = 1
+stroke1.Transparency = 0.3
+
+local line2 = Instance.new("Frame")
+line2.Size = UDim2.new(1, 0, 0, 2)
+line2.Position = UDim2.new(0, 0, 0.5, -1)
+line2.BackgroundColor3 = Color3.new(1, 1, 1)
+line2.BorderSizePixel = 0
+line2.Rotation = -45
+line2.Parent = cursorFrame
+local stroke2 = Instance.new("UIStroke", line2)
+stroke2.Color = Color3.new(0, 0, 0)
+stroke2.Thickness = 1
+stroke2.Transparency = 0.3
+
+-- === LOG ===
 local function log(text, colorType)
     local color = COLORS[colorType] or COLORS.Default
     local label = Instance.new("TextLabel")
@@ -227,10 +258,7 @@ local commands = {
 
     ["xyz"] = function()
         local _, _, hrp = getChar()
-        if not hrp then
-            log("Character not found", "Error")
-            return
-        end
+        if not hrp then log("Character not found", "Error") return end
         local p = hrp.Position
         local msg = string.format("X=%.2f  Y=%.2f  Z=%.2f", p.X, p.Y, p.Z)
         log(msg, "Success")
@@ -240,14 +268,8 @@ local commands = {
     ["destroy"] = function()
         local mouse = LocalPlayer:GetMouse()
         local target = mouse.Target
-        if not target then
-            log("Nothing under cursor", "Error")
-            return
-        end
-        if target:IsA("Terrain") then
-            log("Cannot destroy Terrain", "Error")
-            return
-        end
+        if not target then log("Nothing under cursor", "Error") return end
+        if target:IsA("Terrain") then log("Cannot destroy Terrain", "Error") return end
         log("Destroyed: " .. target:GetFullName(), "Info")
         target:Destroy()
     end,
@@ -263,20 +285,14 @@ local commands = {
             ["wedge"] = Enum.PartType.Wedge,
             ["cornerwedge"] = Enum.PartType.CornerWedge
         }
-        
         local partType = validShapes[shape]
-        if not partType then
-            log("Usage: summon <part|sphere|cylinder|wedge|cornerwedge>", "Error")
-            return
-        end
-        
+        if not partType then log("Usage: summon <part|sphere|cylinder|wedge|cornerwedge>", "Error") return end
         local mouse = LocalPlayer:GetMouse()
         local spawnPos = mouse.Hit.Position + Vector3.new(0, 5, 0)
         local _, _, hrp = getChar()
         if hrp and (spawnPos - hrp.Position).Magnitude > 200 then
             spawnPos = hrp.Position + hrp.CFrame.LookVector * 8
         end
-        
         local part = Instance.new("Part")
         part.Anchored = false
         part.CanCollide = true
@@ -287,7 +303,6 @@ local commands = {
         part.Name = "SummonedPart"
         part.Shape = partType
         part.Parent = workspace
-        
         log("Spawned " .. shape, "Success")
     end,
 
@@ -295,30 +310,18 @@ local commands = {
         local reason = #args > 0 and table.concat(args, " ") or "No reason provided"
         log("Kicking self: " .. reason, "Error")
         task.wait(0.2)
-        local ok, err = pcall(function()
-            LocalPlayer:Kick(reason)
-        end)
-        if not ok then
-            log("Kick failed: " .. tostring(err), "Error")
-        end
+        local ok, err = pcall(function() LocalPlayer:Kick(reason) end)
+        if not ok then log("Kick failed: " .. tostring(err), "Error") end
     end,
 
     ["color"] = function(args)
-        if #args < 1 then
-            log("Usage: color <bg_code><text_code>", "Error")
-            return
-        end
+        if #args < 1 then log("Usage: color <bg_code><text_code>", "Error") return end
         local code = args[1]:upper()
-        if #code ~= 2 then
-            log("Color code must be 2 characters", "Error")
-            return
-        end
-        
+        if #code ~= 2 then log("Color code must be 2 characters", "Error") return end
         local bgCode = code:sub(1, 1)
         local fgCode = code:sub(2, 2)
         local bg = CMD_COLORS[bgCode]
         local fg = CMD_COLORS[fgCode]
-        
         if bg and fg then
             ConsoleFrame.BackgroundColor3 = bg
             LogFrame.BackgroundColor3 = bg
@@ -341,13 +344,12 @@ local commands = {
 }
 
 local resizing = false
-local startSize, startPos, startMouse
+local startSize, startMouse
 
 ResizeHandle.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         resizing = true
         startSize = ConsoleFrame.AbsoluteSize
-        startPos = ConsoleFrame.AbsolutePosition
         startMouse = input.Position
     end
 end)
@@ -362,12 +364,13 @@ UIS.InputChanged:Connect(function(input)
 end)
 
 UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        resizing = false
-    end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then resizing = false end
 end)
 
 CloseBtn.MouseButton1Click:Connect(function()
+    closed = true
+    UIS.MouseIconEnabled = true
+    if cursorGui then cursorGui:Destroy() end
     ScreenGui:Destroy()
 end)
 
@@ -395,9 +398,7 @@ CommandBox.FocusLost:Connect(function(enterPressed)
     local commandFunc = commands[cmdName]
     if commandFunc then
         local success, e = pcall(commandFunc, args)
-        if not success then
-            log("Error: " .. tostring(e), "Error")
-        end
+        if not success then log("Error: " .. tostring(e), "Error") end
     else
         log("Unknown command: " .. cmdName, "Error")
     end
@@ -413,6 +414,40 @@ CommandBox.InputBegan:Connect(function(input)
         if #commandHistory > 0 then
             historyIndex = math.min(#commandHistory + 1, historyIndex + 1)
             CommandBox.Text = historyIndex <= #commandHistory and commandHistory[historyIndex] or ""
+        end
+    end
+end)
+
+-- === CURSOR + XBOAT PRIORITY LOOP ===
+RunService.RenderStepped:Connect(function()
+    if closed or not ConsoleFrame.Parent then
+        if cursorGui and cursorGui.Parent and cursorGui.Enabled then
+            cursorGui.Enabled = false
+        end
+        return
+    end
+
+    local mp = UIS:GetMouseLocation()
+    local ap = ConsoleFrame.AbsolutePosition
+    local as = ConsoleFrame.AbsoluteSize
+    local inside = mp.X >= ap.X and mp.X <= ap.X + as.X and mp.Y >= ap.Y and mp.Y <= ap.Y + as.Y
+
+    if inside and ConsoleFrame.Visible then
+        pcall(function()
+            local cg = game:GetService("CoreGui")
+            local xboatCursor = cg:FindFirstChild("XboatCursor")
+            if xboatCursor then xboatCursor.Enabled = false end
+        end)
+
+        if not cursorGui.Enabled then
+            cursorGui.Enabled = true
+            UIS.MouseIconEnabled = false
+        end
+        cursorFrame.Position = UDim2.new(0, mp.X - 9, 0, mp.Y - 9)
+    else
+        if cursorGui.Enabled then
+            cursorGui.Enabled = false
+            UIS.MouseIconEnabled = true
         end
     end
 end)
