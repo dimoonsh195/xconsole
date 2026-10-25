@@ -51,7 +51,7 @@ if not guiParent then return end
 if guiParent:FindFirstChild("SimpleConsole") then guiParent.SimpleConsole:Destroy() end
 if guiParent:FindFirstChild("XConsole_Cursor") then guiParent.XConsole_Cursor:Destroy() end
 if guiParent:FindFirstChild("XcodeGui") then guiParent.XcodeGui:Destroy() end
-if guiParent:FindFirstChild("MainMenu") then guiParent.MainMenu:Destroy() end -- DEX
+if guiParent:FindFirstChild("MainMenu") then guiParent.MainMenu:Destroy() end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SimpleConsole"
@@ -281,10 +281,44 @@ local commands = {
     ["xdex"] = function()
         log("Loading DEX...", "Info")
         local success, err = pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/dimoonsh195/customdex-xdex/main/xdex.lua", true))()
+            -- 1. Создаем заглушки для функций, которых нет в Xboat
+            local fallbacks = {
+                gethui = function() return game:GetService("CoreGui") end,
+                setclipboard = function() end,
+                getnilinstances = function() return {} end,
+                getloadedmodules = function() return {} end,
+                getreg = function() return {} end,
+                getgc = function() return {} end,
+                getupvalues = function(f) return {} end,
+                getconstants = function(f) return {} end,
+                islclosure = function(f) return false end,
+                hookfunction = function(a, b) return a end,
+                getrawmetatable = function(obj) return getmetatable(obj) end
+            }
+
+            -- 2. Внедряем их в глобальное окружение, если их нет
+            local env = getgenv and getgenv() or _G
+            for name, func in pairs(fallbacks) do
+                if not env[name] then
+                    env[name] = func
+                end
+            end
+
+            -- 3. Загружаем DEX
+            local code = game:HttpGet("https://raw.githubusercontent.com/dimoonsh195/customdex-xdex/main/xdex.lua", true)
+            local func = loadstring(code)
+            if func then
+                func()
+            else
+                error("Failed to compile DEX")
+            end
         end)
-        if success then log("DEX loaded successfully", "Success")
-        else log("Failed to load DEX: " .. tostring(err), "Error") end
+        
+        if success then 
+            log("DEX loaded successfully", "Success")
+        else 
+            log("Failed to load DEX: " .. tostring(err), "Error") 
+        end
     end,
     ["clear"] = function()
         for _, child in ipairs(LogFrame:GetChildren()) do
