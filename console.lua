@@ -51,6 +51,7 @@ if not guiParent then return end
 if guiParent:FindFirstChild("SimpleConsole") then guiParent.SimpleConsole:Destroy() end
 if guiParent:FindFirstChild("XConsole_Cursor") then guiParent.XConsole_Cursor:Destroy() end
 if guiParent:FindFirstChild("XcodeGui") then guiParent.XcodeGui:Destroy() end
+if guiParent:FindFirstChild("MainMenu") then guiParent.MainMenu:Destroy() end -- DEX
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SimpleConsole"
@@ -162,6 +163,38 @@ ResizeHandle.ZIndex = 5
 ResizeHandle.Parent = ConsoleFrame
 Instance.new("UICorner", ResizeHandle).CornerRadius = UDim.new(0, 4)
 
+local cursorGui = Instance.new("ScreenGui")
+cursorGui.Name = "XConsole_Cursor"
+cursorGui.ResetOnSpawn = false
+cursorGui.DisplayOrder = 9999
+cursorGui.IgnoreGuiInset = true
+cursorGui.Enabled = false
+cursorGui.Parent = guiParent
+
+local cursorFrame = Instance.new("Frame")
+cursorFrame.Size = UDim2.new(0, 18, 0, 18)
+cursorFrame.BackgroundTransparency = 1
+cursorFrame.BorderSizePixel = 0
+cursorFrame.Parent = cursorGui
+
+local line1 = Instance.new("Frame")
+line1.Size = UDim2.new(1, 0, 0, 2)
+line1.Position = UDim2.new(0, 0, 0.5, -1)
+line1.BackgroundColor3 = Color3.new(1, 1, 1)
+line1.BorderSizePixel = 0
+line1.Rotation = 45
+line1.Parent = cursorFrame
+Instance.new("UIStroke", line1).Color = Color3.new(0, 0, 0)
+
+local line2 = Instance.new("Frame")
+line2.Size = UDim2.new(1, 0, 0, 2)
+line2.Position = UDim2.new(0, 0, 0.5, -1)
+line2.BackgroundColor3 = Color3.new(1, 1, 1)
+line2.BorderSizePixel = 0
+line2.Rotation = -45
+line2.Parent = cursorFrame
+Instance.new("UIStroke", line2).Color = Color3.new(0, 0, 0)
+
 local function log(text, colorType)
     local color = COLORS[colorType] or COLORS.Default
     local label = Instance.new("TextLabel")
@@ -178,14 +211,21 @@ local function log(text, colorType)
     LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
 end
 
+local function getChar()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    return char, hum, hrp
+end
+
 local commands = {
     ["help"] = function()
         log("Commands:", "Info")
-        log("  xyz, destroy, summon, kickme, color, codegui, clear", "Default")
+        log("  xyz, destroy, summon, kickme, color, codegui, xdex, clear", "Default")
     end,
     ["xyz"] = function()
-        local char = LocalPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local _, _, hrp = getChar()
         if not hrp then log("Character not found", "Error") return end
         local p = hrp.Position
         local msg = string.format("X=%.2f  Y=%.2f  Z=%.2f", p.X, p.Y, p.Z)
@@ -235,11 +275,16 @@ local commands = {
         local success, err = pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/dimoonsh195/xcode/main/xcode.lua", true))()
         end)
-        if success then
-            log("Xcode opened", "Success")
-        else
-            log("Failed to open Xcode: " .. tostring(err), "Error")
-        end
+        if success then log("Xcode opened", "Success")
+        else log("Failed to open Xcode: " .. tostring(err), "Error") end
+    end,
+    ["xdex"] = function()
+        log("Loading DEX...", "Info")
+        local success, err = pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/dimoonsh195/customdex-xdex/main/xdex.lua", true))()
+        end)
+        if success then log("DEX loaded successfully", "Success")
+        else log("Failed to load DEX: " .. tostring(err), "Error") end
     end,
     ["clear"] = function()
         for _, child in ipairs(LogFrame:GetChildren()) do
@@ -283,6 +328,37 @@ CommandBox.InputBegan:Connect(function(input)
             historyIndex = math.min(#commandHistory + 1, historyIndex + 1)
             CommandBox.Text = historyIndex <= #commandHistory and commandHistory[historyIndex] or ""
         end
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if closed or not ConsoleFrame.Parent then
+        if cursorGui and cursorGui.Parent and cursorGui.Enabled then cursorGui.Enabled = false end
+        return
+    end
+    local mp = UIS:GetMouseLocation()
+    local ap = ConsoleFrame.AbsolutePosition
+    local as = ConsoleFrame.AbsoluteSize
+    local inside = mp.X >= ap.X and mp.X <= ap.X + as.X and mp.Y >= ap.Y and mp.Y <= ap.Y + as.Y
+    local xcodeOpen = false
+    if guiParent:FindFirstChild("XcodeGui") then
+        local xwin = guiParent.XcodeGui:FindFirstChildOfClass("Frame")
+        if xwin then
+            local xap = xwin.AbsolutePosition
+            local xas = xwin.AbsoluteSize
+            if mp.X >= xap.X and mp.X <= xap.X + xas.X and mp.Y >= xap.Y and mp.Y <= xap.Y + xas.Y then xcodeOpen = true end
+        end
+    end
+    if (inside or xcodeOpen) and ConsoleFrame.Visible then
+        pcall(function()
+            local cg = game:GetService("CoreGui")
+            local xboatCursor = cg:FindFirstChild("XboatCursor")
+            if xboatCursor then xboatCursor.Enabled = false end
+        end)
+        if not cursorGui.Enabled then cursorGui.Enabled = true; UIS.MouseIconEnabled = false end
+        cursorFrame.Position = UDim2.new(0, mp.X - 9, 0, mp.Y - 9)
+    else
+        if cursorGui.Enabled then cursorGui.Enabled = false; UIS.MouseIconEnabled = true end
     end
 end)
 
