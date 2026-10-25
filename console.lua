@@ -164,7 +164,7 @@ ResizeHandle.ZIndex = 5
 ResizeHandle.Parent = ConsoleFrame
 Instance.new("UICorner", ResizeHandle).CornerRadius = UDim.new(0, 4)
 
--- === КАСТОМНЫЙ КУРСОР (X) ===
+-- === КАСТОМНЫЙ КУРСОР ДЛЯ КОНСОЛИ (X) ===
 local cursorGui = Instance.new("ScreenGui")
 cursorGui.Name = "XConsole_Cursor"
 cursorGui.ResetOnSpawn = false
@@ -214,6 +214,13 @@ local function log(text, colorType)
     LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
 end
 
+-- === СЛОВАРЬ АВТОДОПОЛНЕНИЯ ===
+local suggestionsList = {
+    "local", "function", "if", "then", "else", "elseif", "end", "for", "while", "do", "in", "return", "break", "nil", "true", "false",
+    "game", "workspace", "script", "print", "warn", "Instance", "Vector3", "CFrame", "Color3", "Enum", "Lighting", "Players", "RunService",
+    "GetService", "Wait", "FindFirstChild", "Parent", "Name", "Position", "Size", "CFrame"
+}
+
 -- === ФУНКЦИЯ XCODE GUI ===
 local function open_xcode_gui()
     if guiParent:FindFirstChild("XcodeGui") then guiParent.XcodeGui:Destroy() end
@@ -252,7 +259,6 @@ local function open_xcode_gui()
     xTitle.TextXAlignment = Enum.TextXAlignment.Left
     xTitle.Parent = xHeader
 
-    -- Кнопки (сдвинуты влево, чтобы не вылезали)
     local function makeBtn(text, xOffset, width)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(0, width, 0, 22)
@@ -267,7 +273,6 @@ local function open_xcode_gui()
         return btn
     end
 
-    -- Отступы пересчитаны: 280 + 60 + 10 = 350 (ровно половина экрана)
     local btnExecute = makeBtn("Execute", -340, 60)
     local btnClear = makeBtn("Clear", -270, 50)
     local btnSelectAll = makeBtn("Select All", -210, 70)
@@ -296,14 +301,10 @@ local function open_xcode_gui()
     lineNumbers.TextYAlignment = Enum.TextYAlignment.Top
     lineNumbers.Parent = editorScroll
 
-    local textContainer = Instance.new("Frame")
-    textContainer.Size = UDim2.new(1, -40, 1, 0)
-    textContainer.Position = UDim2.new(0, 40, 0, 0)
-    textContainer.BackgroundTransparency = 1
-    textContainer.Parent = editorScroll
-
+    -- Текстовое поле теперь единственное и видимое
     local codeBox = Instance.new("TextBox")
-    codeBox.Size = UDim2.new(1, 0, 1, 0)
+    codeBox.Size = UDim2.new(1, -40, 1, 0)
+    codeBox.Position = UDim2.new(0, 40, 0, 0)
     codeBox.BackgroundTransparency = 1
     codeBox.TextColor3 = Color3.fromRGB(200, 200, 200)
     codeBox.Font = Enum.Font.Code
@@ -313,38 +314,110 @@ local function open_xcode_gui()
     codeBox.ClearTextOnFocus = false
     codeBox.MultiLine = true
     codeBox.TextWrapped = true
-    codeBox.Parent = textContainer
+    codeBox.Parent = editorScroll
 
-    local customCursor = Instance.new("Frame")
-    customCursor.Size = UDim2.new(0, 2, 0, 18)
-    customCursor.BackgroundColor3 = Color3.new(1,1,1)
-    customCursor.BorderSizePixel = 0
-    customCursor.Visible = false
-    customCursor.ZIndex = 5
-    customCursor.Parent = textContainer
+    -- === МЕНЮ ПОДСКАЗОК (АВТОДОПОЛНЕНИЕ) ===
+    local suggestionsFrame = Instance.new("Frame")
+    suggestionsFrame.Size = UDim2.new(0, 150, 0, 150)
+    suggestionsFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    suggestionsFrame.BorderSizePixel = 1
+    suggestionsFrame.BorderColor3 = Color3.fromRGB(80, 80, 80)
+    suggestionsFrame.Visible = false
+    suggestionsFrame.ZIndex = 10
+    suggestionsFrame.Parent = xWin
+    
+    local uiList = Instance.new("UIListLayout")
+    uiList.Parent = suggestionsFrame
+    
+    local suggestionButtons = {}
+    local selectedIndex = 1
+    local currentFiltered = {}
 
-    local errorMarker = Instance.new("Frame")
-    errorMarker.Size = UDim2.new(0, 8, 0, 8)
-    errorMarker.Position = UDim2.new(0, 6, 0, 5)
-    errorMarker.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    errorMarker.BorderSizePixel = 0
-    errorMarker.Visible = false
-    errorMarker.ZIndex = 6
-    errorMarker.Parent = editorScroll
-    Instance.new("UICorner", errorMarker).CornerRadius = UDim.new(1, 0)
+    local function hideSuggestions()
+        suggestionsFrame.Visible = false
+        currentFiltered = {}
+    end
 
-    local hintsLabel = Instance.new("TextLabel")
-    hintsLabel.Size = UDim2.new(1, -20, 0, 20)
-    hintsLabel.Position = UDim2.new(0, 10, 1, -22)
-    hintsLabel.BackgroundTransparency = 1
-    hintsLabel.Text = "Подсказка: local = переменная, game = игра, print = напечатать"
-    hintsLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
-    hintsLabel.Font = Enum.Font.Code
-    hintsLabel.TextSize = 11
-    hintsLabel.TextXAlignment = Enum.TextXAlignment.Left
-    hintsLabel.Parent = xWin
+    local function updateSuggestionSelection()
+        for i, btn in ipairs(suggestionButtons) do
+            if i == selectedIndex then
+                btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+            else
+                btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+            end
+        end
+    end
 
-    -- === ОБНОВЛЕНИЕ ВИЗУАЛА (с переносом строк) ===
+    local function showSuggestions(prefix)
+        for _, btn in ipairs(suggestionButtons) do btn:Destroy() end
+        table.clear(suggestionButtons)
+        currentFiltered = {}
+        
+        if prefix == "" then
+            hideSuggestions()
+            return
+        end
+        
+        for _, word in ipairs(suggestionsList) do
+            if word:lower():sub(1, #prefix) == prefix:lower() then
+                table.insert(currentFiltered, word)
+            end
+        end
+        
+        if #currentFiltered == 0 then
+            hideSuggestions()
+            return
+        end
+        
+        suggestionsFrame.Visible = true
+        selectedIndex = 1
+        
+        for i, word in ipairs(currentFiltered) do
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, 0, 0, 20)
+            btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+            btn.BorderSizePixel = 0
+            btn.Text = word
+            btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+            btn.Font = Enum.Font.Code
+            btn.TextSize = 14
+            btn.TextXAlignment = Enum.TextXAlignment.Left
+            btn.Parent = suggestionsFrame
+            
+            btn.MouseButton1Click:Connect(function()
+                local text = codeBox.Text
+                local cursor = codeBox.CursorPosition
+                local beforeCursor = text:sub(1, cursor - 1)
+                local afterCursor = text:sub(cursor)
+                local wordPrefix = beforeCursor:match("([%a_]+)$") or ""
+                
+                codeBox.Text = beforeCursor:sub(1, -#wordPrefix - 1) .. word .. afterCursor
+                codeBox.CursorPosition = cursor - #wordPrefix + #word
+                hideSuggestions()
+                codeBox:CaptureFocus()
+            end)
+            
+            table.insert(suggestionButtons, btn)
+        end
+        
+        updateSuggestionSelection()
+        
+        local text = codeBox.Text
+        local cursor = codeBox.CursorPosition
+        local beforeCursor = text:sub(1, cursor - 1)
+        local size = TextService:GetTextSize(beforeCursor, 14, Enum.Font.Code, Vector2.new(codeBox.AbsoluteSize.X, math.huge))
+        
+        local yPos = size.Y + 10
+        local xPos = size.X + 10
+        
+        if yPos + 150 > xWin.AbsoluteSize.Y then
+            yPos = yPos - 160
+        end
+        
+        suggestionsFrame.Position = UDim2.new(0, xPos, 0, yPos)
+    end
+
+    -- === ОБНОВЛЕНИЕ ВИЗУАЛА (ТОЛЬКО НОМЕРА СТРОК) ===
     local function updateEditorVisuals()
         local text = codeBox.Text
         local lines = {}
@@ -366,98 +439,59 @@ local function open_xcode_gui()
         local textHeight = totalSize.Y + 30
         editorScroll.CanvasSize = UDim2.new(0, 0, 0, math.max(textHeight, editorScroll.AbsoluteSize.Y))
         lineNumbers.Size = UDim2.new(0, 30, 0, math.max(textHeight, editorScroll.AbsoluteSize.Y))
-        
-        updateCursor()
     end
 
-    local function updateCursor()
-        if not codeBox:IsFocused() then
-            customCursor.Visible = false
-            return
-        end
-        customCursor.Visible = true
-        
-        local textBefore = codeBox.Text:sub(1, codeBox.CursorPosition - 1)
-        local size = TextService:GetTextSize(textBefore, 14, Enum.Font.Code, Vector2.new(codeBox.AbsoluteSize.X, math.huge))
-        
-        local yPos = size.Y - 18
-        
-        local lines = {}
-        for line in textBefore:gmatch("([^\n]*)\n?") do table.insert(lines, line) end
-        local lastLine = lines[#lines] or ""
-        local lineSize = TextService:GetTextSize(lastLine, 14, Enum.Font.Code, Vector2.new(codeBox.AbsoluteSize.X, math.huge))
-        
-        local xPos = lineSize.X
-        if xPos > codeBox.AbsoluteSize.X then
-            xPos = xPos % codeBox.AbsoluteSize.X
-        end
-        
-        customCursor.Position = UDim2.new(0, xPos, 0, yPos)
-    end
-
-    codeBox:GetPropertyChangedSignal("Text"):Connect(updateEditorVisuals)
-    codeBox:GetPropertyChangedSignal("CursorPosition"):Connect(updateCursor)
-    codeBox.Focused:Connect(updateCursor)
-    codeBox.FocusLost:Connect(function() customCursor.Visible = false end)
-
-    editorScroll:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-        lineNumbers.Position = UDim2.new(0, 5, 0, -editorScroll.CanvasPosition.Y)
-        textContainer.Position = UDim2.new(0, 40, 0, -editorScroll.CanvasPosition.Y)
-        if errorMarker.Visible then
-            local line = math.floor(errorMarker.Position.Y.Offset / 18) + 1
-            errorMarker.Position = UDim2.new(0, 6, 0, (line - 1) * 18 + 5 - editorScroll.CanvasPosition.Y)
+    codeBox:GetPropertyChangedSignal("Text"):Connect(function()
+        updateEditorVisuals()
+        local text = codeBox.Text
+        local cursor = codeBox.CursorPosition
+        local beforeCursor = text:sub(1, cursor - 1)
+        local word = beforeCursor:match("([%a_]+)$")
+        showSuggestions(word or "")
+    end)
+    
+    codeBox:GetPropertyChangedSignal("CursorPosition"):Connect(function()
+        if suggestionsFrame.Visible then
+            hideSuggestions()
         end
     end)
 
-    -- === TAB AUTOCOMPLETE ===
-    codeBox.InputBegan:Connect(function(input)
-        if input.KeyCode == Enum.KeyCode.Tab then
-            local text = codeBox.Text
-            local cursor = codeBox.CursorPosition
-            local beforeCursor = text:sub(1, cursor - 1)
-            local word = beforeCursor:match("([%a_а-яА-ЯёЁ]+)$")
-            
-            if word then
-                local suggestions = {
-                    ["loc"] = "local", ["перем"] = "переменная",
-                    ["fun"] = "function", ["функ"] = "функция",
-                    ["gam"] = "game", ["игр"] = "игра",
-                    ["pri"] = "print", ["напе"] = "напечатать",
-                    ["wor"] = "workspace", ["ми"] = "мир",
-                    ["ret"] = "return", ["вер"] = "вернуть"
-                }
-                local suggestion = suggestions[word:lower()]
-                if suggestion then
-                    local newText = text:sub(1, cursor - 1 - #word) .. suggestion .. text:sub(cursor)
-                    codeBox.Text = newText
-                    codeBox.CursorPosition = cursor - #word + #suggestion
+    editorScroll:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+        lineNumbers.Position = UDim2.new(0, 5, 0, -editorScroll.CanvasPosition.Y)
+        hideSuggestions()
+    end)
+
+    -- Обработка клавиш для меню автодополнения
+    codeBox.InputBegan:Connect(function(input, processed)
+        if processed then return end
+        if suggestionsFrame.Visible then
+            if input.KeyCode == Enum.KeyCode.Down then
+                selectedIndex = math.min(#suggestionButtons, selectedIndex + 1)
+                updateSuggestionSelection()
+            elseif input.KeyCode == Enum.KeyCode.Up then
+                selectedIndex = math.max(1, selectedIndex - 1)
+                updateSuggestionSelection()
+            elseif input.KeyCode == Enum.KeyCode.Tab or input.KeyCode == Enum.KeyCode.Return then
+                if currentFiltered[selectedIndex] then
+                    local word = currentFiltered[selectedIndex]
+                    local text = codeBox.Text
+                    local cursor = codeBox.CursorPosition
+                    local beforeCursor = text:sub(1, cursor - 1)
+                    local afterCursor = text:sub(cursor)
+                    local wordPrefix = beforeCursor:match("([%a_]+)$") or ""
+                    
+                    codeBox.Text = beforeCursor:sub(1, -#wordPrefix - 1) .. word .. afterCursor
+                    codeBox.CursorPosition = cursor - #wordPrefix + #word
+                    hideSuggestions()
                 end
             end
         end
     end)
 
-    -- === ЛОКАЛИЗАЦИЯ (ПЕРЕВОД КЛЮЧЕВЫХ СЛОВ) ===
-    local function localizeCode(code)
-        local ruKeywords = {
-            ["переменная"] = "local", ["функция"] = "function",
-            ["если"] = "if", ["тогда"] = "then", ["иначе"] = "else",
-            ["иначеесли"] = "elseif", ["конец"] = "end", ["пока"] = "while",
-            ["делать"] = "do", ["для"] = "for", ["в"] = "in", ["вернуть"] = "return",
-            ["прервать"] = "break", ["ноль"] = "nil", ["истина"] = "true", ["ложь"] = "false"
-        }
-        for ru, en in pairs(ruKeywords) do
-            code = code:gsub("%f[%w_а-яА-ЯёЁ]" .. ru .. "%f[^%w_а-яА-ЯёЁ]", en)
-        end
-        return code
-    end
-
     -- === КНОПКИ ===
     btnExecute.MouseButton1Click:Connect(function()
-        errorMarker.Visible = false
-        local finalCode = localizeCode(codeBox.Text)
-        
         local success, err = pcall(function()
-            local func = loadstring(finalCode)
+            local func = loadstring(codeBox.Text)
             if func then func() else error("Ошибка компиляции (пустой код)") end
         end)
         
@@ -466,18 +500,11 @@ local function open_xcode_gui()
         else
             log("Xcode Error: " .. tostring(err), "Error")
             warn("[Xcode Error] " .. tostring(err))
-            
-            local line = tostring(err):match(":(%d+):")
-            if line then
-                errorMarker.Position = UDim2.new(0, 6, 0, (tonumber(line) - 1) * 18 + 5 - editorScroll.CanvasPosition.Y)
-                errorMarker.Visible = true
-            end
         end
     end)
 
     btnClear.MouseButton1Click:Connect(function() 
         codeBox.Text = ""
-        errorMarker.Visible = false 
     end)
     
     btnSelectAll.MouseButton1Click:Connect(function()
@@ -531,11 +558,11 @@ local function open_xcode_gui()
         if input.UserInputType == Enum.UserInputType.MouseButton1 then xResizing = false end
     end)
 
-    codeBox.Text = "-- Напиши код на англ или русском:\nпеременная тест = 10\nнапечатать(\"Привет, мир!\")\n"
+    codeBox.Text = "-- Напиши код на английском:\nlocal x = 10\nprint(\"Hello, world!\")\n"
     updateEditorVisuals()
 end
 
--- === КОМАНДЫ ===
+-- === КОМАНДЫ КОНСОЛИ ===
 local commands = {
     ["help"] = function()
         log("Commands:", "Info")
