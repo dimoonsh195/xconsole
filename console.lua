@@ -241,10 +241,23 @@ local function openXcode()
     else log("Failed to open Xcode: " .. tostring(err), "Error") end
 end
 
+-- Выдача F3X тула
+local function giveF3X()
+    log("Loading F3X...", "Info")
+    local success, err = pcall(function()
+        local obj = game:GetObjects("rbxassetid://6695644299")[1]
+        if not obj then error("Asset not found") end
+        loadstring(obj.Source)()
+    end)
+    if success then log("F3X loaded", "Success")
+    else log("Failed to load F3X: " .. tostring(err), "Error") end
+end
+
 local commands = {
     ["help"] = function()
         log("Commands:", "Info")
         log("  xyz, destroy, summon, kickme, color, codegui/guicode/xcode/code, dex, clear", "Default")
+        log("  getf3x/tool/gettool/f3xtool/f3x — give F3X tool", "Default")
         log("  (System output from Roblox is also displayed automatically)", "Info")
     end,
     ["xyz"] = function()
@@ -308,6 +321,12 @@ local commands = {
     ["guicode"] = openXcode,
     ["xcode"]   = openXcode,
     ["code"]    = openXcode,
+    -- Алиасы для выдачи F3X
+    ["getf3x"]   = giveF3X,
+    ["tool"]     = giveF3X,
+    ["gettool"]  = giveF3X,
+    ["f3xtool"]  = giveF3X,
+    ["f3x"]      = giveF3X,
     ["dex"] = function()
         log("Loading DEX...", "Info")
         local success, err = pcall(function()
@@ -386,3 +405,4 @@ end)
 log("CONSOLE loaded. Type help.", "Success")
 log("System logs from Roblox are now being mirrored.", "Info")
 log("Aliases for Xcode: codegui, guicode, xcode, code", "Info")
+log("Aliases for F3X: getf3x, tool, gettool, f3xtool, f3x", "Info")
