@@ -17,7 +17,7 @@ local COLORS = {
     Info = Color3.fromRGB(255, 200, 100),
     Echo = Color3.fromRGB(150, 150, 150),
     Default = Color3.fromRGB(255, 255, 255),
-    Output = Color3.fromRGB(200, 200, 255), -- Цвет для системных сообщений
+    Output = Color3.fromRGB(200, 200, 255), 
 }
 
 local CMD_COLORS = {
@@ -34,7 +34,7 @@ local CMD_COLORS = {
 local commandHistory = {}
 local historyIndex = 0
 local closed = false
-local logConnection = nil -- Для хранения подключения к LogService
+local logConnection = nil -- Для хранения подключения к Logservice
 
 local function getGuiParent()
     if type(gethui) == "function" then
@@ -227,20 +227,20 @@ local function getSystemLogData(messageType)
     end
 end
 
--- [НОВОЕ] Подключение к системному логу Roblox
+-- Подключение к системному логу Roblox
 if logConnection then logConnection:Disconnect() end
 logConnection = LogService.MessageOut:Connect(function(message, messageType)
-    -- Проверяем, что консоль ещё существует, чтобы избежать ошибок
+    -- Провер, что консоль ещё существует
     if not ConsoleFrame or not ConsoleFrame.Parent then
         if logConnection then logConnection:Disconnect() end
         return
     end
     
     local prefix, color = getSystemLogData(messageType)
-    -- Форматируем текст: префикс + сообщение
+    -- Форматируем текст префикс+сообщение
     local formattedText = string.format("%s %s", prefix, tostring(message))
     
-    -- Выводим в лог, но с другим цветом, чтобы отличать от команд пользователя
+    -- Выводим в лог но с другим цветом чтобы отличать от команд пользователя
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, -5, 0, 18)
     label.BackgroundTransparency = 1
@@ -256,7 +256,7 @@ logConnection = LogService.MessageOut:Connect(function(message, messageType)
     LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
 end)
 
--- При закрытии консоли отключаем подключение, чтобы не тратить ресурсы
+-- При закрытии консоли отключаем подключениечтобы не тратить ресурсы
 CloseBtn.MouseButton1Click:Connect(function()
     closed = true
     if logConnection then
