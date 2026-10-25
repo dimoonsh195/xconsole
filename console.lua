@@ -50,6 +50,7 @@ if not guiParent then return end
 
 if guiParent:FindFirstChild("SimpleConsole") then guiParent.SimpleConsole:Destroy() end
 if guiParent:FindFirstChild("XConsole_Cursor") then guiParent.XConsole_Cursor:Destroy() end
+if guiParent:FindFirstChild("XcodeGui") then guiParent.XcodeGui:Destroy() end
 pcall(function()
     local cg = game:GetService("CoreGui")
     if cg:FindFirstChild("XConsole_Cursor") then cg.XConsole_Cursor:Destroy() end
@@ -178,7 +179,7 @@ ResizeHandle.ZIndex = 5
 ResizeHandle.Parent = ConsoleFrame
 Instance.new("UICorner", ResizeHandle).CornerRadius = UDim.new(0, 4)
 
--- === CUSTOM CURSOR (X-shape) ===
+-- === CUSTOM CURSOR ===
 local cursorGui = Instance.new("ScreenGui")
 cursorGui.Name = "XConsole_Cursor"
 cursorGui.ResetOnSpawn = false
@@ -217,7 +218,7 @@ stroke2.Color = Color3.new(0, 0, 0)
 stroke2.Thickness = 1
 stroke2.Transparency = 0.3
 
--- === LOG ===
+-- === LOG FUNCTION ===
 local function log(text, colorType)
     local color = COLORS[colorType] or COLORS.Default
     local label = Instance.new("TextLabel")
@@ -245,15 +246,194 @@ local function getChar()
     return char, hum, hrp
 end
 
+-- === XCODE GUI LOGIC ===
+local function open_xcode_gui()
+    if guiParent:FindFirstChild("XcodeGui") then
+        guiParent.XcodeGui:Destroy()
+    end
+
+    local xGui = Instance.new("ScreenGui")
+    xGui.Name = "XcodeGui"
+    xGui.ResetOnSpawn = false
+    xGui.IgnoreGuiInset = true
+    xGui.DisplayOrder = 6000
+    xGui.Parent = guiParent
+
+    local xWin = Instance.new("Frame")
+    xWin.Size = UDim2.new(0, 600, 0, 400)
+    xWin.Position = UDim2.new(0.5, -300, 0.5, -200)
+    xWin.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    xWin.BorderSizePixel = 0
+    xWin.Active = true
+    xWin.Draggable = true
+    xWin.Parent = xGui
+    Instance.new("UICorner", xWin).CornerRadius = UDim.new(0, 6)
+
+    local xHeader = Instance.new("Frame")
+    xHeader.Size = UDim2.new(1, 0, 0, 30)
+    xHeader.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    xHeader.Parent = xWin
+    Instance.new("UICorner", xHeader).CornerRadius = UDim.new(0, 6)
+
+    local xTitle = Instance.new("TextLabel")
+    xTitle.Size = UDim2.new(0, 100, 1, 0)
+    xTitle.Position = UDim2.new(0, 10, 0, 0)
+    xTitle.BackgroundTransparency = 1
+    xTitle.Text = "Xcode"
+    xTitle.TextColor3 = Color3.fromRGB(200, 200, 200)
+    xTitle.Font = Enum.Font.Code
+    xTitle.TextSize = 14
+    xTitle.TextXAlignment = Enum.TextXAlignment.Left
+    xTitle.Parent = xHeader
+
+    -- Кнопки
+    local btnExecute = Instance.new("TextButton")
+    btnExecute.Size = UDim2.new(0, 60, 0, 22)
+    btnExecute.Position = UDim2.new(1, -240, 0, 4)
+    btnExecute.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    btnExecute.Text = "Execute"
+    btnExecute.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btnExecute.Font = Enum.Font.Code
+    btnExecute.TextSize = 12
+    btnExecute.Parent = xHeader
+
+    local btnClear = Instance.new("TextButton")
+    btnClear.Size = UDim2.new(0, 60, 0, 22)
+    btnClear.Position = UDim2.new(1, -170, 0, 4)
+    btnClear.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    btnClear.Text = "Clear"
+    btnClear.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btnClear.Font = Enum.Font.Code
+    btnClear.TextSize = 12
+    btnClear.Parent = xHeader
+
+    local btnSave = Instance.new("TextButton")
+    btnSave.Size = UDim2.new(0, 60, 0, 22)
+    btnSave.Position = UDim2.new(1, -100, 0, 4)
+    btnSave.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    btnSave.Text = "Save"
+    btnSave.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btnSave.Font = Enum.Font.Code
+    btnSave.TextSize = 12
+    btnSave.Parent = xHeader
+
+    local btnClose = Instance.new("TextButton")
+    btnClose.Size = UDim2.new(0, 22, 0, 22)
+    btnClose.Position = UDim2.new(1, -30, 0, 4)
+    btnClose.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    btnClose.Text = "X"
+    btnClose.TextColor3 = Color3.new(1, 1, 1)
+    btnClose.Font = Enum.Font.Code
+    btnClose.TextSize = 14
+    btnClose.Parent = xHeader
+
+    -- Редактор
+    local editorScroll = Instance.new("ScrollingFrame")
+    editorScroll.Size = UDim2.new(1, -20, 1, -40)
+    editorScroll.Position = UDim2.new(0, 10, 0, 35)
+    editorScroll.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    editorScroll.BorderSizePixel = 0
+    editorScroll.ScrollBarThickness = 8
+    editorScroll.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
+    editorScroll.CanvasSize = UDim2.new(0, 0, 0, 1000)
+    editorScroll.Parent = xWin
+    Instance.new("UICorner", editorScroll).CornerRadius = UDim.new(0, 4)
+
+    local lineNumbers = Instance.new("TextLabel")
+    lineNumbers.Size = UDim2.new(0, 30, 1, 0)
+    lineNumbers.Position = UDim2.new(0, 0, 0, 0)
+    lineNumbers.BackgroundTransparency = 1
+    lineNumbers.Text = "1"
+    lineNumbers.TextColor3 = Color3.fromRGB(100, 100, 100)
+    lineNumbers.Font = Enum.Font.Code
+    lineNumbers.TextSize = 14
+    lineNumbers.TextXAlignment = Enum.TextXAlignment.Right
+    lineNumbers.TextYAlignment = Enum.TextYAlignment.Top
+    lineNumbers.Parent = editorScroll
+
+    local codeBox = Instance.new("TextBox")
+    codeBox.Size = UDim2.new(1, -35, 1, 0)
+    codeBox.Position = UDim2.new(0, 35, 0, 0)
+    codeBox.BackgroundTransparency = 1
+    codeBox.Text = "-- Напиши свой код здесь\nprint(\"Hello from Xcode!\")\n"
+    codeBox.TextColor3 = Color3.fromRGB(200, 200, 200)
+    codeBox.Font = Enum.Font.Code
+    codeBox.TextSize = 14
+    codeBox.TextXAlignment = Enum.TextXAlignment.Left
+    codeBox.TextYAlignment = Enum.TextYAlignment.Top
+    codeBox.ClearTextOnFocus = false
+    codeBox.MultiLine = true
+    codeBox.Parent = editorScroll
+
+    -- Обновление строк
+    local function updateLines()
+        local text = codeBox.Text
+        local count = 1
+        for _ in text:gmatch("\n") do count = count + 1 end
+        local str = ""
+        for i = 1, count do str = str .. i .. "\n" end
+        lineNumbers.Text = str
+        
+        local textHeight = codeBox.TextBounds.Y + 30
+        editorScroll.CanvasSize = UDim2.new(0, 0, 0, math.max(textHeight, editorScroll.AbsoluteSize.Y))
+        lineNumbers.Size = UDim2.new(0, 30, 0, math.max(textHeight, editorScroll.AbsoluteSize.Y))
+    end
+    codeBox:GetPropertyChangedSignal("Text"):Connect(updateLines)
+    updateLines()
+
+    -- Синхронизация скролла
+    editorScroll:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+        lineNumbers.Position = UDim2.new(0, 0, 0, -editorScroll.CanvasPosition.Y)
+    end)
+
+    btnExecute.MouseButton1Click:Connect(function()
+        local success, err = pcall(function()
+            local func = loadstring(codeBox.Text)
+            if func then func() else error("Ошибка компиляции (loadstring вернул nil)") end
+        end)
+        if success then
+            log("Xcode: Скрипт выполнен успешно", "Success")
+        else
+            log("Xcode Error: " .. tostring(err), "Error")
+            warn("[Xcode Error] " .. tostring(err))
+        end
+    end)
+
+    btnClear.MouseButton1Click:Connect(function()
+        codeBox.Text = ""
+    end)
+
+    btnSave.MouseButton1Click:Connect(function()
+        if type(writefile) == "function" then
+            local ok, err = pcall(function()
+                writefile("Xcode_Script.lua", codeBox.Text)
+            end)
+            if ok then
+                log("Xcode: Скрипт сохранен в Xcode_Script.lua", "Success")
+            else
+                log("Xcode Save Error: " .. tostring(err), "Error")
+            end
+        else
+            log("Xcode: Функция writefile недоступна", "Error")
+        end
+    end)
+
+    btnClose.MouseButton1Click:Connect(function()
+        xGui:Destroy()
+    end)
+end
+
+-- === COMMANDS ===
 local commands = {
     ["help"] = function()
         log("Commands:", "Info")
-        log("  xyz", "Default")
-        log("  destroy", "Default")
+        log("  xyz - print coordinates", "Default")
+        log("  destroy - delete object under cursor", "Default")
         log("  summon <part|sphere|cylinder|wedge|cornerwedge>", "Default")
-        log("  kickme <reason>", "Default")
-        log("  color <bg><text>", "Default")
-        log("  clear", "Default")
+        log("  kickme <reason> - kick yourself", "Default")
+        log("  color <bg><text> - change colors", "Default")
+        log("  codegui - open Xcode editor", "Default")
+        log("  clear - clear log", "Default")
     end,
 
     ["xyz"] = function()
@@ -335,6 +515,11 @@ local commands = {
         end
     end,
 
+    ["codegui"] = function()
+        open_xcode_gui()
+        log("Xcode editor opened", "Success")
+    end,
+
     ["clear"] = function()
         for _, child in ipairs(LogFrame:GetChildren()) do
             if child:IsA("TextLabel") then child:Destroy() end
@@ -343,6 +528,7 @@ local commands = {
     end,
 }
 
+-- === RESIZE LOGIC ===
 local resizing = false
 local startSize, startMouse
 
@@ -432,7 +618,20 @@ RunService.RenderStepped:Connect(function()
     local as = ConsoleFrame.AbsoluteSize
     local inside = mp.X >= ap.X and mp.X <= ap.X + as.X and mp.Y >= ap.Y and mp.Y <= ap.Y + as.Y
 
-    if inside and ConsoleFrame.Visible then
+    -- Проверка, открыт ли Xcode
+    local xcodeOpen = false
+    if guiParent:FindFirstChild("XcodeGui") then
+        local xwin = guiParent.XcodeGui:FindFirstChildOfClass("Frame")
+        if xwin then
+            local xap = xwin.AbsolutePosition
+            local xas = xwin.AbsoluteSize
+            if mp.X >= xap.X and mp.X <= xap.X + xas.X and mp.Y >= xap.Y and mp.Y <= xap.Y + xas.Y then
+                xcodeOpen = true
+            end
+        end
+    end
+
+    if (inside or xcodeOpen) and ConsoleFrame.Visible then
         pcall(function()
             local cg = game:GetService("CoreGui")
             local xboatCursor = cg:FindFirstChild("XboatCursor")
