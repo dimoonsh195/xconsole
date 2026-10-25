@@ -276,7 +276,6 @@ local function giveGun()
         tool.CanBeDropped = false
         tool.ToolTip = "M249 SAW"
 
-        -- Корпус-рукоятка
         local handle = Instance.new("Part")
         handle.Name = "Handle"
         handle.Size = Vector3.new(0.5, 0.7, 3)
@@ -286,7 +285,6 @@ local function giveGun()
         handle.BottomSurface = Enum.SurfaceType.Smooth
         handle.Parent = tool
 
-        -- Ствол
         local barrel = Instance.new("Part")
         barrel.Size = Vector3.new(0.2, 0.2, 2.2)
         barrel.Color = Color3.fromRGB(20, 20, 20)
@@ -300,7 +298,6 @@ local function giveGun()
         weld.C0 = CFrame.new(0, 0.1, -2.4)
         weld.Parent = handle
 
-        -- Магазин
         local mag = Instance.new("Part")
         mag.Size = Vector3.new(0.35, 0.9, 0.4)
         mag.Color = Color3.fromRGB(25, 25, 25)
@@ -314,7 +311,6 @@ local function giveGun()
         magWeld.C0 = CFrame.new(0, -0.7, -0.6)
         magWeld.Parent = handle
 
-        -- Вспышка
         local muzzleFlash = Instance.new("ParticleEmitter")
         muzzleFlash.Texture = "rbxassetid://296874871"
         muzzleFlash.LightEmission = 1
@@ -333,7 +329,6 @@ local function giveGun()
         muzzleFlash.Color = ColorSequence.new(Color3.fromRGB(255, 220, 100))
         muzzleFlash.Parent = barrel
 
-        -- Звук
         local shootSound = Instance.new("Sound")
         shootSound.Name = "ShootSound"
         shootSound.SoundId = "rbxassetid://131886985"
@@ -369,7 +364,6 @@ local function giveGun()
 
             muzzleFlash:Emit(8)
 
-            -- СТРЕЛЬБА ТОЧНО В ЦЕЛЬ (Используем камеру и позицию мыши)
             local mouse = LocalPlayer:GetMouse()
             local camPos = workspace.CurrentCamera.CFrame.Position
             local targetPos = mouse.Hit.Position
@@ -380,11 +374,9 @@ local function giveGun()
             rayParams.FilterDescendantsInstances = { char, tool }
             rayParams.IgnoreWater = true
 
-            -- Делаем рейкаст из камеры в точку клика
             local result = workspace:Raycast(camPos, direction * 1000, rayParams)
             local hitPos = result and result.Position or (camPos + direction * 1000)
 
-            -- Рисуем трассер от ствола до точки попадания
             local origin = barrel.Position
             local tracer = Instance.new("Part")
             tracer.Size = Vector3.new(0.05, 0.05, (hitPos - origin).Magnitude)
@@ -398,7 +390,6 @@ local function giveGun()
             TweenService:Create(tracer, TweenInfo.new(0.1), { Transparency = 1 }):Play()
             Debris:AddItem(tracer, 0.15)
 
-            -- Удаление объекта (кроме земли)
             if result and result.Instance then
                 local hit = result.Instance
                 if not hit:IsA("Terrain") then
@@ -427,7 +418,6 @@ local function giveGun()
         tool.Deactivated:Connect(function() firing = false end)
         tool.Unequipped:Connect(function() firing = false end)
 
-        -- Сразу в руки
         tool.Parent = bp
         hum:EquipTool(tool)
         
@@ -438,12 +428,98 @@ local function giveGun()
     end
 end
 
+-- Телепорт к игроку
+local function tpToPlayer(args)
+    local players = Players:GetPlayers()
+    
+    -- Список игроков, если аргументов нет
+    if #args < 1 then
+        log("Usage: tp <player name>", "Info")
+        log("Online players:", "Info")
+        for _, p in ipairs(players) do
+            if p ~= LocalPlayer then
+                log("  " .. p.Name .. " (DisplayName: " .. p.DisplayName .. ")", "Default")
+            end
+        end
+        return
+    end
+
+    local query = table.concat(args, " "):lower()
+    local targetPlr = nil
+    local targetChar = nil
+    local targetHRP = nil
+
+    -- Точное совпадение по имени или DisplayName
+    for _, p in ipairs(players) do
+        if p ~= LocalPlayer then
+            if p.Name:lower() == query or p.DisplayName:lower() == query then
+                targetPlr = p
+                break
+            end
+        end
+    end
+
+    -- Частичное совпадение
+    if not targetPlr then
+        for _, p in ipairs(players) do
+            if p ~= LocalPlayer then
+                if p.Name:lower():find(query, 1, true) or p.DisplayName:lower():find(query, 1, true) then
+                    targetPlr = p
+                    break
+                end
+            end
+        end
+    end
+
+    if not targetPlr then
+        log("Player not found: " .. query, "Error")
+        return
+    end
+
+    targetChar = targetPlr.Character
+    targetHRP = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+    if not targetHRP then
+        log("Target has no character: " .. targetPlr.Name, "Error")
+        return
+    end
+
+    local myChar, myHum, myHRP = getChar()
+    if not myChar or not myHRP then
+        log("Your character not found", "Error")
+        return
+    end
+
+    -- Позиционируемся чуть позади и над целью, чтобы не вклиниться
+    local targetCF = targetHRP.CFrame
+    local teleportCF = targetCF * CFrame.new(0, 2, 3)
+
+    local ok = pcall(function()
+        myChar:PivotTo(teleportCF)
+    end)
+    if not ok then
+        pcall(function()
+            myHRP.CFrame = teleportCF
+        end)
+    end
+
+    -- Сбрасываем скорость, чтобы не улететь
+    pcall(function()
+        myHRP.AssemblyLinearVelocity = Vector3.zero
+        myHRP.AssemblyAngularVelocity = Vector3.zero
+    end)
+
+    log("Teleported to " .. targetPlr.Name .. " (" .. targetPlr.DisplayName .. ")", "Success")
+end
+
 local commands = {
     ["help"] = function()
         log("Commands:", "Info")
-        log("  xyz, destroy, summon, kickme, color, codegui/guicode/xcode/code, dex, clear", "Default")
-        log("  getf3x/tool/gettool/f3xtool/f3x — give F3X tool", "Default")
-        log("  gun/m249 — give precise M249", "Default")
+        log("  xyz, destroy, summon, kickme, color, clear", "Default")
+        log("  tp <name> - teleport to player (no args = list)", "Default")
+        log("  codegui/guicode/xcode/code - open Xcode", "Default")
+        log("  getf3x/tool/gettool/f3xtool/f3x - give F3X tool", "Default")
+        log("  gun/m249 - give precise M249", "Default")
+        log("  dex - load DEX Explorer", "Default")
         log("  (System output from Roblox is also displayed automatically)", "Info")
     end,
     ["xyz"] = function()
@@ -502,6 +578,10 @@ local commands = {
             log("Invalid color code", "Error")
         end
     end,
+    -- Телепорт
+    ["tp"]   = tpToPlayer,
+    ["to"]   = tpToPlayer,   -- алиас
+    ["goto"] = tpToPlayer,   -- алиас
     -- Алиасы для открытия Xcode
     ["codegui"] = openXcode,
     ["guicode"] = openXcode,
@@ -596,3 +676,4 @@ log("System logs from Roblox are now being mirrored.", "Info")
 log("Aliases for Xcode: codegui, guicode, xcode, code", "Info")
 log("Aliases for F3X: getf3x, tool, gettool, f3xtool, f3x", "Info")
 log("Aliases for M249: gun, m249", "Info")
+log("Teleport: tp <name> | tp (list players)", "Info")
