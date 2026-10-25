@@ -2,6 +2,8 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local LogService = game:GetService("LogService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
 local LocalPlayer = Players.LocalPlayer
 
 local CONFIG = {
@@ -253,11 +255,194 @@ local function giveF3X()
     else log("Failed to load F3X: " .. tostring(err), "Error") end
 end
 
+-- Выдача M249
+local function giveGun()
+    log("Creating M249...", "Info")
+    local success, err = pcall(function()
+        local char = LocalPlayer.Character
+        if not char then error("No character") end
+        local bp = LocalPlayer:FindFirstChild("Backpack")
+        if bp and bp:FindFirstChild("M249") then bp.M249:Destroy() end
+        if char:FindFirstChild("M249") then char.M249:Destroy() end
+
+        local tool = Instance.new("Tool")
+        tool.Name = "M249"
+        tool.RequiresHandle = true
+        tool.CanBeDropped = false
+        tool.ToolTip = "M249 SAW"
+
+        -- Корпус-рукоятка
+        local handle = Instance.new("Part")
+        handle.Name = "Handle"
+        handle.Size = Vector3.new(0.5, 0.7, 3)
+        handle.Color = Color3.fromRGB(35, 35, 35)
+        handle.Material = Enum.Material.Metal
+        handle.TopSurface = Enum.SurfaceType.Smooth
+        handle.BottomSurface = Enum.SurfaceType.Smooth
+        handle.Parent = tool
+
+        -- Ствол
+        local barrel = Instance.new("Part")
+        barrel.Size = Vector3.new(0.2, 0.2, 2.2)
+        barrel.Color = Color3.fromRGB(20, 20, 20)
+        barrel.Material = Enum.Material.Metal
+        barrel.CanCollide = false
+        barrel.Massless = true
+        barrel.Parent = tool
+        local weld = Instance.new("Weld")
+        weld.Part0 = handle
+        weld.Part1 = barrel
+        weld.C0 = CFrame.new(0, 0.1, -2.4)
+        weld.Parent = handle
+
+        -- Магазин
+        local mag = Instance.new("Part")
+        mag.Size = Vector3.new(0.35, 0.9, 0.4)
+        mag.Color = Color3.fromRGB(25, 25, 25)
+        mag.Material = Enum.Material.Metal
+        mag.CanCollide = false
+        mag.Massless = true
+        mag.Parent = tool
+        local magWeld = Instance.new("Weld")
+        magWeld.Part0 = handle
+        magWeld.Part1 = mag
+        magWeld.C0 = CFrame.new(0, -0.7, -0.6)
+        magWeld.Parent = handle
+
+        -- Дуло
+        local muzzleAtt = Instance.new("Attachment")
+        muzzleAtt.Name = "Muzzle"
+        muzzleAtt.Position = Vector3.new(0, 0, -1.2)
+        muzzleAtt.Parent = barrel
+
+        -- Вспышка
+        local muzzleFlash = Instance.new("ParticleEmitter")
+        muzzleFlash.Texture = "rbxassetid://296874871"
+        muzzleFlash.LightEmission = 1
+        muzzleFlash.LightInfluence = 0
+        muzzleFlash.Size = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1.2),
+            NumberSequenceKeypoint.new(1, 0)
+        })
+        muzzleFlash.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0),
+            NumberSequenceKeypoint.new(1, 1)
+        })
+        muzzleFlash.Lifetime = NumberRange.new(0.05, 0.1)
+        muzzleFlash.Rate = 0
+        muzzleFlash.Speed = NumberRange.new(0)
+        muzzleFlash.Color = ColorSequence.new(Color3.fromRGB(255, 220, 100))
+        muzzleFlash.Parent = barrel
+
+        -- Звук
+        local shootSound = Instance.new("Sound")
+        shootSound.Name = "ShootSound"
+        shootSound.SoundId = "rbxassetid://3703031373"
+        shootSound.Volume = 0.4
+        shootSound.Parent = handle
+
+        local ammo = 200
+        local fireRate = 0.08
+        local damage = 20
+        local firing = false
+        local fireDebounce = false
+
+        local function fire()
+            if fireDebounce then return end
+            fireDebounce = true
+            task.delay(fireRate, function() fireDebounce = false end)
+
+            if ammo <= 0 then
+                local clickSnd = Instance.new("Sound")
+                clickSnd.SoundId = "rbxassetid://3531185870"
+                clickSnd.Volume = 0.3
+                clickSnd.Parent = handle
+                clickSnd:Play()
+                Debris:AddItem(clickSnd, 1)
+                return
+            end
+            ammo -= 1
+
+            local s = shootSound:Clone()
+            s.Parent = handle
+            s.PlayOnRemove = true
+            s:Destroy()
+            s:Play()
+
+            muzzleFlash:Emit(8)
+
+            local origin = barrel.Position
+            local look = barrel.CFrame.LookVector
+            local spread = Vector3.new(
+                math.random(-30, 30) / 100,
+                math.random(-30, 30) / 100,
+                math.random(-30, 30) / 100
+            )
+            local direction = (look + spread).Unit
+
+            local rayParams = RaycastParams.new()
+            rayParams.FilterType = Enum.RaycastFilterType.Exclude
+            rayParams.FilterDescendantsInstances = { char, tool }
+            rayParams.IgnoreWater = true
+
+            local result = workspace:Raycast(origin, direction * 500, rayParams)
+            local hitPos = result and result.Position or (origin + direction * 500)
+
+            local tracer = Instance.new("Part")
+            tracer.Size = Vector3.new(0.05, 0.05, (hitPos - origin).Magnitude)
+            tracer.CFrame = CFrame.lookAt(origin, hitPos) * CFrame.new(0, 0, -tracer.Size.Z / 2)
+            tracer.Anchored = true
+            tracer.CanCollide = false
+            tracer.Color = Color3.fromRGB(255, 200, 50)
+            tracer.Material = Enum.Material.Neon
+            tracer.Transparency = 0.3
+            tracer.Parent = workspace
+            TweenService:Create(tracer, TweenInfo.new(0.1), { Transparency = 1 }):Play()
+            Debris:AddItem(tracer, 0.15)
+
+            if result and result.Instance then
+                local hit = result.Instance
+                local model = hit:FindFirstAncestorOfClass("Model")
+                local humanoid = model and model:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    humanoid:TakeDamage(damage)
+                end
+                local spark = Instance.new("Part")
+                spark.Size = Vector3.new(0.1, 0.1, 0.1)
+                spark.CFrame = CFrame.new(hitPos)
+                spark.Anchored = true
+                spark.CanCollide = false
+                spark.Color = Color3.fromRGB(255, 150, 50)
+                spark.Material = Enum.Material.Neon
+                spark.Parent = workspace
+                Debris:AddItem(spark, 0.2)
+            end
+        end
+
+        tool.Activated:Connect(function()
+            firing = true
+            while firing and tool.Parent and tool.Parent:IsA("Model") do
+                fire()
+                task.wait(fireRate)
+            end
+        end)
+        tool.Deactivated:Connect(function() firing = false end)
+        tool.Unequipped:Connect(function() firing = false end)
+
+        tool.Parent = char
+        log("M249 given! Ammo: " .. ammo, "Success")
+    end)
+    if not success then
+        log("Failed to create M249: " .. tostring(err), "Error")
+    end
+end
+
 local commands = {
     ["help"] = function()
         log("Commands:", "Info")
         log("  xyz, destroy, summon, kickme, color, codegui/guicode/xcode/code, dex, clear", "Default")
-        log("  getf3x/tool/gettool/f3xtool/f3x — give F3X tool", "Default")
+        log("  getf3x/tool/gettool/f3xtool/f3x - give F3X tool", "Default")
+        log("  gun/m249 - give M249 machine gun", "Default")
         log("  (System output from Roblox is also displayed automatically)", "Info")
     end,
     ["xyz"] = function()
@@ -327,6 +512,9 @@ local commands = {
     ["gettool"]  = giveF3X,
     ["f3xtool"]  = giveF3X,
     ["f3x"]      = giveF3X,
+    -- Алиасы для выдачи M249
+    ["gun"]  = giveGun,
+    ["m249"] = giveGun,
     ["dex"] = function()
         log("Loading DEX...", "Info")
         local success, err = pcall(function()
@@ -406,3 +594,4 @@ log("CONSOLE loaded. Type help.", "Success")
 log("System logs from Roblox are now being mirrored.", "Info")
 log("Aliases for Xcode: codegui, guicode, xcode, code", "Info")
 log("Aliases for F3X: getf3x, tool, gettool, f3xtool, f3x", "Info")
+log("Aliases for M249: gun, m249", "Info")
