@@ -17,7 +17,7 @@ local COLORS = {
     Info = Color3.fromRGB(255, 200, 100),
     Echo = Color3.fromRGB(150, 150, 150),
     Default = Color3.fromRGB(255, 255, 255),
-    Output = Color3.fromRGB(200, 200, 255), 
+    Output = Color3.fromRGB(200, 200, 255),
 }
 
 local CMD_COLORS = {
@@ -34,7 +34,7 @@ local CMD_COLORS = {
 local commandHistory = {}
 local historyIndex = 0
 local closed = false
-local logConnection = nil -- Для хранения подключения к Logservice
+local logConnection = nil
 
 local function getGuiParent()
     if type(gethui) == "function" then
@@ -52,7 +52,6 @@ local guiParent = getGuiParent()
 if not guiParent then return end
 
 if guiParent:FindFirstChild("SimpleConsole") then guiParent.SimpleConsole:Destroy() end
-if guiParent:FindFirstChild("XConsole_Cursor") then guiParent.XConsole_Cursor:Destroy() end
 if guiParent:FindFirstChild("XcodeGui") then guiParent.XcodeGui:Destroy() end
 if guiParent:FindFirstChild("MainMenu") then guiParent.MainMenu:Destroy() end
 
@@ -166,38 +165,6 @@ ResizeHandle.ZIndex = 5
 ResizeHandle.Parent = ConsoleFrame
 Instance.new("UICorner", ResizeHandle).CornerRadius = UDim.new(0, 4)
 
-local cursorGui = Instance.new("ScreenGui")
-cursorGui.Name = "XConsole_Cursor"
-cursorGui.ResetOnSpawn = false
-cursorGui.DisplayOrder = 9999
-cursorGui.IgnoreGuiInset = true
-cursorGui.Enabled = false
-cursorGui.Parent = guiParent
-
-local cursorFrame = Instance.new("Frame")
-cursorFrame.Size = UDim2.new(0, 18, 0, 18)
-cursorFrame.BackgroundTransparency = 1
-cursorFrame.BorderSizePixel = 0
-cursorFrame.Parent = cursorGui
-
-local line1 = Instance.new("Frame")
-line1.Size = UDim2.new(1, 0, 0, 2)
-line1.Position = UDim2.new(0, 0, 0.5, -1)
-line1.BackgroundColor3 = Color3.new(1, 1, 1)
-line1.BorderSizePixel = 0
-line1.Rotation = 45
-line1.Parent = cursorFrame
-Instance.new("UIStroke", line1).Color = Color3.new(0, 0, 0)
-
-local line2 = Instance.new("Frame")
-line2.Size = UDim2.new(1, 0, 0, 2)
-line2.Position = UDim2.new(0, 0, 0.5, -1)
-line2.BackgroundColor3 = Color3.new(1, 1, 1)
-line2.BorderSizePixel = 0
-line2.Rotation = -45
-line2.Parent = cursorFrame
-Instance.new("UIStroke", line2).Color = Color3.new(0, 0, 0)
-
 local function log(text, colorType)
     local color = COLORS[colorType] or COLORS.Default
     local label = Instance.new("TextLabel")
@@ -214,7 +181,6 @@ local function log(text, colorType)
     LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
 end
 
--- [НОВОЕ] Функция для получения префикса и цвета системного сообщения
 local function getSystemLogData(messageType)
     if messageType == Enum.MessageType.MessageError then
         return "[ERROR]", COLORS.Error
@@ -227,20 +193,14 @@ local function getSystemLogData(messageType)
     end
 end
 
--- Подключение к системному логу Roblox
 if logConnection then logConnection:Disconnect() end
 logConnection = LogService.MessageOut:Connect(function(message, messageType)
-    -- Провер, что консоль ещё существует
     if not ConsoleFrame or not ConsoleFrame.Parent then
         if logConnection then logConnection:Disconnect() end
         return
     end
-    
     local prefix, color = getSystemLogData(messageType)
-    -- Форматируем текст префикс+сообщение
     local formattedText = string.format("%s %s", prefix, tostring(message))
-    
-    -- Выводим в лог но с другим цветом чтобы отличать от команд пользователя
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, -5, 0, 18)
     label.BackgroundTransparency = 1
@@ -250,13 +210,11 @@ logConnection = LogService.MessageOut:Connect(function(message, messageType)
     label.TextSize = 14
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = LogFrame
-    
     LogFrame.CanvasSize = UDim2.new(0, 0, 0, logLayout.AbsoluteContentSize.Y + 10)
     task.wait()
     LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
 end)
 
--- При закрытии консоли отключаем подключениечтобы не тратить ресурсы
 CloseBtn.MouseButton1Click:Connect(function()
     closed = true
     if logConnection then
@@ -264,7 +222,6 @@ CloseBtn.MouseButton1Click:Connect(function()
         logConnection = nil
     end
     ScreenGui:Destroy()
-    if cursorGui then cursorGui:Destroy() end
 end)
 
 local function getChar()
@@ -275,10 +232,19 @@ local function getChar()
     return char, hum, hrp
 end
 
+-- Общая функция для открытия Xcode
+local function openXcode()
+    local success, err = pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/dimoonsh195/xcode/main/xcode.lua", true))()
+    end)
+    if success then log("Xcode opened", "Success")
+    else log("Failed to open Xcode: " .. tostring(err), "Error") end
+end
+
 local commands = {
     ["help"] = function()
         log("Commands:", "Info")
-        log("  xyz, destroy, summon, kickme, color, codegui, dex, clear", "Default")
+        log("  xyz, destroy, summon, kickme, color, codegui/guicode/xcode/code, dex, clear", "Default")
         log("  (System output from Roblox is also displayed automatically)", "Info")
     end,
     ["xyz"] = function()
@@ -337,13 +303,11 @@ local commands = {
             log("Invalid color code", "Error")
         end
     end,
-    ["codegui"] = function()
-        local success, err = pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/dimoonsh195/xcode/main/xcode.lua", true))()
-        end)
-        if success then log("Xcode opened", "Success")
-        else log("Failed to open Xcode: " .. tostring(err), "Error") end
-    end,
+    -- Алиасы для открытия Xcode
+    ["codegui"] = openXcode,
+    ["guicode"] = openXcode,
+    ["xcode"]   = openXcode,
+    ["code"]    = openXcode,
     ["dex"] = function()
         log("Loading DEX...", "Info")
         local success, err = pcall(function()
@@ -399,44 +363,26 @@ CommandBox.InputBegan:Connect(function(input)
     end
 end)
 
-RunService.RenderStepped:Connect(function()
-    if closed or not ConsoleFrame.Parent then
-        if cursorGui and cursorGui.Parent and cursorGui.Enabled then cursorGui.Enabled = false end
-        return
+-- Ресайз правым нижним углом
+local resizing = false
+local startSize, startMouse
+ResizeHandle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        resizing = true
+        startSize = ConsoleFrame.AbsoluteSize
+        startMouse = input.Position
     end
-    local mp = UIS:GetMouseLocation()
-    local ap = ConsoleFrame.AbsolutePosition
-    local as = ConsoleFrame.AbsoluteSize
-    local inside = mp.X >= ap.X and mp.X <= ap.X + as.X and mp.Y >= ap.Y and mp.Y <= ap.Y + as.Y
-    local xcodeOpen = false
-    if guiParent:FindFirstChild("XcodeGui") then
-        local xwin = guiParent.XcodeGui:FindFirstChildOfClass("Frame")
-        if xwin then
-            local xap = xwin.AbsolutePosition
-            local xas = xwin.AbsoluteSize
-            if mp.X >= xap.X and mp.X <= xap.X + xas.X and mp.Y >= xap.Y and mp.Y <= xap.Y + xas.Y then
-                xcodeOpen = true
-            end
-        end
+end)
+UIS.InputChanged:Connect(function(input)
+    if resizing and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - startMouse
+        ConsoleFrame.Size = UDim2.new(0, math.max(300, startSize.X + delta.X), 0, math.max(150, startSize.Y + delta.Y))
     end
-    if (inside or xcodeOpen) and ConsoleFrame.Visible then
-        pcall(function()
-            local cg = game:GetService("CoreGui")
-            local xboatCursor = cg:FindFirstChild("XboatCursor")
-            if xboatCursor then xboatCursor.Enabled = false end
-        end)
-        if not cursorGui.Enabled then
-            cursorGui.Enabled = true
-            UIS.MouseIconEnabled = false
-        end
-        cursorFrame.Position = UDim2.new(0, mp.X - 9, 0, mp.Y - 9)
-    else
-        if cursorGui.Enabled then
-            cursorGui.Enabled = false
-            UIS.MouseIconEnabled = true
-        end
-    end
+end)
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then resizing = false end
 end)
 
 log("CONSOLE loaded. Type help.", "Success")
 log("System logs from Roblox are now being mirrored.", "Info")
+log("Aliases for Xcode: codegui, guicode, xcode, code", "Info")
