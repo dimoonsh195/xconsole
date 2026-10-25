@@ -91,7 +91,7 @@ Header.Parent = ConsoleFrame
 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 6)
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -60, 1, 0)
+Title.Size = UDim2.new(1, -100, 1, 0)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "CONSOLE"
@@ -100,6 +100,19 @@ Title.Font = CONFIG.Font
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Header
+
+-- Кнопка выдачи пушки (для удобства)
+local GunBtn = Instance.new("TextButton")
+GunBtn.Size = UDim2.new(0, 40, 0, 24)
+GunBtn.Position = UDim2.new(1, -65, 0, 3)
+GunBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+GunBtn.Text = "GUN"
+GunBtn.TextColor3 = Color3.new(1, 1, 1)
+GunBtn.Font = CONFIG.Font
+GunBtn.TextSize = 12
+GunBtn.BorderSizePixel = 0
+GunBtn.Parent = Header
+Instance.new("UICorner", GunBtn).CornerRadius = UDim.new(0, 4)
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 24, 0, 24)
@@ -429,6 +442,11 @@ local function giveGun()
     end
 end
 
+-- Привязываем кнопку GUN к функции
+GunBtn.MouseButton1Click:Connect(function()
+    giveGun()
+end)
+
 local commands = {
     ["help"] = function()
         log("Commands:", "Info")
@@ -574,4 +592,4 @@ log("CONSOLE loaded. Type help.", "Success")
 log("System logs from Roblox are now being mirrored.", "Info")
 log("Aliases for Xcode: codegui, guicode, xcode, code", "Info")
 log("Aliases for F3X: getf3x, tool, gettool, f3xtool, f3x", "Info")
-log("Aliases for M249: gun, m249", "Info")
+log("Aliases for M249: gun, m249 (or click GUN button)", "Info")
