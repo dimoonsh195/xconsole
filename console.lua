@@ -214,14 +214,6 @@ local function log(text, colorType)
     LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
 end
 
--- === СЛОВАРИ КЛЮЧЕВЫХ СЛОВ ===
-local keywords = {
-    "local", "переменная", "function", "функция", "if", "если", "then", "тогда",
-    "else", "иначе", "elseif", "иначеесли", "end", "конец", "for", "для", "while", "пока",
-    "do", "делать", "in", "в", "return", "вернуть", "break", "прервать", "nil", "ноль", "true", "истина", "false", "ложь"
-}
-local globals = {"game", "игра", "workspace", "мир", "script", "print", "напечатать", "warn"}
-
 -- === ФУНКЦИЯ XCODE GUI ===
 local function open_xcode_gui()
     if guiParent:FindFirstChild("XcodeGui") then guiParent.XcodeGui:Destroy() end
@@ -260,6 +252,7 @@ local function open_xcode_gui()
     xTitle.TextXAlignment = Enum.TextXAlignment.Left
     xTitle.Parent = xHeader
 
+    -- Кнопки (сдвинуты влево, чтобы не вылезали)
     local function makeBtn(text, xOffset, width)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(0, width, 0, 22)
@@ -274,10 +267,11 @@ local function open_xcode_gui()
         return btn
     end
 
-    local btnExecute = makeBtn("Execute", -240, 60)
-    local btnClear = makeBtn("Clear", -170, 50)
-    local btnSelectAll = makeBtn("Select All", -110, 70)
-    local btnSave = makeBtn("Save", -30, 50)
+    -- Отступы пересчитаны: 280 + 60 + 10 = 350 (ровно половина экрана)
+    local btnExecute = makeBtn("Execute", -340, 60)
+    local btnClear = makeBtn("Clear", -270, 50)
+    local btnSelectAll = makeBtn("Select All", -210, 70)
+    local btnSave = makeBtn("Save", -130, 50)
 
     local editorScroll = Instance.new("ScrollingFrame")
     editorScroll.Size = UDim2.new(1, -20, 1, -60)
@@ -308,23 +302,10 @@ local function open_xcode_gui()
     textContainer.BackgroundTransparency = 1
     textContainer.Parent = editorScroll
 
-    local richLabel = Instance.new("TextLabel")
-    richLabel.Size = UDim2.new(1, 0, 1, 0)
-    richLabel.BackgroundTransparency = 1
-    richLabel.Font = Enum.Font.Code
-    richLabel.TextSize = 14
-    richLabel.TextXAlignment = Enum.TextXAlignment.Left
-    richLabel.TextYAlignment = Enum.TextYAlignment.Top
-    richLabel.RichText = true
-    richLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    richLabel.TextWrapped = true
-    richLabel.Parent = textContainer
-
     local codeBox = Instance.new("TextBox")
     codeBox.Size = UDim2.new(1, 0, 1, 0)
     codeBox.BackgroundTransparency = 1
-    codeBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    codeBox.TextTransparency = 1
+    codeBox.TextColor3 = Color3.fromRGB(200, 200, 200)
     codeBox.Font = Enum.Font.Code
     codeBox.TextSize = 14
     codeBox.TextXAlignment = Enum.TextXAlignment.Left
@@ -363,65 +344,6 @@ local function open_xcode_gui()
     hintsLabel.TextXAlignment = Enum.TextXAlignment.Left
     hintsLabel.Parent = xWin
 
-    -- === БЕЗОПАСНАЯ ПОДСВЕТКА СИНТАКСИСА ===
-    local function applyHighlighting()
-        local text = codeBox.Text
-        local tokens = {}
-        local tokenId = 1
-
-        -- Заменяем HTML-спецсимволы до разбора
-        text = text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-
-        -- Извлекаем строки
-        text = text:gsub('"([^"]*)"', function(match)
-            local id = "___T" .. tokenId .. "___"
-            tokens[tokenId] = '<font color="#98C379">"' .. match .. '"</font>'
-            tokenId = tokenId + 1
-            return id
-        end)
-        text = text:gsub("'([^']*)'", function(match)
-            local id = "___T" .. tokenId .. "___"
-            tokens[tokenId] = '<font color="#98C379">\'' .. match .. '\'</font>'
-            tokenId = tokenId + 1
-            return id
-        end)
-
-        -- Извлекаем ключевые слова
-        for _, kw in ipairs(keywords) do
-            text = text:gsub("%f[%w_а-яА-ЯёЁ]" .. kw .. "%f[^%w_а-яА-ЯёЁ]", function(match)
-                local id = "___T" .. tokenId .. "___"
-                tokens[tokenId] = '<font color="#C678DD">' .. match .. '</font>'
-                tokenId = tokenId + 1
-                return id
-            end)
-        end
-
-        -- Извлекаем глобальные переменные
-        for _, gl in ipairs(globals) do
-            text = text:gsub("%f[%w_а-яА-ЯёЁ]" .. gl .. "%f[^%w_а-яА-ЯёЁ]", function(match)
-                local id = "___T" .. tokenId .. "___"
-                tokens[tokenId] = '<font color="#61AFEF">' .. match .. '</font>'
-                tokenId = tokenId + 1
-                return id
-            end)
-        end
-
-        -- Извлекаем числа
-        text = text:gsub("%f[%d](%d+)%f[%D]", function(match)
-            local id = "___T" .. tokenId .. "___"
-            tokens[tokenId] = '<font color="#D19A66">' .. match .. '</font>'
-            tokenId = tokenId + 1
-            return id
-        end)
-
-        -- Восстанавливаем теги
-        for i = 1, tokenId - 1 do
-            text = text:gsub("___T" .. i .. "___", tokens[i])
-        end
-
-        richLabel.Text = text
-    end
-
     -- === ОБНОВЛЕНИЕ ВИЗУАЛА (с переносом строк) ===
     local function updateEditorVisuals()
         local text = codeBox.Text
@@ -445,7 +367,6 @@ local function open_xcode_gui()
         editorScroll.CanvasSize = UDim2.new(0, 0, 0, math.max(textHeight, editorScroll.AbsoluteSize.Y))
         lineNumbers.Size = UDim2.new(0, 30, 0, math.max(textHeight, editorScroll.AbsoluteSize.Y))
         
-        applyHighlighting()
         updateCursor()
     end
 
@@ -603,7 +524,7 @@ local function open_xcode_gui()
             local newWidth = math.max(400, xStartSize.X + delta.X)
             local newHeight = math.max(200, xStartSize.Y + delta.Y)
             xWin.Size = UDim2.new(0, newWidth, 0, newHeight)
-            updateEditorVisuals() -- Обновляем перенос строк при ресайзе
+            updateEditorVisuals()
         end
     end)
     UIS.InputEnded:Connect(function(input)
