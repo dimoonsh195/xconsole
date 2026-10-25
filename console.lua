@@ -234,7 +234,6 @@ local function getChar()
     return char, hum, hrp
 end
 
--- Общая функция для открытия Xcode
 local function openXcode()
     local success, err = pcall(function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/dimoonsh195/xcode/main/xcode.lua", true))()
@@ -243,7 +242,6 @@ local function openXcode()
     else log("Failed to open Xcode: " .. tostring(err), "Error") end
 end
 
--- Выдача F3X тула
 local function giveF3X()
     log("Loading F3X...", "Info")
     local success, err = pcall(function()
@@ -255,7 +253,7 @@ local function giveF3X()
     else log("Failed to load F3X: " .. tostring(err), "Error") end
 end
 
--- Выдача M249
+-- Выдача M249 (Клиентский деструктор)
 local function giveGun()
     log("Creating M249...", "Info")
     local success, err = pcall(function()
@@ -269,7 +267,7 @@ local function giveGun()
         tool.Name = "M249"
         tool.RequiresHandle = true
         tool.CanBeDropped = false
-        tool.ToolTip = "M249 SAW"
+        tool.ToolTip = "M249 SAW (Destroyer)"
 
         -- Корпус-рукоятка
         local handle = Instance.new("Part")
@@ -309,12 +307,6 @@ local function giveGun()
         magWeld.C0 = CFrame.new(0, -0.7, -0.6)
         magWeld.Parent = handle
 
-        -- Дуло
-        local muzzleAtt = Instance.new("Attachment")
-        muzzleAtt.Name = "Muzzle"
-        muzzleAtt.Position = Vector3.new(0, 0, -1.2)
-        muzzleAtt.Parent = barrel
-
         -- Вспышка
         local muzzleFlash = Instance.new("ParticleEmitter")
         muzzleFlash.Texture = "rbxassetid://296874871"
@@ -334,16 +326,15 @@ local function giveGun()
         muzzleFlash.Color = ColorSequence.new(Color3.fromRGB(255, 220, 100))
         muzzleFlash.Parent = barrel
 
-        -- Звук
+        -- Звук (Исправлен на рабочий ID)
         local shootSound = Instance.new("Sound")
         shootSound.Name = "ShootSound"
-        shootSound.SoundId = "rbxassetid://3703031373"
+        shootSound.SoundId = "rbxassetid://131886985" -- Стандартный звук выстрела
         shootSound.Volume = 0.4
         shootSound.Parent = handle
 
         local ammo = 200
         local fireRate = 0.08
-        local damage = 20
         local firing = false
         local fireDebounce = false
 
@@ -367,7 +358,7 @@ local function giveGun()
             s.Parent = handle
             s.PlayOnRemove = true
             s:Destroy()
-            s:Play()
+            pcall(function() s:Play() end) -- Защита от спама ошибок
 
             muzzleFlash:Emit(8)
 
@@ -402,11 +393,12 @@ local function giveGun()
 
             if result and result.Instance then
                 local hit = result.Instance
-                local model = hit:FindFirstAncestorOfClass("Model")
-                local humanoid = model and model:FindFirstChildOfClass("Humanoid")
-                if humanoid and humanoid.Health > 0 then
-                    humanoid:TakeDamage(damage)
+                -- Проверка, чтобы не удалить себя или пушку
+                if not char:IsAncestorOf(hit) and not tool:IsAncestorOf(hit) then
+                    hit:Destroy() -- Удаление объекта на клиенте
                 end
+                
+                -- Искра попадания
                 local spark = Instance.new("Part")
                 spark.Size = Vector3.new(0.1, 0.1, 0.1)
                 spark.CFrame = CFrame.new(hitPos)
@@ -430,7 +422,7 @@ local function giveGun()
         tool.Unequipped:Connect(function() firing = false end)
 
         tool.Parent = char
-        log("M249 given! Ammo: " .. ammo, "Success")
+        log("M249 given! Ammo: " .. ammo .. " (Client Destroyer)", "Success")
     end)
     if not success then
         log("Failed to create M249: " .. tostring(err), "Error")
@@ -501,20 +493,9 @@ local commands = {
             log("Invalid color code", "Error")
         end
     end,
-    -- Алиасы для открытия Xcode
-    ["codegui"] = openXcode,
-    ["guicode"] = openXcode,
-    ["xcode"]   = openXcode,
-    ["code"]    = openXcode,
-    -- Алиасы для выдачи F3X
-    ["getf3x"]   = giveF3X,
-    ["tool"]     = giveF3X,
-    ["gettool"]  = giveF3X,
-    ["f3xtool"]  = giveF3X,
-    ["f3x"]      = giveF3X,
-    -- Алиасы для выдачи M249
-    ["gun"]  = giveGun,
-    ["m249"] = giveGun,
+    ["codegui"] = openXcode, ["guicode"] = openXcode, ["xcode"] = openXcode, ["code"] = openXcode,
+    ["getf3x"] = giveF3X, ["tool"] = giveF3X, ["gettool"] = giveF3X, ["f3xtool"] = giveF3X, ["f3x"] = giveF3X,
+    ["gun"] = giveGun, ["m249"] = giveGun,
     ["dex"] = function()
         log("Loading DEX...", "Info")
         local success, err = pcall(function()
@@ -570,7 +551,6 @@ CommandBox.InputBegan:Connect(function(input)
     end
 end)
 
--- Ресайз правым нижним углом
 local resizing = false
 local startSize, startMouse
 ResizeHandle.InputBegan:Connect(function(input)
