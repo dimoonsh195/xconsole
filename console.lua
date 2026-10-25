@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
+local LogService = game:GetService("LogService")
 local LocalPlayer = Players.LocalPlayer
 
 local CONFIG = {
@@ -15,7 +16,8 @@ local COLORS = {
     Success = Color3.fromRGB(100, 255, 100),
     Info = Color3.fromRGB(255, 200, 100),
     Echo = Color3.fromRGB(150, 150, 150),
-    Default = Color3.fromRGB(255, 255, 255)
+    Default = Color3.fromRGB(255, 255, 255),
+    Output = Color3.fromRGB(200, 200, 255), -- Цвет для системных сообщений
 }
 
 local CMD_COLORS = {
@@ -32,6 +34,7 @@ local CMD_COLORS = {
 local commandHistory = {}
 local historyIndex = 0
 local closed = false
+local logConnection = nil -- Для хранения подключения к LogService
 
 local function getGuiParent()
     if type(gethui) == "function" then
@@ -211,6 +214,59 @@ local function log(text, colorType)
     LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
 end
 
+-- [НОВОЕ] Функция для получения префикса и цвета системного сообщения
+local function getSystemLogData(messageType)
+    if messageType == Enum.MessageType.MessageError then
+        return "[ERROR]", COLORS.Error
+    elseif messageType == Enum.MessageType.MessageWarning then
+        return "[WARN]", COLORS.Info
+    elseif messageType == Enum.MessageType.MessageInfo then
+        return "[INFO]", COLORS.Output
+    else
+        return "[OUTPUT]", COLORS.Output
+    end
+end
+
+-- [НОВОЕ] Подключение к системному логу Roblox
+if logConnection then logConnection:Disconnect() end
+logConnection = LogService.MessageOut:Connect(function(message, messageType)
+    -- Проверяем, что консоль ещё существует, чтобы избежать ошибок
+    if not ConsoleFrame or not ConsoleFrame.Parent then
+        if logConnection then logConnection:Disconnect() end
+        return
+    end
+    
+    local prefix, color = getSystemLogData(messageType)
+    -- Форматируем текст: префикс + сообщение
+    local formattedText = string.format("%s %s", prefix, tostring(message))
+    
+    -- Выводим в лог, но с другим цветом, чтобы отличать от команд пользователя
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -5, 0, 18)
+    label.BackgroundTransparency = 1
+    label.Text = formattedText
+    label.TextColor3 = color
+    label.Font = CONFIG.Font
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = LogFrame
+    
+    LogFrame.CanvasSize = UDim2.new(0, 0, 0, logLayout.AbsoluteContentSize.Y + 10)
+    task.wait()
+    LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
+end)
+
+-- При закрытии консоли отключаем подключение, чтобы не тратить ресурсы
+CloseBtn.MouseButton1Click:Connect(function()
+    closed = true
+    if logConnection then
+        logConnection:Disconnect()
+        logConnection = nil
+    end
+    ScreenGui:Destroy()
+    if cursorGui then cursorGui:Destroy() end
+end)
+
 local function getChar()
     local char = LocalPlayer.Character
     if not char then return end
@@ -223,19 +279,22 @@ local commands = {
     ["help"] = function()
         log("Commands:", "Info")
         log("  xyz, destroy, summon, kickme, color, codegui, dex, clear", "Default")
+        log("  (System output from Roblox is also displayed automatically)", "Info")
     end,
     ["xyz"] = function()
         local _, _, hrp = getChar()
         if not hrp then log("Character not found", "Error") return end
         local p = hrp.Position
         local msg = string.format("X=%.2f  Y=%.2f  Z=%.2f", p.X, p.Y, p.Z)
-        log(msg, "Success"); print("[CONSOLE] XYZ: " .. msg)
+        log(msg, "Success")
+        print("[CONSOLE] XYZ: " .. msg)
     end,
     ["destroy"] = function()
         local target = LocalPlayer:GetMouse().Target
         if not target then log("Nothing under cursor", "Error") return end
         if target:IsA("Terrain") then log("Cannot destroy Terrain", "Error") return end
-        log("Destroyed: " .. target:GetFullName(), "Info"); target:Destroy()
+        log("Destroyed: " .. target:GetFullName(), "Info")
+        target:Destroy()
     end,
     ["summon"] = function(args)
         local shape = (args[1] or ""):lower()
@@ -257,7 +316,8 @@ local commands = {
     end,
     ["kickme"] = function(args)
         local reason = #args > 0 and table.concat(args, " ") or "No reason provided"
-        log("Kicking self: " .. reason, "Error"); task.wait(0.2)
+        log("Kicking self: " .. reason, "Error")
+        task.wait(0.2)
         pcall(function() LocalPlayer:Kick(reason) end)
     end,
     ["color"] = function(args)
@@ -266,10 +326,16 @@ local commands = {
         if #code ~= 2 then log("Color code must be 2 characters", "Error") return end
         local bg, fg = CMD_COLORS[code:sub(1, 1)], CMD_COLORS[code:sub(2, 2)]
         if bg and fg then
-            ConsoleFrame.BackgroundColor3 = bg; LogFrame.BackgroundColor3 = bg
-            COLORS.Default = fg; CommandBox.TextColor3 = fg; Title.TextColor3 = fg; stroke.Color = fg
+            ConsoleFrame.BackgroundColor3 = bg
+            LogFrame.BackgroundColor3 = bg
+            COLORS.Default = fg
+            CommandBox.TextColor3 = fg
+            Title.TextColor3 = fg
+            stroke.Color = fg
             log("Color changed to " .. code, "Success")
-        else log("Invalid color code", "Error") end
+        else
+            log("Invalid color code", "Error")
+        end
     end,
     ["codegui"] = function()
         local success, err = pcall(function()
@@ -281,7 +347,6 @@ local commands = {
     ["dex"] = function()
         log("Loading DEX...", "Info")
         local success, err = pcall(function()
-            -- Ссылка на оригинальный DEX (репозиторий luau/Dex)
             loadstring(game:HttpGet("https://raw.githubusercontent.com/luau/Dex/master/out.lua", true))()
         end)
         if success then log("DEX loaded successfully", "Success")
@@ -315,7 +380,9 @@ CommandBox.FocusLost:Connect(function(enterPressed)
     if commandFunc then
         local success, e = pcall(commandFunc, args)
         if not success then log("Error: " .. tostring(e), "Error") end
-    else log("Unknown command: " .. cmdName, "Error") end
+    else
+        log("Unknown command: " .. cmdName, "Error")
+    end
 end)
 
 CommandBox.InputBegan:Connect(function(input)
@@ -347,7 +414,9 @@ RunService.RenderStepped:Connect(function()
         if xwin then
             local xap = xwin.AbsolutePosition
             local xas = xwin.AbsoluteSize
-            if mp.X >= xap.X and mp.X <= xap.X + xas.X and mp.Y >= xap.Y and mp.Y <= xap.Y + xas.Y then xcodeOpen = true end
+            if mp.X >= xap.X and mp.X <= xap.X + xas.X and mp.Y >= xap.Y and mp.Y <= xap.Y + xas.Y then
+                xcodeOpen = true
+            end
         end
     end
     if (inside or xcodeOpen) and ConsoleFrame.Visible then
@@ -356,11 +425,18 @@ RunService.RenderStepped:Connect(function()
             local xboatCursor = cg:FindFirstChild("XboatCursor")
             if xboatCursor then xboatCursor.Enabled = false end
         end)
-        if not cursorGui.Enabled then cursorGui.Enabled = true; UIS.MouseIconEnabled = false end
+        if not cursorGui.Enabled then
+            cursorGui.Enabled = true
+            UIS.MouseIconEnabled = false
+        end
         cursorFrame.Position = UDim2.new(0, mp.X - 9, 0, mp.Y - 9)
     else
-        if cursorGui.Enabled then cursorGui.Enabled = false; UIS.MouseIconEnabled = true end
+        if cursorGui.Enabled then
+            cursorGui.Enabled = false
+            UIS.MouseIconEnabled = true
+        end
     end
 end)
 
 log("CONSOLE loaded. Type help.", "Success")
+log("System logs from Roblox are now being mirrored.", "Info")
