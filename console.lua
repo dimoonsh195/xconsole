@@ -30,14 +30,6 @@ local CMD_COLORS = {
     ["E"] = Color3.fromRGB(255, 255, 0), ["F"] = Color3.fromRGB(255, 255, 255),
 }
 
-local russianMap = {
-    ["переменная"] = "local", ["функция"] = "function",
-    ["если"] = "if", ["тогда"] = "then", ["иначе"] = "else",
-    ["конец"] = "end", ["пока"] = "while", ["делать"] = "do",
-    ["для"] = "for", ["в"] = "in", ["вернуть"] = "return",
-    ["игра"] = "game", ["мир"] = "workspace", ["напечатать"] = "print"
-}
-
 local commandHistory = {}
 local historyIndex = 0
 local closed = false
@@ -222,6 +214,14 @@ local function log(text, colorType)
     LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
 end
 
+-- === СЛОВАРИ КЛЮЧЕВЫХ СЛОВ ===
+local keywords = {
+    "local", "переменная", "function", "функция", "if", "если", "then", "тогда",
+    "else", "иначе", "elseif", "иначеесли", "end", "конец", "for", "для", "while", "пока",
+    "do", "делать", "in", "в", "return", "вернуть", "break", "прервать", "nil", "ноль", "true", "истина", "false", "ложь"
+}
+local globals = {"game", "игра", "workspace", "мир", "script", "print", "напечатать", "warn"}
+
 -- === ФУНКЦИЯ XCODE GUI ===
 local function open_xcode_gui()
     if guiParent:FindFirstChild("XcodeGui") then guiParent.XcodeGui:Destroy() end
@@ -260,7 +260,6 @@ local function open_xcode_gui()
     xTitle.TextXAlignment = Enum.TextXAlignment.Left
     xTitle.Parent = xHeader
 
-    -- Кнопки
     local function makeBtn(text, xOffset, width)
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(0, width, 0, 22)
@@ -275,15 +274,11 @@ local function open_xcode_gui()
         return btn
     end
 
-    local btnExecute = makeBtn("Execute", -310, 60)
-    local btnClear = makeBtn("Clear", -240, 50)
-    local btnSelectAll = makeBtn("Select All", -180, 70)
-    local btnSave = makeBtn("Save", -100, 50)
-    local btnClose = makeBtn("X", -30, 22)
-    btnClose.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    btnClose.TextColor3 = Color3.new(1, 1, 1)
+    local btnExecute = makeBtn("Execute", -240, 60)
+    local btnClear = makeBtn("Clear", -170, 50)
+    local btnSelectAll = makeBtn("Select All", -110, 70)
+    local btnSave = makeBtn("Save", -30, 50)
 
-    -- Редактор
     local editorScroll = Instance.new("ScrollingFrame")
     editorScroll.Size = UDim2.new(1, -20, 1, -60)
     editorScroll.Position = UDim2.new(0, 10, 0, 35)
@@ -294,18 +289,10 @@ local function open_xcode_gui()
     editorScroll.CanvasSize = UDim2.new(0, 0, 0, 1000)
     editorScroll.Parent = xWin
     Instance.new("UICorner", editorScroll).CornerRadius = UDim.new(0, 4)
-    
-    -- Гуттер для флажков
-    local flagGutter = Instance.new("TextButton")
-    flagGutter.Size = UDim2.new(0, 20, 1, 0)
-    flagGutter.BackgroundTransparency = 1
-    flagGutter.Text = ""
-    flagGutter.Parent = editorScroll
 
-    -- Номера строк
     local lineNumbers = Instance.new("TextLabel")
     lineNumbers.Size = UDim2.new(0, 30, 1, 0)
-    lineNumbers.Position = UDim2.new(0, 20, 0, 0)
+    lineNumbers.Position = UDim2.new(0, 5, 0, 0)
     lineNumbers.BackgroundTransparency = 1
     lineNumbers.Text = "1"
     lineNumbers.TextColor3 = Color3.fromRGB(100, 100, 100)
@@ -315,10 +302,9 @@ local function open_xcode_gui()
     lineNumbers.TextYAlignment = Enum.TextYAlignment.Top
     lineNumbers.Parent = editorScroll
 
-    -- Контейнер для текста
     local textContainer = Instance.new("Frame")
-    textContainer.Size = UDim2.new(1, -100, 1, 0)
-    textContainer.Position = UDim2.new(0, 55, 0, 0)
+    textContainer.Size = UDim2.new(1, -40, 1, 0)
+    textContainer.Position = UDim2.new(0, 40, 0, 0)
     textContainer.BackgroundTransparency = 1
     textContainer.Parent = editorScroll
 
@@ -331,7 +317,7 @@ local function open_xcode_gui()
     richLabel.TextYAlignment = Enum.TextYAlignment.Top
     richLabel.RichText = true
     richLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    richLabel.TextWrapped = false
+    richLabel.TextWrapped = true
     richLabel.Parent = textContainer
 
     local codeBox = Instance.new("TextBox")
@@ -345,31 +331,9 @@ local function open_xcode_gui()
     codeBox.TextYAlignment = Enum.TextYAlignment.Top
     codeBox.ClearTextOnFocus = false
     codeBox.MultiLine = true
-    codeBox.TextWrapped = false
+    codeBox.TextWrapped = true
     codeBox.Parent = textContainer
 
-    -- Мини-карта (справа)
-    local minimapContainer = Instance.new("Frame")
-    minimapContainer.Size = UDim2.new(0, 60, 1, 0)
-    minimapContainer.Position = UDim2.new(1, -65, 0, 0)
-    minimapContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    minimapContainer.BorderSizePixel = 0
-    minimapContainer.ClipsDescendants = true
-    minimapContainer.Parent = editorScroll
-    Instance.new("UICorner", minimapContainer).CornerRadius = UDim.new(0, 2)
-    
-    local minimapText = Instance.new("TextLabel")
-    minimapText.Size = UDim2.new(1, 0, 1, 0)
-    minimapText.BackgroundTransparency = 1
-    minimapText.Font = Enum.Font.Code
-    minimapText.TextSize = 2
-    minimapText.TextColor3 = Color3.fromRGB(150, 150, 150)
-    minimapText.TextXAlignment = Enum.TextXAlignment.Left
-    minimapText.TextYAlignment = Enum.TextYAlignment.Top
-    minimapText.TextWrapped = false
-    minimapText.Parent = minimapContainer
-
-    -- Кастомный курсор
     local customCursor = Instance.new("Frame")
     customCursor.Size = UDim2.new(0, 2, 0, 18)
     customCursor.BackgroundColor3 = Color3.new(1,1,1)
@@ -378,7 +342,6 @@ local function open_xcode_gui()
     customCursor.ZIndex = 5
     customCursor.Parent = textContainer
 
-    -- Индикатор ошибки
     local errorMarker = Instance.new("Frame")
     errorMarker.Size = UDim2.new(0, 8, 0, 8)
     errorMarker.Position = UDim2.new(0, 6, 0, 5)
@@ -388,11 +351,7 @@ local function open_xcode_gui()
     errorMarker.ZIndex = 6
     errorMarker.Parent = editorScroll
     Instance.new("UICorner", errorMarker).CornerRadius = UDim.new(1, 0)
-    
-    -- Таблица флажков
-    local flags = {}
 
-    -- Панель подсказок
     local hintsLabel = Instance.new("TextLabel")
     hintsLabel.Size = UDim2.new(1, -20, 0, 20)
     hintsLabel.Position = UDim2.new(0, 10, 1, -22)
@@ -404,65 +363,90 @@ local function open_xcode_gui()
     hintsLabel.TextXAlignment = Enum.TextXAlignment.Left
     hintsLabel.Parent = xWin
 
-    -- === ПОДСВЕТКА СИНТАКСИСА ===
+    -- === БЕЗОПАСНАЯ ПОДСВЕТКА СИНТАКСИСА ===
     local function applyHighlighting()
         local text = codeBox.Text
+        local tokens = {}
+        local tokenId = 1
+
+        -- Заменяем HTML-спецсимволы до разбора
         text = text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
 
-        local strings = {}
-        local stringIndex = 0
-
+        -- Извлекаем строки
         text = text:gsub('"([^"]*)"', function(match)
-            stringIndex = stringIndex + 1
-            strings[stringIndex] = '"' .. match .. '"'
-            return "___STR" .. stringIndex .. "___"
+            local id = "___T" .. tokenId .. "___"
+            tokens[tokenId] = '<font color="#98C379">"' .. match .. '"</font>'
+            tokenId = tokenId + 1
+            return id
         end)
         text = text:gsub("'([^']*)'", function(match)
-            stringIndex = stringIndex + 1
-            strings[stringIndex] = "'" .. match .. "'"
-            return "___STR" .. stringIndex .. "___"
+            local id = "___T" .. tokenId .. "___"
+            tokens[tokenId] = '<font color="#98C379">\'' .. match .. '\'</font>'
+            tokenId = tokenId + 1
+            return id
         end)
 
-        local keywords = {
-            "local", "переменная", "function", "функция", "if", "если", "then", "тогда",
-            "else", "иначе", "elseif", "end", "конец", "for", "для", "while", "пока",
-            "do", "делать", "in", "в", "return", "вернуть", "break", "nil", "true", "false"
-        }
+        -- Извлекаем ключевые слова
         for _, kw in ipairs(keywords) do
-            text = text:gsub("%f[%a]" .. kw .. "%f[%A]", '<font color="#C678DD">' .. kw .. '</font>')
+            text = text:gsub("%f[%w_а-яА-ЯёЁ]" .. kw .. "%f[^%w_а-яА-ЯёЁ]", function(match)
+                local id = "___T" .. tokenId .. "___"
+                tokens[tokenId] = '<font color="#C678DD">' .. match .. '</font>'
+                tokenId = tokenId + 1
+                return id
+            end)
         end
 
-        local globals = {"game", "игра", "workspace", "мир", "script", "print", "напечатать", "warn"}
+        -- Извлекаем глобальные переменные
         for _, gl in ipairs(globals) do
-            text = text:gsub("%f[%a]" .. gl .. "%f[%A]", '<font color="#61AFEF">' .. gl .. '</font>')
+            text = text:gsub("%f[%w_а-яА-ЯёЁ]" .. gl .. "%f[^%w_а-яА-ЯёЁ]", function(match)
+                local id = "___T" .. tokenId .. "___"
+                tokens[tokenId] = '<font color="#61AFEF">' .. match .. '</font>'
+                tokenId = tokenId + 1
+                return id
+            end)
         end
 
-        text = text:gsub("%f[%d](%d+)%f[%D]", '<font color="#D19A66">%1</font>')
+        -- Извлекаем числа
+        text = text:gsub("%f[%d](%d+)%f[%D]", function(match)
+            local id = "___T" .. tokenId .. "___"
+            tokens[tokenId] = '<font color="#D19A66">' .. match .. '</font>'
+            tokenId = tokenId + 1
+            return id
+        end)
 
-        for i, str in ipairs(strings) do
-            text = text:gsub("___STR" .. i .. "___", '<font color="#98C379">' .. str .. '</font>')
+        -- Восстанавливаем теги
+        for i = 1, tokenId - 1 do
+            text = text:gsub("___T" .. i .. "___", tokens[i])
         end
 
         richLabel.Text = text
-        minimapText.Text = codeBox.Text
     end
 
-    -- === ОБНОВЛЕНИЕ ВИЗУАЛА ===
+    -- === ОБНОВЛЕНИЕ ВИЗУАЛА (с переносом строк) ===
     local function updateEditorVisuals()
         local text = codeBox.Text
-        local count = 1
-        for _ in text:gmatch("\n") do count = count + 1 end
-        local str = ""
-        for i = 1, count do str = str .. i .. "\n" end
-        lineNumbers.Text = str
+        local lines = {}
+        for line in text:gmatch("([^\n]*)\n?") do table.insert(lines, line) end
+        if text:sub(-1) == "\n" then table.insert(lines, "") end
+        
+        local numStr = ""
+        for i, line in ipairs(lines) do
+            numStr = numStr .. i .. "\n"
+            local lineSize = TextService:GetTextSize(line, 14, Enum.Font.Code, Vector2.new(codeBox.AbsoluteSize.X, math.huge))
+            local extraLines = math.floor((lineSize.Y - 18) / 18)
+            for j = 1, extraLines do
+                numStr = numStr .. "\n"
+            end
+        end
+        lineNumbers.Text = numStr
 
-        local textHeight = codeBox.TextBounds.Y + 30
+        local totalSize = TextService:GetTextSize(text, 14, Enum.Font.Code, Vector2.new(codeBox.AbsoluteSize.X, math.huge))
+        local textHeight = totalSize.Y + 30
         editorScroll.CanvasSize = UDim2.new(0, 0, 0, math.max(textHeight, editorScroll.AbsoluteSize.Y))
         lineNumbers.Size = UDim2.new(0, 30, 0, math.max(textHeight, editorScroll.AbsoluteSize.Y))
         
         applyHighlighting()
         updateCursor()
-        drawFlags()
     end
 
     local function updateCursor()
@@ -473,64 +457,22 @@ local function open_xcode_gui()
         customCursor.Visible = true
         
         local textBefore = codeBox.Text:sub(1, codeBox.CursorPosition - 1)
+        local size = TextService:GetTextSize(textBefore, 14, Enum.Font.Code, Vector2.new(codeBox.AbsoluteSize.X, math.huge))
+        
+        local yPos = size.Y - 18
+        
         local lines = {}
-        local currentLine = ""
-        for i = 1, #textBefore do
-            local char = textBefore:sub(i, i)
-            if char == "\n" then
-                table.insert(lines, currentLine)
-                currentLine = ""
-            else
-                currentLine = currentLine .. char
-            end
+        for line in textBefore:gmatch("([^\n]*)\n?") do table.insert(lines, line) end
+        local lastLine = lines[#lines] or ""
+        local lineSize = TextService:GetTextSize(lastLine, 14, Enum.Font.Code, Vector2.new(codeBox.AbsoluteSize.X, math.huge))
+        
+        local xPos = lineSize.X
+        if xPos > codeBox.AbsoluteSize.X then
+            xPos = xPos % codeBox.AbsoluteSize.X
         end
-        
-        local lineNum = #lines + 1
-        local col = #currentLine
-        
-        local charWidth = 8.4
-        local xPos = col * charWidth
-        local yPos = (lineNum - 1) * 18
         
         customCursor.Position = UDim2.new(0, xPos, 0, yPos)
     end
-
-    -- === ОТРИСОВКА ФЛАЖКОВ ===
-    local function drawFlags()
-        for _, child in ipairs(editorScroll:GetChildren()) do
-            if child.Name == "FlagMarker" then child:Destroy() end
-        end
-        for line, _ in pairs(flags) do
-            local flag = Instance.new("TextLabel")
-            flag.Name = "FlagMarker"
-            flag.Size = UDim2.new(0, 14, 0, 14)
-            flag.Position = UDim2.new(0, 3, 0, (line - 1) * 18 + 2)
-            flag.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
-            flag.Text = "🚩"
-            flag.TextSize = 10
-            flag.TextColor3 = Color3.new(0,0,0)
-            flag.BorderSizePixel = 0
-            flag.ZIndex = 5
-            flag.Parent = editorScroll
-            Instance.new("UICorner", flag).CornerRadius = UDim.new(1, 0)
-        end
-    end
-
-    -- Клик по гуттеру (установка флажка)
-    flagGutter.MouseButton1Click:Connect(function()
-        local mouseY = UIS:GetMouseLocation().Y
-        local relativeY = mouseY - flagGutter.AbsolutePosition.Y
-        local line = math.floor(relativeY / 18) + 1
-        
-        if line > 0 then
-            if flags[line] then
-                flags[line] = nil
-            else
-                flags[line] = true
-            end
-            drawFlags()
-        end
-    end)
 
     codeBox:GetPropertyChangedSignal("Text"):Connect(updateEditorVisuals)
     codeBox:GetPropertyChangedSignal("CursorPosition"):Connect(updateCursor)
@@ -538,15 +480,8 @@ local function open_xcode_gui()
     codeBox.FocusLost:Connect(function() customCursor.Visible = false end)
 
     editorScroll:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-        lineNumbers.Position = UDim2.new(0, 20, 0, -editorScroll.CanvasPosition.Y)
-        textContainer.Position = UDim2.new(0, 55, 0, -editorScroll.CanvasPosition.Y)
-        minimapContainer.Position = UDim2.new(1, -65, 0, -editorScroll.CanvasPosition.Y)
-        for _, child in ipairs(editorScroll:GetChildren()) do
-            if child.Name == "FlagMarker" then
-                local line = math.floor(child.Position.Y.Offset / 18) + 1
-                child.Position = UDim2.new(0, 3, 0, (line - 1) * 18 + 2 - editorScroll.CanvasPosition.Y)
-            end
-        end
+        lineNumbers.Position = UDim2.new(0, 5, 0, -editorScroll.CanvasPosition.Y)
+        textContainer.Position = UDim2.new(0, 40, 0, -editorScroll.CanvasPosition.Y)
         if errorMarker.Visible then
             local line = math.floor(errorMarker.Position.Y.Offset / 18) + 1
             errorMarker.Position = UDim2.new(0, 6, 0, (line - 1) * 18 + 5 - editorScroll.CanvasPosition.Y)
@@ -559,7 +494,7 @@ local function open_xcode_gui()
             local text = codeBox.Text
             local cursor = codeBox.CursorPosition
             local beforeCursor = text:sub(1, cursor - 1)
-            local word = beforeCursor:match("([%a_]+)$")
+            local word = beforeCursor:match("([%a_а-яА-ЯёЁ]+)$")
             
             if word then
                 local suggestions = {
@@ -580,13 +515,25 @@ local function open_xcode_gui()
         end
     end)
 
+    -- === ЛОКАЛИЗАЦИЯ (ПЕРЕВОД КЛЮЧЕВЫХ СЛОВ) ===
+    local function localizeCode(code)
+        local ruKeywords = {
+            ["переменная"] = "local", ["функция"] = "function",
+            ["если"] = "if", ["тогда"] = "then", ["иначе"] = "else",
+            ["иначеесли"] = "elseif", ["конец"] = "end", ["пока"] = "while",
+            ["делать"] = "do", ["для"] = "for", ["в"] = "in", ["вернуть"] = "return",
+            ["прервать"] = "break", ["ноль"] = "nil", ["истина"] = "true", ["ложь"] = "false"
+        }
+        for ru, en in pairs(ruKeywords) do
+            code = code:gsub("%f[%w_а-яА-ЯёЁ]" .. ru .. "%f[^%w_а-яА-ЯёЁ]", en)
+        end
+        return code
+    end
+
     -- === КНОПКИ ===
     btnExecute.MouseButton1Click:Connect(function()
         errorMarker.Visible = false
-        local finalCode = codeBox.Text
-        for ru, en in pairs(russianMap) do
-            finalCode = finalCode:gsub("%f[%a]" .. ru .. "%f[%A]", en)
-        end
+        local finalCode = localizeCode(codeBox.Text)
         
         local success, err = pcall(function()
             local func = loadstring(finalCode)
@@ -607,7 +554,10 @@ local function open_xcode_gui()
         end
     end)
 
-    btnClear.MouseButton1Click:Connect(function() codeBox.Text = ""; flags = {}; drawFlags(); errorMarker.Visible = false end)
+    btnClear.MouseButton1Click:Connect(function() 
+        codeBox.Text = ""
+        errorMarker.Visible = false 
+    end)
     
     btnSelectAll.MouseButton1Click:Connect(function()
         codeBox.CursorPosition = 1
@@ -625,9 +575,6 @@ local function open_xcode_gui()
         end
     end)
 
-    btnClose.MouseButton1Click:Connect(function() xGui:Destroy() end)
-
-    -- Изменение размера
     local xResize = Instance.new("TextButton")
     xResize.Size = UDim2.new(0, 16, 0, 16)
     xResize.Position = UDim2.new(1, -16, 1, -16)
@@ -656,13 +603,14 @@ local function open_xcode_gui()
             local newWidth = math.max(400, xStartSize.X + delta.X)
             local newHeight = math.max(200, xStartSize.Y + delta.Y)
             xWin.Size = UDim2.new(0, newWidth, 0, newHeight)
+            updateEditorVisuals() -- Обновляем перенос строк при ресайзе
         end
     end)
     UIS.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then xResizing = false end
     end)
 
-    codeBox.Text = "-- Напиши код на англ или русском:\nlocal x = 10\nнапечатать(\"Привет, мир!\")\n"
+    codeBox.Text = "-- Напиши код на англ или русском:\nпеременная тест = 10\nнапечатать(\"Привет, мир!\")\n"
     updateEditorVisuals()
 end
 
