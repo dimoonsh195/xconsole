@@ -91,7 +91,7 @@ Header.Parent = ConsoleFrame
 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 6)
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -100, 1, 0)
+Title.Size = UDim2.new(1, -60, 1, 0)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "CONSOLE"
@@ -100,19 +100,6 @@ Title.Font = CONFIG.Font
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Header
-
--- Кнопка выдачи пушки (для удобства)
-local GunBtn = Instance.new("TextButton")
-GunBtn.Size = UDim2.new(0, 40, 0, 24)
-GunBtn.Position = UDim2.new(1, -65, 0, 3)
-GunBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
-GunBtn.Text = "GUN"
-GunBtn.TextColor3 = Color3.new(1, 1, 1)
-GunBtn.Font = CONFIG.Font
-GunBtn.TextSize = 12
-GunBtn.BorderSizePixel = 0
-GunBtn.Parent = Header
-Instance.new("UICorner", GunBtn).CornerRadius = UDim.new(0, 4)
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 24, 0, 24)
@@ -266,14 +253,19 @@ local function giveF3X()
     else log("Failed to load F3X: " .. tostring(err), "Error") end
 end
 
--- Выдача M249 (Клиентский деструктор)
+-- Выдача M249 (Теперь сразу в руки и правильно удаляет)
 local function giveGun()
     log("Creating M249...", "Info")
     local success, err = pcall(function()
         local char = LocalPlayer.Character
         if not char then error("No character") end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hum then error("No humanoid") end
+        
         local bp = LocalPlayer:FindFirstChild("Backpack")
-        if bp and bp:FindFirstChild("M249") then bp.M249:Destroy() end
+        if not bp then error("No backpack") end
+        
+        if bp:FindFirstChild("M249") then bp.M249:Destroy() end
         if char:FindFirstChild("M249") then char.M249:Destroy() end
 
         local tool = Instance.new("Tool")
@@ -339,10 +331,10 @@ local function giveGun()
         muzzleFlash.Color = ColorSequence.new(Color3.fromRGB(255, 220, 100))
         muzzleFlash.Parent = barrel
 
-        -- Звук (Исправлен на рабочий ID)
+        -- Звук
         local shootSound = Instance.new("Sound")
         shootSound.Name = "ShootSound"
-        shootSound.SoundId = "rbxassetid://131886985" -- Стандартный звук выстрела
+        shootSound.SoundId = "rbxassetid://131886985"
         shootSound.Volume = 0.4
         shootSound.Parent = handle
 
@@ -371,7 +363,7 @@ local function giveGun()
             s.Parent = handle
             s.PlayOnRemove = true
             s:Destroy()
-            pcall(function() s:Play() end) -- Защита от спама ошибок
+            pcall(function() s:Play() end)
 
             muzzleFlash:Emit(8)
 
@@ -384,6 +376,7 @@ local function giveGun()
             )
             local direction = (look + spread).Unit
 
+            -- Исключаем себя и оружие из рейкаста
             local rayParams = RaycastParams.new()
             rayParams.FilterType = Enum.RaycastFilterType.Exclude
             rayParams.FilterDescendantsInstances = { char, tool }
@@ -404,14 +397,13 @@ local function giveGun()
             TweenService:Create(tracer, TweenInfo.new(0.1), { Transparency = 1 }):Play()
             Debris:AddItem(tracer, 0.15)
 
+            -- Удаление объекта, в который попали (только на клиенте)
             if result and result.Instance then
                 local hit = result.Instance
-                -- Проверка, чтобы не удалить себя или пушку
-                if not char:IsAncestorOf(hit) and not tool:IsAncestorOf(hit) then
-                    hit:Destroy() -- Удаление объекта на клиенте
+                if not hit:IsA("Terrain") then -- Terrain не удаляем, чтобы не крашнуло
+                    hit:Destroy()
                 end
                 
-                -- Искра попадания
                 local spark = Instance.new("Part")
                 spark.Size = Vector3.new(0.1, 0.1, 0.1)
                 spark.CFrame = CFrame.new(hitPos)
@@ -434,18 +426,16 @@ local function giveGun()
         tool.Deactivated:Connect(function() firing = false end)
         tool.Unequipped:Connect(function() firing = false end)
 
-        tool.Parent = char
-        log("M249 given! Ammo: " .. ammo .. " (Client Destroyer)", "Success")
+        -- Спавним в рюкзак и сразу экипируем в руки
+        tool.Parent = bp
+        hum:EquipTool(tool)
+        
+        log("M249 given and equipped!", "Success")
     end)
     if not success then
         log("Failed to create M249: " .. tostring(err), "Error")
     end
 end
-
--- Привязываем кнопку GUN к функции
-GunBtn.MouseButton1Click:Connect(function()
-    giveGun()
-end)
 
 local commands = {
     ["help"] = function()
@@ -592,4 +582,4 @@ log("CONSOLE loaded. Type help.", "Success")
 log("System logs from Roblox are now being mirrored.", "Info")
 log("Aliases for Xcode: codegui, guicode, xcode, code", "Info")
 log("Aliases for F3X: getf3x, tool, gettool, f3xtool, f3x", "Info")
-log("Aliases for M249: gun, m249 (or click GUN button)", "Info")
+log("Aliases for M249: gun, m249", "Info")
