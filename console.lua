@@ -12,12 +12,15 @@ local LocalPlayer = Players.LocalPlayer
 
 -- ============ FORWARD DECLS ============
 local SaveBtn, LoadBtn, eventsTitleLabel, eventBoxes, eventLabels
-local SettingsFrame, SettingsScroll, SettingsTitle, BackBtn
-local themeButtons, langButtons, themeLabel, langLabel, secretBtn
-local svCheats = false
+local SettingsFrame, SettingsScroll, SettingsTitle, BackBtn, LangPopup
+local themeButtons, langButtons, themeLabel, langLabel, secretBtn, win10Btn, langOpenBtn
+local bgRow, bgBox, bgApplyBtn, bgLabel
+local premiumEnabled = false
+local customBgId = ""
 local commands = {}
 local applyThemeToSettings, saveConfig, refreshThemeButtons, refreshUILabels, setupBind
 local SECRET = "100110101011000101"
+local WIN10_THEME_ID = "13932338252"
 eventBoxes = {}; eventLabels = {}
 themeButtons = {}; langButtons = {}
 
@@ -32,7 +35,8 @@ local LOC = {
         cfg_saved="Config saved", cfg_loaded="Config loaded", cfg_fail="Config operation failed",
         theme_set="Theme set: ", lang_set="Language set: ", corner_set="Corner set: ", corner_reset="Corner reset to default",
         unloaded="Console unloaded", settings_hint="Type 'settings' to open the panel", loaded="CONSOLE loaded. Type help.",
-        lua_compile="Lua compile error: ", lua_runtime="Lua runtime error: ", no_char="No character" },
+        lua_compile="Lua compile error: ", lua_runtime="Lua runtime error: ", no_char="No character",
+        select_lang="Select Language", custom_bg="Custom Background (Asset ID)", apply="Apply", premium_req="Premium required" },
     ru = { title="КОНСОЛЬ", placeholder="Введите команду или Lua-код...", settings_title="НАСТРОЙКИ", theme="Тема",
         theme_default="Обычная", theme_winter="Зимняя", theme_halloween="Хэллоуин",
         language="Язык", back="Назад", save_cfg="Сохранить конфиг", load_cfg="Загрузить конфиг",
@@ -41,35 +45,64 @@ local LOC = {
         cfg_saved="Конфиг сохранён", cfg_loaded="Конфиг загружен", cfg_fail="Ошибка операции с конфигом",
         theme_set="Тема установлена: ", lang_set="Язык установлен: ", corner_set="Скругление установлено: ", corner_reset="Скругление сброшено",
         unloaded="Консоль выгружена", settings_hint="Введите 'settings' чтобы открыть панель", loaded="КОНСОЛЬ загружена. Введите help.",
-        lua_compile="Ошибка компиляции Lua: ", lua_runtime="Ошибка выполнения Lua: ", no_char="Нет персонажа" },
+        lua_compile="Ошибка компиляции Lua: ", lua_runtime="Ошибка выполнения Lua: ", no_char="Нет персонажа",
+        select_lang="Выбор языка", custom_bg="Свой фон (Asset ID)", apply="Применить", premium_req="Требуется Premium" },
     zh = { title="控制台", placeholder="输入命令或 Lua 代码...", settings_title="设置", theme="主题",
         theme_default="默认", theme_winter="冬季", theme_halloween="万圣节", language="语言", back="返回",
         save_cfg="保存配置", load_cfg="加载配置", events_title="事件（命令或 Lua 代码）",
         cfg_saved="配置已保存", cfg_loaded="配置已加载", cfg_fail="配置操作失败",
         theme_set="主题已设置：", lang_set="语言已设置：", corner_set="圆角已设置：", corner_reset="圆角已重置为默认",
         unloaded="控制台已卸载", settings_hint="输入 'settings' 打开面板", loaded="控制台已加载。输入 help。",
-        lua_compile="Lua 编译错误：", lua_runtime="Lua 运行时错误：", no_char="没有角色" },
+        lua_compile="Lua 编译错误：", lua_runtime="Lua 运行时错误：", no_char="没有角色",
+        select_lang="选择语言", custom_bg="自定义背景 (Asset ID)", apply="应用", premium_req="需要高级版" },
     ja = { title="コンソール", placeholder="コマンドまたは Lua コードを入力...", settings_title="設定", theme="テーマ",
         theme_default="デフォルト", theme_winter="冬", theme_halloween="ハロウィン", language="言語", back="戻る",
         save_cfg="設定を保存", load_cfg="設定を読み込む", events_title="イベント（コマンドまたは Lua コード）",
         cfg_saved="設定を保存しました", cfg_loaded="設定を読み込みました", cfg_fail="設定操作に失敗しました",
         theme_set="テーマ設定：", lang_set="言語設定：", corner_set="角丸設定：", corner_reset="角丸をデフォルトに戻しました",
         unloaded="コンソールをアンロードしました", settings_hint="'settings' でパネルを開く", loaded="コンソール読み込み完了。help を入力。",
-        lua_compile="Lua コンパイルエラー：", lua_runtime="Lua 実行時エラー：", no_char="キャラクターがいません" },
+        lua_compile="Lua コンパイルエラー：", lua_runtime="Lua 実行時エラー：", no_char="キャラクターがいません",
+        select_lang="言語を選択", custom_bg="カスタム背景 (Asset ID)", apply="適用", premium_req="プレミアムが必要" },
     uk = { title="КОНСОЛЬ", placeholder="Введіть команду або Lua-код...", settings_title="НАЛАШТУВАННЯ", theme="Тема",
         theme_default="Звичайна", theme_winter="Зимова", theme_halloween="Хелловін", language="Мова", back="Назад",
         save_cfg="Зберегти конфіг", load_cfg="Завантажити конфіг", events_title="Події (команда або Lua-код)",
         cfg_saved="Конфіг збережено", cfg_loaded="Конфіг завантажено", cfg_fail="Помилка операції з конфігом",
         theme_set="Тему встановлено: ", lang_set="Мову встановлено: ", corner_set="Заокруглення встановлено: ", corner_reset="Заокруглення скинуто",
         unloaded="Консоль вивантажено", settings_hint="Введіть 'settings' щоб відкрити панель", loaded="КОНСОЛЬ завантажена. Введіть help.",
-        lua_compile="Помилка компіляції Lua: ", lua_runtime="Помилка виконання Lua: ", no_char="Немає персонажа" },
+        lua_compile="Помилка компіляції Lua: ", lua_runtime="Помилка виконання Lua: ", no_char="Немає персонажа",
+        select_lang="Обрати мову", custom_bg="Свій фон (Asset ID)", apply="Застосувати", premium_req="Потрібен Premium" },
     ko = { title="콘솔", placeholder="명령어 또는 Lua 코드 입력...", settings_title="설정", theme="테마",
         theme_default="기본", theme_winter="겨울", theme_halloween="할로윈", language="언어", back="뒤로",
         save_cfg="설정 저장", load_cfg="설정 불러오기", events_title="이벤트 (명령어 또는 Lua 코드)",
         cfg_saved="설정이 저장되었습니다", cfg_loaded="설정이 로드되었습니다", cfg_fail="설정 작업 실패",
         theme_set="테마 설정: ", lang_set="언어 설정: ", corner_set="모서리 설정: ", corner_reset="모서리가 기본값으로 재설정됨",
         unloaded="콘솔이 언로드되었습니다", settings_hint="'settings'를 입력하여 패널 열기", loaded="콘솔 로드 완료. help 입력.",
-        lua_compile="Lua 컴파일 오류: ", lua_runtime="Lua 런타임 오류: ", no_char="캐릭터가 없습니다" },
+        lua_compile="Lua 컴파일 오류: ", lua_runtime="Lua 런타임 오류: ", no_char="캐릭터가 없습니다",
+        select_lang="언어 선택", custom_bg="사용자 지정 배경 (Asset ID)", apply="적용", premium_req="프리미엄 필요" },
+    de = { title="KONSOLE", placeholder="Befehl oder Lua-Code eingeben...", settings_title="EINSTELLUNGEN", theme="Thema",
+        theme_default="Standard", theme_winter="Winter", theme_halloween="Halloween", language="Sprache", back="Zurück",
+        save_cfg="Konfiguration speichern", load_cfg="Konfiguration laden", events_title="Ereignisse (Befehl oder Lua-Code)",
+        cfg_saved="Konfiguration gespeichert", cfg_loaded="Konfiguration geladen", cfg_fail="Konfigurationsvorgang fehlgeschlagen",
+        theme_set="Thema gesetzt: ", lang_set="Sprache gesetzt: ", corner_set="Ecke gesetzt: ", corner_reset="Ecke auf Standard zurückgesetzt",
+        unloaded="Konsole entladen", settings_hint="Geben Sie 'settings' ein, um das Panel zu öffnen", loaded="KONSOLE geladen. Geben Sie help ein.",
+        lua_compile="Lua-Kompilierungsfehler: ", lua_runtime="Lua-Laufzeitfehler: ", no_char="Kein Charakter",
+        select_lang="Sprache auswählen", custom_bg="Benutzerdefinierter Hintergrund (Asset ID)", apply="Anwenden", premium_req="Premium erforderlich" },
+    it = { title="CONSOLE", placeholder="Inserisci comando o codice Lua...", settings_title="IMPOSTAZIONI", theme="Tema",
+        theme_default="Predefinito", theme_winter="Inverno", theme_halloween="Halloween", language="Lingua", back="Indietro",
+        save_cfg="Salva configurazione", load_cfg="Carica configurazione", events_title="Eventi (comando o codice Lua)",
+        cfg_saved="Configurazione salvata", cfg_loaded="Configurazione caricata", cfg_fail="Operazione di configurazione fallita",
+        theme_set="Tema impostato: ", lang_set="Lingua impostata: ", corner_set="Angolo impostato: ", corner_reset="Angolo ripristinato",
+        unloaded="Console scaricata", settings_hint="Digita 'settings' per aprire il pannello", loaded="CONSOLE caricata. Digita help.",
+        lua_compile="Errore di compilazione Lua: ", lua_runtime="Errore di runtime Lua: ", no_char="Nessun personaggio",
+        select_lang="Seleziona lingua", custom_bg="Sfondo personalizzato (Asset ID)", apply="Applica", premium_req="Premium richiesto" },
+    es = { title="CONSOLA", placeholder="Ingresa comando o código Lua...", settings_title="AJUSTES", theme="Tema",
+        theme_default="Predeterminado", theme_winter="Invierno", theme_halloween="Halloween", language="Idioma", back="Atrás",
+        save_cfg="Guardar configuración", load_cfg="Cargar configuración", events_title="Eventos (comando o código Lua)",
+        cfg_saved="Configuración guardada", cfg_loaded="Configuración cargada", cfg_fail="Operación de configuración fallida",
+        theme_set="Tema establecido: ", lang_set="Idioma establecido: ", corner_set="Esquina establecida: ", corner_reset="Esquina restablecida",
+        unloaded="Consola descargada", settings_hint="Escribe 'settings' para abrir el panel", loaded="CONSOLA cargada. Escribe help.",
+        lua_compile="Error de compilación Lua: ", lua_runtime="Error de tiempo de ejecución Lua: ", no_char="Sin personaje",
+        select_lang="Seleccionar idioma", custom_bg="Fondo personalizado (Asset ID)", apply="Aplicar", premium_req="Se requiere Premium" },
 }
 local function T(key, ...)
     local s = (LOC[LANG] and LOC[LANG][key]) or LOC.en[key] or key
@@ -91,8 +124,21 @@ local THEMES = {
     [SECRET] = { background=Color3.fromRGB(60,60,60), header=Color3.fromRGB(40,40,40), input=Color3.fromRGB(50,50,50),
                  log=Color3.fromRGB(30,30,30), accent=Color3.fromRGB(220,220,220), text=Color3.fromRGB(235,235,235),
                  stroke=Color3.fromRGB(140,140,140) },
+    win10 = { background=Color3.fromRGB(20,20,20), header=Color3.fromRGB(35,35,35), input=Color3.fromRGB(45,45,45),
+              log=Color3.fromRGB(15,15,15), accent=Color3.fromRGB(0,120,215), text=Color3.fromRGB(240,240,240),
+              stroke=Color3.fromRGB(0,120,215) },
+    custom = { background=Color3.fromRGB(20,20,20), header=Color3.fromRGB(35,35,35), input=Color3.fromRGB(45,45,45),
+               log=Color3.fromRGB(15,15,15), accent=Color3.fromRGB(255,255,255), text=Color3.fromRGB(240,240,240),
+               stroke=Color3.fromRGB(255,255,255) },
 }
 local currentTheme = "default"
+
+-- Функция для надежной загрузки картинок (обход блокировок rbxassetid)
+local function getThumb(id)
+    local num = tostring(id):match("%d+")
+    if not num then return "" end
+    return "rbxthumb://type=Asset&id=" .. num .. "&w=768&h=432"
+end
 
 local CONFIG = { Font = Enum.Font.Code, MaxHistory = 50 }
 local COLORS = {
@@ -159,18 +205,6 @@ bgImage.ScaleType = Enum.ScaleType.Crop
 bgImage.ZIndex = 1; bgImage.Visible = false
 bgImage.Parent = ConsoleFrame
 Instance.new("UICorner", bgImage).CornerRadius = UDim.new(0,6)
-
-bgImage.Image = "rbxthumb://type=Asset&id=5456915026&w=768&h=432"
-pcall(function()
-    bgImage.ImageFailed:Connect(function()
-        if bgImage.Image:find("rbxthumb") then
-            bgImage.Image = "rbxassetid://5456915026"
-        elseif bgImage.Image:find("rbxassetid") then
-            bgImage.Image = ""
-            warn("[Console] Secret theme image 5456915026 could not be loaded.")
-        end
-    end)
-end)
 
 local stroke = Instance.new("UIStroke")
 stroke.Color = THEMES.default.stroke; stroke.Thickness = 1; stroke.Transparency = 0.5; stroke.Parent = ConsoleFrame
@@ -290,74 +324,33 @@ local function giveGun()
         if char:FindFirstChild("M249") then char.M249:Destroy() end
 
         local tool = Instance.new("Tool")
-        tool.Name = "M249"
-        tool.RequiresHandle = true
-        tool.CanBeDropped = false
-        tool.ToolTip = "M249 SAW"
+        tool.Name = "M249"; tool.RequiresHandle = true; tool.CanBeDropped = false; tool.ToolTip = "M249 SAW"
 
         local handle = Instance.new("Part")
-        handle.Name = "Handle"
-        handle.Size = Vector3.new(0.5, 0.7, 3)
-        handle.Color = Color3.fromRGB(35, 35, 35)
-        handle.Material = Enum.Material.Metal
-        handle.TopSurface = Enum.SurfaceType.Smooth
-        handle.BottomSurface = Enum.SurfaceType.Smooth
-        handle.Parent = tool
+        handle.Name = "Handle"; handle.Size = Vector3.new(0.5, 0.7, 3); handle.Color = Color3.fromRGB(35, 35, 35)
+        handle.Material = Enum.Material.Metal; handle.TopSurface = Enum.SurfaceType.Smooth; handle.BottomSurface = Enum.SurfaceType.Smooth; handle.Parent = tool
 
         local barrel = Instance.new("Part")
-        barrel.Size = Vector3.new(0.2, 0.2, 2.2)
-        barrel.Color = Color3.fromRGB(20, 20, 20)
-        barrel.Material = Enum.Material.Metal
-        barrel.CanCollide = false
-        barrel.Massless = true
-        barrel.Parent = tool
-        local weld = Instance.new("Weld")
-        weld.Part0 = handle
-        weld.Part1 = barrel
-        weld.C0 = CFrame.new(0, 0.1, -2.4)
-        weld.Parent = handle
+        barrel.Size = Vector3.new(0.2, 0.2, 2.2); barrel.Color = Color3.fromRGB(20, 20, 20); barrel.Material = Enum.Material.Metal
+        barrel.CanCollide = false; barrel.Massless = true; barrel.Parent = tool
+        local weld = Instance.new("Weld"); weld.Part0 = handle; weld.Part1 = barrel; weld.C0 = CFrame.new(0, 0.1, -2.4); weld.Parent = handle
 
         local mag = Instance.new("Part")
-        mag.Size = Vector3.new(0.35, 0.9, 0.4)
-        mag.Color = Color3.fromRGB(25, 25, 25)
-        mag.Material = Enum.Material.Metal
-        mag.CanCollide = false
-        mag.Massless = true
-        mag.Parent = tool
-        local magWeld = Instance.new("Weld")
-        magWeld.Part0 = handle
-        magWeld.Part1 = mag
-        magWeld.C0 = CFrame.new(0, -0.7, -0.6)
-        magWeld.Parent = handle
+        mag.Size = Vector3.new(0.35, 0.9, 0.4); mag.Color = Color3.fromRGB(25, 25, 25); mag.Material = Enum.Material.Metal
+        mag.CanCollide = false; mag.Massless = true; mag.Parent = tool
+        local magWeld = Instance.new("Weld"); magWeld.Part0 = handle; magWeld.Part1 = mag; magWeld.C0 = CFrame.new(0, -0.7, -0.6); magWeld.Parent = handle
 
         local muzzleFlash = Instance.new("ParticleEmitter")
-        muzzleFlash.Texture = "rbxassetid://296874871"
-        muzzleFlash.LightEmission = 1
-        muzzleFlash.LightInfluence = 0
-        muzzleFlash.Size = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 1.2),
-            NumberSequenceKeypoint.new(1, 0)
-        })
-        muzzleFlash.Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0),
-            NumberSequenceKeypoint.new(1, 1)
-        })
-        muzzleFlash.Lifetime = NumberRange.new(0.05, 0.1)
-        muzzleFlash.Rate = 0
-        muzzleFlash.Speed = NumberRange.new(0)
-        muzzleFlash.Color = ColorSequence.new(Color3.fromRGB(255, 220, 100))
-        muzzleFlash.Parent = barrel
+        muzzleFlash.Texture = "rbxassetid://296874871"; muzzleFlash.LightEmission = 1; muzzleFlash.LightInfluence = 0
+        muzzleFlash.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 1.2), NumberSequenceKeypoint.new(1, 0)})
+        muzzleFlash.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)})
+        muzzleFlash.Lifetime = NumberRange.new(0.05, 0.1); muzzleFlash.Rate = 0; muzzleFlash.Speed = NumberRange.new(0)
+        muzzleFlash.Color = ColorSequence.new(Color3.fromRGB(255, 220, 100)); muzzleFlash.Parent = barrel
 
         local shootSound = Instance.new("Sound")
-        shootSound.Name = "ShootSound"
-        shootSound.SoundId = "rbxassetid://131886985"
-        shootSound.Volume = 0.4
-        shootSound.Parent = handle
+        shootSound.Name = "ShootSound"; shootSound.SoundId = "rbxassetid://131886985"; shootSound.Volume = 0.4; shootSound.Parent = handle
 
-        local ammo = 200
-        local fireRate = 0.08
-        local firing = false
-        local fireDebounce = false
+        local ammo = 200; local fireRate = 0.08; local firing = false; local fireDebounce = false
 
         local function fire()
             if fireDebounce then return end
@@ -366,19 +359,12 @@ local function giveGun()
 
             if ammo <= 0 then
                 local clickSnd = Instance.new("Sound")
-                clickSnd.SoundId = "rbxassetid://3531185870"
-                clickSnd.Volume = 0.3
-                clickSnd.Parent = handle
-                clickSnd:Play()
-                Debris:AddItem(clickSnd, 1)
-                return
+                clickSnd.SoundId = "rbxassetid://3531185870"; clickSnd.Volume = 0.3; clickSnd.Parent = handle
+                clickSnd:Play(); Debris:AddItem(clickSnd, 1); return
             end
             ammo -= 1
 
-            local s = shootSound:Clone()
-            s.Parent = handle
-            s.PlayOnRemove = true
-            s:Destroy()
+            local s = shootSound:Clone(); s.Parent = handle; s.PlayOnRemove = true; s:Destroy()
             pcall(function() s:Play() end)
 
             muzzleFlash:Emit(8)
@@ -400,51 +386,32 @@ local function giveGun()
             local tracer = Instance.new("Part")
             tracer.Size = Vector3.new(0.05, 0.05, (hitPos - origin).Magnitude)
             tracer.CFrame = CFrame.lookAt(origin, hitPos) * CFrame.new(0, 0, -tracer.Size.Z / 2)
-            tracer.Anchored = true
-            tracer.CanCollide = false
-            tracer.Color = Color3.fromRGB(255, 200, 50)
-            tracer.Material = Enum.Material.Neon
-            tracer.Transparency = 0.3
-            tracer.Parent = Workspace
+            tracer.Anchored = true; tracer.CanCollide = false; tracer.Color = Color3.fromRGB(255, 200, 50)
+            tracer.Material = Enum.Material.Neon; tracer.Transparency = 0.3; tracer.Parent = Workspace
             TweenService:Create(tracer, TweenInfo.new(0.1), { Transparency = 1 }):Play()
             Debris:AddItem(tracer, 0.15)
 
             if result and result.Instance then
                 local hit = result.Instance
-                if not hit:IsA("Terrain") then
-                    hit:Destroy()
-                end
-                
+                if not hit:IsA("Terrain") then hit:Destroy() end
                 local spark = Instance.new("Part")
-                spark.Size = Vector3.new(0.1, 0.1, 0.1)
-                spark.CFrame = CFrame.new(hitPos)
-                spark.Anchored = true
-                spark.CanCollide = false
-                spark.Color = Color3.fromRGB(255, 150, 50)
-                spark.Material = Enum.Material.Neon
-                spark.Parent = Workspace
-                Debris:AddItem(spark, 0.2)
+                spark.Size = Vector3.new(0.1, 0.1, 0.1); spark.CFrame = CFrame.new(hitPos)
+                spark.Anchored = true; spark.CanCollide = false; spark.Color = Color3.fromRGB(255, 150, 50)
+                spark.Material = Enum.Material.Neon; spark.Parent = Workspace; Debris:AddItem(spark, 0.2)
             end
         end
 
         tool.Activated:Connect(function()
             firing = true
-            while firing and tool.Parent and tool.Parent:IsA("Model") do
-                fire()
-                task.wait(fireRate)
-            end
+            while firing and tool.Parent and tool.Parent:IsA("Model") do fire(); task.wait(fireRate) end
         end)
         tool.Deactivated:Connect(function() firing = false end)
         tool.Unequipped:Connect(function() firing = false end)
 
-        tool.Parent = bp
-        hum:EquipTool(tool)
-        
+        tool.Parent = bp; hum:EquipTool(tool)
         log("M249 given! Shoots exactly where you aim.", "Success")
     end)
-    if not success then
-        log("Failed to create M249: " .. tostring(err), "Error")
-    end
+    if not success then log("Failed to create M249: " .. tostring(err), "Error") end
 end
 
 local function toggleFly(on)
@@ -617,9 +584,6 @@ applyThemeToSettings = function(t)
     for n, btn in pairs(themeButtons) do
         btn.BackgroundColor3 = (currentTheme == n) and t.accent or t.input
     end
-    for c, bb in pairs(langButtons) do
-        bb.BackgroundColor3 = (LANG == c) and t.accent or t.input
-    end
     if BackBtn then BackBtn.BackgroundColor3 = Color3.fromRGB(200,50,50); BackBtn.TextColor3 = Color3.new(1,1,1) end
     if SettingsTitle then SettingsTitle.TextColor3 = t.accent end
     SettingsFrame.BackgroundColor3 = t.background
@@ -634,13 +598,28 @@ local function applyTheme(name)
     LogFrame.BackgroundColor3 = t.log
     Title.TextColor3 = t.accent; CommandBox.TextColor3 = t.accent
     stroke.Color = t.stroke; LogFrame.ScrollBarImageColor3 = t.accent
+    
     if name == SECRET then
-        ConsoleFrame.BackgroundTransparency = 0.9
+        bgImage.Image = getThumb("5456915026")
         bgImage.Visible = true
-        bgImage.ImageTransparency = 0
+        ConsoleFrame.BackgroundTransparency = 0.9
         LogFrame.BackgroundTransparency = 0.55
         InputFrame.BackgroundTransparency = 0.45
         Header.BackgroundTransparency = 0.45
+    elseif name == "win10" then
+        bgImage.Image = getThumb(WIN10_THEME_ID)
+        bgImage.Visible = true
+        ConsoleFrame.BackgroundTransparency = 0.85
+        LogFrame.BackgroundTransparency = 0.5
+        InputFrame.BackgroundTransparency = 0.4
+        Header.BackgroundTransparency = 0.4
+    elseif name == "custom" then
+        bgImage.Image = getThumb(customBgId)
+        bgImage.Visible = true
+        ConsoleFrame.BackgroundTransparency = 0.85
+        LogFrame.BackgroundTransparency = 0.5
+        InputFrame.BackgroundTransparency = 0.4
+        Header.BackgroundTransparency = 0.4
     else
         bgImage.Visible = false
         ConsoleFrame.BackgroundTransparency = 0.1
@@ -705,6 +684,39 @@ BackBtn.TextColor3=Color3.new(1,1,1); BackBtn.Font=CONFIG.Font; BackBtn.TextSize
 BackBtn.BorderSizePixel=0; BackBtn.ZIndex=12; BackBtn.Parent=SettingsFrame
 Instance.new("UICorner", BackBtn).CornerRadius = UDim.new(0,4)
 
+-- Окно выбора языка
+LangPopup = Instance.new("Frame")
+LangPopup.Size = UDim2.new(1,0,1,0); LangPopup.Position = UDim2.new(0,0,0,0)
+LangPopup.BackgroundColor3 = THEMES.default.background
+LangPopup.BackgroundTransparency = 0.05; LangPopup.BorderSizePixel = 0
+LangPopup.Visible = false; LangPopup.ZIndex = 15; LangPopup.Parent = ConsoleFrame
+Instance.new("UICorner", LangPopup).CornerRadius = UDim.new(0,6)
+
+local langTitle = makeLabel(LangPopup, T("select_lang"), 10, 30)
+langTitle.ZIndex = 16
+
+local langBack = makeButton(LangPopup, T("back"), 10, 10, 60, 24, function()
+    LangPopup.Visible = false
+    SettingsFrame.Visible = true
+end)
+langBack.Position = UDim2.new(1,-70,0,10)
+
+local LANG_NAMES = { en="English", ru="Русский", zh="中文", ja="日本語", uk="Українська", ko="한국어", de="Deutsch", it="Italiano", es="Español" }
+local langIdx = 0
+for _, code in ipairs({"en","ru","zh","ja","uk","ko","de","it","es"}) do
+    local b = makeButton(LangPopup, LANG_NAMES[code], 10 + (langIdx%3)*130, 50 + math.floor(langIdx/3)*40, 120, 30, function()
+        LANG = code
+        refreshUILabels()
+        LangPopup.Visible = false
+        SettingsFrame.Visible = true
+        log(T("lang_set")..LANG_NAMES[code], "Success")
+        if saveConfig then pcall(saveConfig) end
+    end)
+    b.ZIndex = 16
+    langButtons[code] = b
+    langIdx += 1
+end
+
 local function openSettings()
     SettingsFrame.Visible = true; SettingsFrame.BackgroundTransparency = 1
     SettingsFrame.Position = UDim2.new(0,0,0,20)
@@ -733,14 +745,22 @@ for _, name in ipairs({"default","winter","halloween"}) do
     end)
     themeButtons[name] = b; tidx += 1
 end
-secretBtn = makeButton(themeRow, SECRET, tidx*110, 22, 160, 26, function()
-    if svCheats then
-        applyTheme(SECRET); refreshThemeButtons(); log("Theme set: "..SECRET, "Success")
+
+secretBtn = makeButton(themeRow, "Code", tidx*110, 22, 100, 26, function()
+    if premiumEnabled then
+        applyTheme(SECRET); refreshThemeButtons(); log("Theme set: Code", "Success")
         if saveConfig then pcall(saveConfig) end
     end
 end)
-secretBtn.TextSize = 11
 themeButtons[SECRET] = secretBtn; secretBtn.Visible = false
+
+win10Btn = makeButton(themeRow, "Windows 10", (tidx+1)*110, 22, 100, 26, function()
+    if premiumEnabled then
+        applyTheme("win10"); refreshThemeButtons(); log("Theme set: Windows 10", "Success")
+        if saveConfig then pcall(saveConfig) end
+    end
+end)
+themeButtons["win10"] = win10Btn; win10Btn.Visible = false
 addSettingRow(themeRow)
 
 refreshThemeButtons = function()
@@ -751,20 +771,51 @@ refreshThemeButtons = function()
 end
 refreshThemeButtons()
 
--- ЯЗЫКИ
+-- ЯЗЫКИ (Одна кнопка)
 local langRow = Instance.new("Frame")
-langRow.Size=UDim2.new(1,-20,0,90); langRow.BackgroundTransparency=1; langRow.ZIndex=11
+langRow.Size=UDim2.new(1,-20,0,60); langRow.BackgroundTransparency=1; langRow.ZIndex=11
 langLabel = makeLabel(langRow, T("language"), 0, 18)
-local LANG_NAMES = { en="EN", ru="RU", zh="中文", ja="日本語", uk="UK", ko="한국어" }
-local langIdx = 0
+
+langOpenBtn = makeButton(langRow, "English", 0, 22, 100, 26, function()
+    SettingsFrame.Visible = false
+    LangPopup.Visible = true
+end)
+addSettingRow(langRow)
+
+-- КАСТОМНЫЙ ФОН (Premium)
+bgRow = Instance.new("Frame")
+bgRow.Size = UDim2.new(1,-20,0,60); bgRow.BackgroundTransparency=1; bgRow.ZIndex=11
+bgRow.Visible = false
+bgLabel = makeLabel(bgRow, T("custom_bg"), 0, 18)
+bgBox = Instance.new("TextBox")
+bgBox.Size = UDim2.new(0,200,0,26); bgBox.Position = UDim2.new(0,0,0,22)
+bgBox.BackgroundColor3 = THEMES.default.input; bgBox.TextColor3 = THEMES.default.text
+bgBox.Font = CONFIG.Font; bgBox.TextSize = 13; bgBox.Text = ""; bgBox.PlaceholderText = "rbxassetid://..."
+bgBox.ZIndex = 12; bgBox.Parent = bgRow
+Instance.new("UICorner", bgBox).CornerRadius = UDim.new(0,4)
+
+bgApplyBtn = makeButton(bgRow, T("apply"), 210, 22, 80, 26, function()
+    if premiumEnabled and bgBox.Text ~= "" then
+        customBgId = bgBox.Text:match("%d+") or bgBox.Text
+        applyTheme("custom")
+        refreshThemeButtons()
+        log("Custom background applied", "Success")
+        if saveConfig then pcall(saveConfig) end
+    end
+end)
+addSettingRow(bgRow)
 
 refreshUILabels = function()
     Title.Text = T("title"); CommandBox.PlaceholderText = T("placeholder")
     SettingsTitle.Text = T("settings_title"); BackBtn.Text = T("back")
     for name, btn in pairs(themeButtons) do
-        btn.Text = (name==SECRET) and SECRET or T("theme_"..name)
+        if name ~= SECRET and name ~= "win10" then btn.Text = T("theme_"..name) end
     end
     themeLabel.Text = T("theme"); langLabel.Text = T("language")
+    if langOpenBtn then langOpenBtn.Text = LANG_NAMES[LANG] or "English" end
+    langTitle.Text = T("select_lang")
+    if bgLabel then bgLabel.Text = T("custom_bg") end
+    if bgApplyBtn then bgApplyBtn.Text = T("apply") end
     if SaveBtn then SaveBtn.Text = T("save_cfg") end
     if LoadBtn then LoadBtn.Text = T("load_cfg") end
     if eventsTitleLabel then eventsTitleLabel.Text = T("events_title") end
@@ -775,16 +826,6 @@ refreshUILabels = function()
     end
 end
 
-for _, code in ipairs({"en","ru","zh","ja","uk","ko"}) do
-    local b = makeButton(langRow, LANG_NAMES[code], (langIdx%3)*70, 22 + math.floor(langIdx/3)*30, 65, 26, function()
-        LANG = code; refreshUILabels(); log(T("lang_set")..code, "Success")
-        if saveConfig then pcall(saveConfig) end
-    end)
-    langButtons[code] = b; langIdx += 1
-end
-addSettingRow(langRow)
-refreshUILabels()
-
 -- КОНФИГ
 local cfgRow = Instance.new("Frame")
 cfgRow.Size=UDim2.new(1,-20,0,40); cfgRow.BackgroundTransparency=1; cfgRow.ZIndex=11
@@ -793,19 +834,26 @@ saveConfig = function()
     local ok, err = pcall(function()
         writefile(CONFIG_FILE, HttpService:JSONEncode({
             theme=currentTheme, lang=LANG, binds=binds,
-            events=STATES.events, cheats=svCheats,
+            events=STATES.events, premium=premiumEnabled, customBg=customBgId
         }))
     end)
     if not ok then log(T("cfg_fail")..": "..tostring(err), "Error") end
 end
 
 local function applyConfig(cfg)
-    if cfg.cheats ~= nil then
-        svCheats = cfg.cheats and true or false
-        if secretBtn then secretBtn.Visible = svCheats end
+    if cfg.premium ~= nil then
+        premiumEnabled = cfg.premium and true or false
+        if secretBtn then secretBtn.Visible = premiumEnabled end
+        if win10Btn then win10Btn.Visible = premiumEnabled end
+        if bgRow then bgRow.Visible = premiumEnabled end
+    end
+    if cfg.customBg then
+        customBgId = tostring(cfg.customBg)
+        if bgBox then bgBox.Text = customBgId end
     end
     if cfg.theme and THEMES[cfg.theme] then
-        if cfg.theme == SECRET and not svCheats then
+        if (cfg.theme == SECRET or cfg.theme == "win10" or cfg.theme == "custom") and not premiumEnabled then
+            -- skip
         else
             applyTheme(cfg.theme); if refreshThemeButtons then refreshThemeButtons() end
         end
@@ -859,6 +907,8 @@ for _, evName in ipairs({"onKilled","onDied","onSpawn","onExecute","onJoin","onD
     eventBoxes[evName] = box
     addSettingRow(row)
 end
+
+refreshUILabels()
 
 local function runEvent(name)
     local code = STATES.events[name]
@@ -936,7 +986,7 @@ end
 
 commands["help"] = function()
     log("Commands:", "Info")
-    log("  settings, bind <key> <cmd>, unload/exit", "Default")
+    log("  settings, bind <key> <cmd>, unload/exit, premium <1|0>", "Default")
     log("  fly/unfly, noclip/clip, esp/unesp, swim/unswim", "Default")
     log("  fling/unfling, infjump/uninfjump, spasm/unspasm, sit", "Default")
     log("  fb/unfb, nofog, tppos x y z, ws, jp, copypos", "Default")
@@ -953,17 +1003,23 @@ commands["unload"] = function()
 end
 commands["exit"] = commands["unload"]
 
-commands["sv_cheats"] = function(args)
+commands["premium"] = function(args)
     local v = args[1]
     if v == "1" then
-        svCheats = true; secretBtn.Visible = true
-        log("Cheats enabled. Secret theme unlocked.", "Success")
+        premiumEnabled = true
+        secretBtn.Visible = true
+        win10Btn.Visible = true
+        bgRow.Visible = true
+        log("Premium enabled. Code, Windows 10 and Custom background unlocked.", "Success")
         if saveConfig then pcall(saveConfig) end
     elseif v == "0" then
-        svCheats = false; secretBtn.Visible = false
-        log("Cheats disabled", "Info")
+        premiumEnabled = false
+        secretBtn.Visible = false
+        win10Btn.Visible = false
+        bgRow.Visible = false
+        log("Premium disabled", "Info")
         if saveConfig then pcall(saveConfig) end
-    else log("Usage: sv_cheats <0|1>", "Error") end
+    else log("Usage: premium <0|1>", "Error") end
 end
 
 commands["fly"]    = function() toggleFly(true); log("Fly enabled","Success") end
