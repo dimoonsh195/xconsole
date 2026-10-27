@@ -3,259 +3,280 @@ local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local LogService = game:GetService("LogService")
 local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 local Debris = game:GetService("Debris")
 local LocalPlayer = Players.LocalPlayer
 
-local CONFIG = {
-    Font = Enum.Font.Code,
-    Accent = Color3.fromRGB(255, 255, 255),
-    Background = Color3.fromRGB(15, 15, 15),
-    MaxHistory = 50,
-}
+-- ============ FORWARD DECLS ============
+local SaveBtn, LoadBtn, eventsTitleLabel, eventBoxes, eventLabels
+local SettingsFrame, SettingsScroll, SettingsTitle, BackBtn
+local themeButtons, langButtons, themeLabel, langLabel, secretBtn
+local svCheats = false
+local commands = {}
+local applyThemeToSettings, saveConfig, refreshThemeButtons, refreshUILabels, setupBind
+local SECRET = "100110101011000101"
+eventBoxes = {}; eventLabels = {}
+themeButtons = {}; langButtons = {}
 
+-- ===================== ЛОКАЛИЗАЦИЯ =====================
+local LANG = "en"
+local LOC = {
+    en = { title="CONSOLE", placeholder="Enter command or Lua code...", settings_title="SETTINGS", theme="Theme",
+        theme_default="Default", theme_winter="Winter", theme_halloween="Halloween",
+        language="Language", back="Back", save_cfg="Save config", load_cfg="Load config",
+        events_title="Events (command or Lua code)", ev_onkilled="onKilled", ev_ondied="onDied",
+        ev_onspawn="onSpawn", ev_onexecute="onExecute", ev_onjoin="onJoin", ev_ondamage="onDamage", ev_onleave="onLeave",
+        cfg_saved="Config saved", cfg_loaded="Config loaded", cfg_fail="Config operation failed",
+        theme_set="Theme set: ", lang_set="Language set: ", corner_set="Corner set: ", corner_reset="Corner reset to default",
+        unloaded="Console unloaded", settings_hint="Type 'settings' to open the panel", loaded="CONSOLE loaded. Type help.",
+        lua_compile="Lua compile error: ", lua_runtime="Lua runtime error: ", no_char="No character" },
+    ru = { title="КОНСОЛЬ", placeholder="Введите команду или Lua-код...", settings_title="НАСТРОЙКИ", theme="Тема",
+        theme_default="Обычная", theme_winter="Зимняя", theme_halloween="Хэллоуин",
+        language="Язык", back="Назад", save_cfg="Сохранить конфиг", load_cfg="Загрузить конфиг",
+        events_title="События (команда или Lua-код)", ev_onkilled="onKilled", ev_ondied="onDied",
+        ev_onspawn="onSpawn", ev_onexecute="onExecute", ev_onjoin="onJoin", ev_ondamage="onDamage", ev_onleave="onLeave",
+        cfg_saved="Конфиг сохранён", cfg_loaded="Конфиг загружен", cfg_fail="Ошибка операции с конфигом",
+        theme_set="Тема установлена: ", lang_set="Язык установлен: ", corner_set="Скругление установлено: ", corner_reset="Скругление сброшено",
+        unloaded="Консоль выгружена", settings_hint="Введите 'settings' чтобы открыть панель", loaded="КОНСОЛЬ загружена. Введите help.",
+        lua_compile="Ошибка компиляции Lua: ", lua_runtime="Ошибка выполнения Lua: ", no_char="Нет персонажа" },
+    zh = { title="控制台", placeholder="输入命令或 Lua 代码...", settings_title="设置", theme="主题",
+        theme_default="默认", theme_winter="冬季", theme_halloween="万圣节", language="语言", back="返回",
+        save_cfg="保存配置", load_cfg="加载配置", events_title="事件（命令或 Lua 代码）",
+        cfg_saved="配置已保存", cfg_loaded="配置已加载", cfg_fail="配置操作失败",
+        theme_set="主题已设置：", lang_set="语言已设置：", corner_set="圆角已设置：", corner_reset="圆角已重置为默认",
+        unloaded="控制台已卸载", settings_hint="输入 'settings' 打开面板", loaded="控制台已加载。输入 help。",
+        lua_compile="Lua 编译错误：", lua_runtime="Lua 运行时错误：", no_char="没有角色" },
+    ja = { title="コンソール", placeholder="コマンドまたは Lua コードを入力...", settings_title="設定", theme="テーマ",
+        theme_default="デフォルト", theme_winter="冬", theme_halloween="ハロウィン", language="言語", back="戻る",
+        save_cfg="設定を保存", load_cfg="設定を読み込む", events_title="イベント（コマンドまたは Lua コード）",
+        cfg_saved="設定を保存しました", cfg_loaded="設定を読み込みました", cfg_fail="設定操作に失敗しました",
+        theme_set="テーマ設定：", lang_set="言語設定：", corner_set="角丸設定：", corner_reset="角丸をデフォルトに戻しました",
+        unloaded="コンソールをアンロードしました", settings_hint="'settings' でパネルを開く", loaded="コンソール読み込み完了。help を入力。",
+        lua_compile="Lua コンパイルエラー：", lua_runtime="Lua 実行時エラー：", no_char="キャラクターがいません" },
+    uk = { title="КОНСОЛЬ", placeholder="Введіть команду або Lua-код...", settings_title="НАЛАШТУВАННЯ", theme="Тема",
+        theme_default="Звичайна", theme_winter="Зимова", theme_halloween="Хелловін", language="Мова", back="Назад",
+        save_cfg="Зберегти конфіг", load_cfg="Завантажити конфіг", events_title="Події (команда або Lua-код)",
+        cfg_saved="Конфіг збережено", cfg_loaded="Конфіг завантажено", cfg_fail="Помилка операції з конфігом",
+        theme_set="Тему встановлено: ", lang_set="Мову встановлено: ", corner_set="Заокруглення встановлено: ", corner_reset="Заокруглення скинуто",
+        unloaded="Консоль вивантажено", settings_hint="Введіть 'settings' щоб відкрити панель", loaded="КОНСОЛЬ завантажена. Введіть help.",
+        lua_compile="Помилка компіляції Lua: ", lua_runtime="Помилка виконання Lua: ", no_char="Немає персонажа" },
+    ko = { title="콘솔", placeholder="명령어 또는 Lua 코드 입력...", settings_title="설정", theme="테마",
+        theme_default="기본", theme_winter="겨울", theme_halloween="할로윈", language="언어", back="뒤로",
+        save_cfg="설정 저장", load_cfg="설정 불러오기", events_title="이벤트 (명령어 또는 Lua 코드)",
+        cfg_saved="설정이 저장되었습니다", cfg_loaded="설정이 로드되었습니다", cfg_fail="설정 작업 실패",
+        theme_set="테마 설정: ", lang_set="언어 설정: ", corner_set="모서리 설정: ", corner_reset="모서리가 기본값으로 재설정됨",
+        unloaded="콘솔이 언로드되었습니다", settings_hint="'settings'를 입력하여 패널 열기", loaded="콘솔 로드 완료. help 입력.",
+        lua_compile="Lua 컴파일 오류: ", lua_runtime="Lua 런타임 오류: ", no_char="캐릭터가 없습니다" },
+}
+local function T(key, ...)
+    local s = (LOC[LANG] and LOC[LANG][key]) or LOC.en[key] or key
+    if select("#", ...) > 0 then return string.format(s, ...) end
+    return s
+end
+
+-- ===================== ТЕМЫ =====================
+local THEMES = {
+    default = { background=Color3.fromRGB(15,15,15), header=Color3.fromRGB(25,25,25), input=Color3.fromRGB(30,30,30),
+                log=Color3.fromRGB(10,10,10), accent=Color3.fromRGB(255,255,255), text=Color3.fromRGB(255,255,255),
+                stroke=Color3.fromRGB(255,255,255) },
+    winter = { background=Color3.fromRGB(80,140,200), header=Color3.fromRGB(60,120,180), input=Color3.fromRGB(100,160,215),
+               log=Color3.fromRGB(50,110,170), accent=Color3.fromRGB(220,240,255), text=Color3.fromRGB(240,250,255),
+               stroke=Color3.fromRGB(180,220,255) },
+    halloween = { background=Color3.fromRGB(45,28,15), header=Color3.fromRGB(60,38,20), input=Color3.fromRGB(55,35,18),
+                  log=Color3.fromRGB(35,20,10), accent=Color3.fromRGB(255,140,0), text=Color3.fromRGB(255,160,40),
+                  stroke=Color3.fromRGB(255,140,0) },
+    [SECRET] = { background=Color3.fromRGB(60,60,60), header=Color3.fromRGB(40,40,40), input=Color3.fromRGB(50,50,50),
+                 log=Color3.fromRGB(30,30,30), accent=Color3.fromRGB(220,220,220), text=Color3.fromRGB(235,235,235),
+                 stroke=Color3.fromRGB(140,140,140) },
+}
+local currentTheme = "default"
+
+local CONFIG = { Font = Enum.Font.Code, MaxHistory = 50 }
 local COLORS = {
-    Error = Color3.fromRGB(255, 100, 100),
-    Success = Color3.fromRGB(100, 255, 100),
-    Info = Color3.fromRGB(255, 200, 100),
-    Echo = Color3.fromRGB(150, 150, 150),
-    Default = Color3.fromRGB(255, 255, 255),
-    Output = Color3.fromRGB(200, 200, 255),
+    Error=Color3.fromRGB(255,100,100), Success=Color3.fromRGB(100,255,100),
+    Info=Color3.fromRGB(255,200,100), Echo=Color3.fromRGB(150,150,150),
+    Default=Color3.fromRGB(255,255,255), Output=Color3.fromRGB(200,200,255),
 }
-
 local CMD_COLORS = {
-    ["0"] = Color3.fromRGB(0, 0, 0), ["1"] = Color3.fromRGB(0, 0, 128),
-    ["2"] = Color3.fromRGB(0, 128, 0), ["3"] = Color3.fromRGB(0, 128, 128),
-    ["4"] = Color3.fromRGB(128, 0, 0), ["5"] = Color3.fromRGB(128, 0, 128),
-    ["6"] = Color3.fromRGB(128, 128, 0), ["7"] = Color3.fromRGB(192, 192, 192),
-    ["8"] = Color3.fromRGB(128, 128, 128), ["9"] = Color3.fromRGB(0, 0, 255),
-    ["A"] = Color3.fromRGB(0, 255, 0), ["B"] = Color3.fromRGB(0, 255, 255),
-    ["C"] = Color3.fromRGB(255, 0, 0), ["D"] = Color3.fromRGB(255, 0, 255),
-    ["E"] = Color3.fromRGB(255, 255, 0), ["F"] = Color3.fromRGB(255, 255, 255),
+    ["0"]=Color3.fromRGB(0,0,0),["1"]=Color3.fromRGB(0,0,128),["2"]=Color3.fromRGB(0,128,0),
+    ["3"]=Color3.fromRGB(0,128,128),["4"]=Color3.fromRGB(128,0,0),["5"]=Color3.fromRGB(128,0,128),
+    ["6"]=Color3.fromRGB(128,128,0),["7"]=Color3.fromRGB(192,192,192),["8"]=Color3.fromRGB(128,128,128),
+    ["9"]=Color3.fromRGB(0,0,255),["A"]=Color3.fromRGB(0,255,0),["B"]=Color3.fromRGB(0,255,255),
+    ["C"]=Color3.fromRGB(255,0,0),["D"]=Color3.fromRGB(255,0,255),["E"]=Color3.fromRGB(255,255,0),
+    ["F"]=Color3.fromRGB(255,255,255),
 }
 
-local commandHistory = {}
-local historyIndex = 0
-local closed = false
+-- ===================== СОСТОЯНИЕ =====================
+local commandHistory, historyIndex = {}, 0
 local logConnection = nil
+local binds, bindConns = {}, {}
+local STATES = {
+    flying=false, flyConn=nil, noclip=false, noclipConn=nil,
+    esp=false, espFolder=nil, espConn=nil, swim=false, swimConn=nil,
+    fling=false, flingConn=nil, infjump=false, infjumpConn=nil,
+    spasm=false, spasmConn=nil, fullbright=false, fbBackup=nil,
+    nofog=false, fogBackup=nil,
+    events = { onKilled="", onDied="", onSpawn="", onExecute="", onJoin="", onDamage="", onLeave="" },
+}
+
+local CONFIG_FILE = "xconsole_config.json"
 
 local function getGuiParent()
     if type(gethui) == "function" then
-        local ok, hui = pcall(gethui)
-        if ok and hui then return hui end
+        local ok, hui = pcall(gethui); if ok and hui then return hui end
     end
     local ok, cg = pcall(function() return game:GetService("CoreGui") end)
     if ok and cg then return cg end
     local ok2, pg = pcall(function() return LocalPlayer:WaitForChild("PlayerGui", 5) end)
     if ok2 and pg then return pg end
-    return nil
 end
-
 local guiParent = getGuiParent()
 if not guiParent then return end
+for _, name in ipairs({"SimpleConsole","XcodeGui","MainMenu"}) do
+    if guiParent:FindFirstChild(name) then guiParent[name]:Destroy() end
+end
 
-if guiParent:FindFirstChild("SimpleConsole") then guiParent.SimpleConsole:Destroy() end
-if guiParent:FindFirstChild("XcodeGui") then guiParent.XcodeGui:Destroy() end
-if guiParent:FindFirstChild("MainMenu") then guiParent.MainMenu:Destroy() end
-
+-- ===================== UI =====================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "SimpleConsole"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.IgnoreGuiInset = true
-ScreenGui.DisplayOrder = 5000
-ScreenGui.Parent = guiParent
+ScreenGui.Name = "SimpleConsole"; ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true; ScreenGui.DisplayOrder = 5000; ScreenGui.Parent = guiParent
 
 local ConsoleFrame = Instance.new("Frame")
-ConsoleFrame.Name = "Console"
-ConsoleFrame.Size = UDim2.new(0, 600, 0, 350)
-ConsoleFrame.Position = UDim2.new(0, 20, 0, 20)
-ConsoleFrame.BackgroundColor3 = CONFIG.Background
-ConsoleFrame.BackgroundTransparency = 0.1
-ConsoleFrame.BorderSizePixel = 0
-ConsoleFrame.Active = true
-ConsoleFrame.Draggable = true
+ConsoleFrame.Size = UDim2.new(0,600,0,350); ConsoleFrame.Position = UDim2.new(0,20,0,20)
+ConsoleFrame.BackgroundColor3 = THEMES.default.background; ConsoleFrame.BackgroundTransparency = 0.1
+ConsoleFrame.BorderSizePixel = 0; ConsoleFrame.Active = true; ConsoleFrame.Draggable = true
 ConsoleFrame.Parent = ScreenGui
-Instance.new("UICorner", ConsoleFrame).CornerRadius = UDim.new(0, 6)
+local consoleCorner = Instance.new("UICorner", ConsoleFrame); consoleCorner.CornerRadius = UDim.new(0,6)
+
+local bgImage = Instance.new("ImageLabel")
+bgImage.Size = UDim2.new(1,0,1,0); bgImage.Position = UDim2.new(0,0,0,0)
+bgImage.BackgroundTransparency = 1
+bgImage.ImageTransparency = 0
+bgImage.ScaleType = Enum.ScaleType.Crop
+bgImage.ZIndex = 1; bgImage.Visible = false
+bgImage.Parent = ConsoleFrame
+Instance.new("UICorner", bgImage).CornerRadius = UDim.new(0,6)
+
+bgImage.Image = "rbxthumb://type=Asset&id=5456915026&w=768&h=432"
+pcall(function()
+    bgImage.ImageFailed:Connect(function()
+        if bgImage.Image:find("rbxthumb") then
+            bgImage.Image = "rbxassetid://5456915026"
+        elseif bgImage.Image:find("rbxassetid") then
+            bgImage.Image = ""
+            warn("[Console] Secret theme image 5456915026 could not be loaded.")
+        end
+    end)
+end)
 
 local stroke = Instance.new("UIStroke")
-stroke.Color = CONFIG.Accent
-stroke.Thickness = 1
-stroke.Transparency = 0.5
-stroke.Parent = ConsoleFrame
+stroke.Color = THEMES.default.stroke; stroke.Thickness = 1; stroke.Transparency = 0.5; stroke.Parent = ConsoleFrame
 
 local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1, 0, 0, 30)
-Header.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Header.BackgroundTransparency = 0.2
-Header.BorderSizePixel = 0
-Header.Parent = ConsoleFrame
-Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 6)
+Header.Size = UDim2.new(1,0,0,30); Header.BackgroundColor3 = THEMES.default.header
+Header.BackgroundTransparency = 0.2; Header.BorderSizePixel = 0; Header.ZIndex = 2; Header.Parent = ConsoleFrame
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0,6)
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -60, 1, 0)
-Title.Position = UDim2.new(0, 10, 0, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "CONSOLE"
-Title.TextColor3 = CONFIG.Accent
-Title.Font = CONFIG.Font
-Title.TextSize = 16
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Parent = Header
+Title.Size = UDim2.new(1,-60,1,0); Title.Position = UDim2.new(0,10,0,0)
+Title.BackgroundTransparency = 1; Title.Text = T("title")
+Title.TextColor3 = THEMES.default.accent; Title.Font = CONFIG.Font; Title.TextSize = 16
+Title.TextXAlignment = Enum.TextXAlignment.Left; Title.ZIndex = 3; Title.Parent = Header
 
 local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 24, 0, 24)
-CloseBtn.Position = UDim2.new(1, -30, 0, 3)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.new(1, 1, 1)
-CloseBtn.Font = CONFIG.Font
-CloseBtn.TextSize = 14
-CloseBtn.BorderSizePixel = 0
-CloseBtn.Parent = Header
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
+CloseBtn.Size = UDim2.new(0,24,0,24); CloseBtn.Position = UDim2.new(1,-30,0,3)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200,50,50); CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.new(1,1,1); CloseBtn.Font = CONFIG.Font; CloseBtn.TextSize = 14
+CloseBtn.BorderSizePixel = 0; CloseBtn.ZIndex = 3; CloseBtn.Parent = Header
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0,4)
 
 local LogFrame = Instance.new("ScrollingFrame")
-LogFrame.Name = "Log"
-LogFrame.Size = UDim2.new(1, -10, 1, -75)
-LogFrame.Position = UDim2.new(0, 5, 0, 35)
-LogFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-LogFrame.BackgroundTransparency = 0.3
-LogFrame.BorderSizePixel = 0
-LogFrame.ScrollBarThickness = 4
-LogFrame.ScrollBarImageColor3 = CONFIG.Accent
-LogFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-LogFrame.Parent = ConsoleFrame
-Instance.new("UICorner", LogFrame).CornerRadius = UDim.new(0, 4)
+LogFrame.Size = UDim2.new(1,-10,1,-75); LogFrame.Position = UDim2.new(0,5,0,35)
+LogFrame.BackgroundColor3 = THEMES.default.log; LogFrame.BackgroundTransparency = 0.3
+LogFrame.BorderSizePixel = 0; LogFrame.ScrollBarThickness = 4
+LogFrame.ScrollBarImageColor3 = THEMES.default.accent; LogFrame.CanvasSize = UDim2.new(0,0,0,0)
+LogFrame.ZIndex = 2; LogFrame.Parent = ConsoleFrame
+Instance.new("UICorner", LogFrame).CornerRadius = UDim.new(0,4)
 
 local logLayout = Instance.new("UIListLayout")
-logLayout.SortOrder = Enum.SortOrder.LayoutOrder
-logLayout.Padding = UDim.new(0, 2)
-logLayout.Parent = LogFrame
+logLayout.SortOrder = Enum.SortOrder.LayoutOrder; logLayout.Padding = UDim.new(0,2); logLayout.Parent = LogFrame
 
 local InputFrame = Instance.new("Frame")
-InputFrame.Size = UDim2.new(1, -10, 0, 30)
-InputFrame.Position = UDim2.new(0, 5, 1, -35)
-InputFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-InputFrame.BackgroundTransparency = 0.2
-InputFrame.BorderSizePixel = 0
-InputFrame.Parent = ConsoleFrame
-Instance.new("UICorner", InputFrame).CornerRadius = UDim.new(0, 4)
+InputFrame.Size = UDim2.new(1,-10,0,30); InputFrame.Position = UDim2.new(0,5,1,-35)
+InputFrame.BackgroundColor3 = THEMES.default.input; InputFrame.BackgroundTransparency = 0.2
+InputFrame.BorderSizePixel = 0; InputFrame.ZIndex = 2; InputFrame.Parent = ConsoleFrame
+Instance.new("UICorner", InputFrame).CornerRadius = UDim.new(0,4)
 
 local CommandBox = Instance.new("TextBox")
-CommandBox.Size = UDim2.new(1, -10, 1, -6)
-CommandBox.Position = UDim2.new(0, 5, 0, 3)
-CommandBox.BackgroundTransparency = 1
-CommandBox.Text = ""
-CommandBox.PlaceholderText = "Enter command..."
-CommandBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
-CommandBox.TextColor3 = CONFIG.Accent
-CommandBox.Font = CONFIG.Font
-CommandBox.TextSize = 16
-CommandBox.TextXAlignment = Enum.TextXAlignment.Left
-CommandBox.ClearTextOnFocus = false
-CommandBox.Parent = InputFrame
+CommandBox.Size = UDim2.new(1,-10,1,-6); CommandBox.Position = UDim2.new(0,5,0,3)
+CommandBox.BackgroundTransparency = 1; CommandBox.Text = ""
+CommandBox.PlaceholderText = T("placeholder"); CommandBox.PlaceholderColor3 = Color3.fromRGB(100,100,100)
+CommandBox.TextColor3 = THEMES.default.accent; CommandBox.Font = CONFIG.Font; CommandBox.TextSize = 16
+CommandBox.TextXAlignment = Enum.TextXAlignment.Left; CommandBox.ClearTextOnFocus = false
+CommandBox.ZIndex = 3; CommandBox.Parent = InputFrame
 
 local ResizeHandle = Instance.new("TextButton")
-ResizeHandle.Size = UDim2.new(0, 16, 0, 16)
-ResizeHandle.Position = UDim2.new(1, -16, 1, -16)
-ResizeHandle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-ResizeHandle.Text = "◢"
-ResizeHandle.TextColor3 = Color3.fromRGB(150, 150, 150)
-ResizeHandle.Font = CONFIG.Font
-ResizeHandle.TextSize = 12
-ResizeHandle.BorderSizePixel = 0
-ResizeHandle.ZIndex = 5
+ResizeHandle.Size = UDim2.new(0,16,0,16); ResizeHandle.Position = UDim2.new(1,-16,1,-16)
+ResizeHandle.BackgroundColor3 = Color3.fromRGB(50,50,50); ResizeHandle.Text = "◢"
+ResizeHandle.TextColor3 = Color3.fromRGB(150,150,150); ResizeHandle.Font = CONFIG.Font
+ResizeHandle.TextSize = 12; ResizeHandle.BorderSizePixel = 0; ResizeHandle.ZIndex = 5
 ResizeHandle.Parent = ConsoleFrame
-Instance.new("UICorner", ResizeHandle).CornerRadius = UDim.new(0, 4)
+Instance.new("UICorner", ResizeHandle).CornerRadius = UDim.new(0,4)
 
+-- ===================== ЛОГ =====================
 local function log(text, colorType)
     local color = COLORS[colorType] or COLORS.Default
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -5, 0, 18)
-    label.BackgroundTransparency = 1
-    label.Text = "> " .. text
-    label.TextColor3 = color
-    label.Font = CONFIG.Font
-    label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Size = UDim2.new(1,-5,0,18); label.BackgroundTransparency = 1
+    label.Text = "> " .. tostring(text); label.TextColor3 = color
+    label.Font = CONFIG.Font; label.TextSize = 14; label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = LogFrame
-    LogFrame.CanvasSize = UDim2.new(0, 0, 0, logLayout.AbsoluteContentSize.Y + 10)
+    LogFrame.CanvasSize = UDim2.new(0,0,0, logLayout.AbsoluteContentSize.Y + 10)
     task.wait()
     LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
 end
 
-local function getSystemLogData(messageType)
-    if messageType == Enum.MessageType.MessageError then
-        return "[ERROR]", COLORS.Error
-    elseif messageType == Enum.MessageType.MessageWarning then
-        return "[WARN]", COLORS.Info
-    elseif messageType == Enum.MessageType.MessageInfo then
-        return "[INFO]", COLORS.Output
-    else
-        return "[OUTPUT]", COLORS.Output
-    end
+local function getSystemLogData(mt)
+    if mt == Enum.MessageType.MessageError then return "[ERROR]", COLORS.Error
+    elseif mt == Enum.MessageType.MessageWarning then return "[WARN]", COLORS.Info
+    elseif mt == Enum.MessageType.MessageInfo then return "[INFO]", COLORS.Output
+    else return "[OUTPUT]", COLORS.Output end
 end
 
 if logConnection then logConnection:Disconnect() end
 logConnection = LogService.MessageOut:Connect(function(message, messageType)
     if not ConsoleFrame or not ConsoleFrame.Parent then
-        if logConnection then logConnection:Disconnect() end
-        return
+        if logConnection then logConnection:Disconnect() end; return
     end
     local prefix, color = getSystemLogData(messageType)
-    local formattedText = string.format("%s %s", prefix, tostring(message))
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -5, 0, 18)
-    label.BackgroundTransparency = 1
-    label.Text = formattedText
-    label.TextColor3 = color
-    label.Font = CONFIG.Font
-    label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = LogFrame
-    LogFrame.CanvasSize = UDim2.new(0, 0, 0, logLayout.AbsoluteContentSize.Y + 10)
+    label.Size = UDim2.new(1,-5,0,18); label.BackgroundTransparency = 1
+    label.Text = string.format("%s %s", prefix, tostring(message))
+    label.TextColor3 = color; label.Font = CONFIG.Font; label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left; label.Parent = LogFrame
+    LogFrame.CanvasSize = UDim2.new(0,0,0, logLayout.AbsoluteContentSize.Y + 10)
     task.wait()
     LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
 end)
 
-CloseBtn.MouseButton1Click:Connect(function()
-    closed = true
-    if logConnection then
-        logConnection:Disconnect()
-        logConnection = nil
-    end
-    ScreenGui:Destroy()
-end)
+-- ===================== LUA EXEC =====================
+local function executeLua(code)
+    local fn, err = loadstring(code)
+    if not fn then log(T("lua_compile") .. tostring(err), "Error"); return end
+    local ok, e = pcall(fn)
+    if not ok then log(T("lua_runtime") .. tostring(e), "Error") end
+end
 
+-- ===================== ФИЧИ =====================
 local function getChar()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    return char, hum, hrp
+    local char = LocalPlayer.Character; if not char then return end
+    return char, char:FindFirstChildOfClass("Humanoid"), char:FindFirstChild("HumanoidRootPart")
 end
 
--- Общая функция для открытия Xcode
-local function openXcode()
-    local success, err = pcall(function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/dimoonsh195/xcode/main/xcode.lua", true))()
-    end)
-    if success then log("Xcode opened", "Success")
-    else log("Failed to open Xcode: " .. tostring(err), "Error") end
-end
-
--- Выдача F3X тула
-local function giveF3X()
-    log("Loading F3X...", "Info")
-    local success, err = pcall(function()
-        local obj = game:GetObjects("rbxassetid://6695644299")[1]
-        if not obj then error("Asset not found") end
-        loadstring(obj.Source)()
-    end)
-    if success then log("F3X loaded", "Success")
-    else log("Failed to load F3X: " .. tostring(err), "Error") end
-end
-
--- Выдача M249 (Стреляет точно в цель)
+-- ===================== M249 =====================
 local function giveGun()
     log("Creating M249...", "Info")
     local success, err = pcall(function()
@@ -263,10 +284,8 @@ local function giveGun()
         if not char then error("No character") end
         local hum = char:FindFirstChildOfClass("Humanoid")
         if not hum then error("No humanoid") end
-        
         local bp = LocalPlayer:FindFirstChild("Backpack")
         if not bp then error("No backpack") end
-        
         if bp:FindFirstChild("M249") then bp.M249:Destroy() end
         if char:FindFirstChild("M249") then char.M249:Destroy() end
 
@@ -365,7 +384,7 @@ local function giveGun()
             muzzleFlash:Emit(8)
 
             local mouse = LocalPlayer:GetMouse()
-            local camPos = workspace.CurrentCamera.CFrame.Position
+            local camPos = Workspace.CurrentCamera.CFrame.Position
             local targetPos = mouse.Hit.Position
             local direction = (targetPos - camPos).Unit
 
@@ -374,7 +393,7 @@ local function giveGun()
             rayParams.FilterDescendantsInstances = { char, tool }
             rayParams.IgnoreWater = true
 
-            local result = workspace:Raycast(camPos, direction * 1000, rayParams)
+            local result = Workspace:Raycast(camPos, direction * 1000, rayParams)
             local hitPos = result and result.Position or (camPos + direction * 1000)
 
             local origin = barrel.Position
@@ -386,7 +405,7 @@ local function giveGun()
             tracer.Color = Color3.fromRGB(255, 200, 50)
             tracer.Material = Enum.Material.Neon
             tracer.Transparency = 0.3
-            tracer.Parent = workspace
+            tracer.Parent = Workspace
             TweenService:Create(tracer, TweenInfo.new(0.1), { Transparency = 1 }):Play()
             Debris:AddItem(tracer, 0.15)
 
@@ -403,7 +422,7 @@ local function giveGun()
                 spark.CanCollide = false
                 spark.Color = Color3.fromRGB(255, 150, 50)
                 spark.Material = Enum.Material.Neon
-                spark.Parent = workspace
+                spark.Parent = Workspace
                 Debris:AddItem(spark, 0.2)
             end
         end
@@ -428,252 +447,805 @@ local function giveGun()
     end
 end
 
--- Телепорт к игроку
-local function tpToPlayer(args)
-    local players = Players:GetPlayers()
-    
-    -- Список игроков, если аргументов нет
-    if #args < 1 then
-        log("Usage: tp <player name>", "Info")
-        log("Online players:", "Info")
-        for _, p in ipairs(players) do
-            if p ~= LocalPlayer then
-                log("  " .. p.Name .. " (DisplayName: " .. p.DisplayName .. ")", "Default")
-            end
-        end
-        return
-    end
-
-    local query = table.concat(args, " "):lower()
-    local targetPlr = nil
-    local targetChar = nil
-    local targetHRP = nil
-
-    -- Точное совпадение по имени или DisplayName
-    for _, p in ipairs(players) do
-        if p ~= LocalPlayer then
-            if p.Name:lower() == query or p.DisplayName:lower() == query then
-                targetPlr = p
-                break
-            end
-        end
-    end
-
-    -- Частичное совпадение
-    if not targetPlr then
-        for _, p in ipairs(players) do
-            if p ~= LocalPlayer then
-                if p.Name:lower():find(query, 1, true) or p.DisplayName:lower():find(query, 1, true) then
-                    targetPlr = p
-                    break
-                end
-            end
-        end
-    end
-
-    if not targetPlr then
-        log("Player not found: " .. query, "Error")
-        return
-    end
-
-    targetChar = targetPlr.Character
-    targetHRP = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
-    if not targetHRP then
-        log("Target has no character: " .. targetPlr.Name, "Error")
-        return
-    end
-
-    local myChar, myHum, myHRP = getChar()
-    if not myChar or not myHRP then
-        log("Your character not found", "Error")
-        return
-    end
-
-    -- Позиционируемся чуть позади и над целью, чтобы не вклиниться
-    local targetCF = targetHRP.CFrame
-    local teleportCF = targetCF * CFrame.new(0, 2, 3)
-
-    local ok = pcall(function()
-        myChar:PivotTo(teleportCF)
-    end)
-    if not ok then
-        pcall(function()
-            myHRP.CFrame = teleportCF
+local function toggleFly(on)
+    local _, _, hrp = getChar()
+    if not hrp then log(T("no_char"), "Error"); return end
+    if on then
+        if STATES.flying then return end
+        STATES.flying = true
+        local bv = Instance.new("BodyVelocity"); bv.Name="ConsoleFlyBV"
+        bv.MaxForce=Vector3.new(1e5,1e5,1e5); bv.Velocity=Vector3.zero; bv.Parent=hrp
+        local bg = Instance.new("BodyGyro"); bg.Name="ConsoleFlyBG"
+        bg.MaxTorque=Vector3.new(1e5,1e5,1e5); bg.P=1000; bg.D=50; bg.CFrame=hrp.CFrame; bg.Parent=hrp
+        STATES.flyConn = RunService.RenderStepped:Connect(function()
+            local _,_,root = getChar(); if not root then return end
+            local cam = Workspace.CurrentCamera; local move = Vector3.zero
+            if UIS:IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0,1,0) end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then move -= Vector3.new(0,1,0) end
+            if move.Magnitude > 0 then move = move.Unit * 50 end
+            local b = root:FindFirstChild("ConsoleFlyBV"); if b then b.Velocity = move end
+            local g = root:FindFirstChild("ConsoleFlyBG"); if g then g.CFrame = cam.CFrame end
         end)
+    else
+        if not STATES.flying then return end
+        STATES.flying = false
+        if STATES.flyConn then STATES.flyConn:Disconnect(); STATES.flyConn = nil end
+        local _,_,hrp2 = getChar()
+        if hrp2 then
+            local b=hrp2:FindFirstChild("ConsoleFlyBV"); if b then b:Destroy() end
+            local g=hrp2:FindFirstChild("ConsoleFlyBG"); if g then g:Destroy() end
+        end
     end
-
-    -- Сбрасываем скорость, чтобы не улететь
-    pcall(function()
-        myHRP.AssemblyLinearVelocity = Vector3.zero
-        myHRP.AssemblyAngularVelocity = Vector3.zero
-    end)
-
-    log("Teleported to " .. targetPlr.Name .. " (" .. targetPlr.DisplayName .. ")", "Success")
 end
 
-local commands = {
-    ["help"] = function()
-        log("Commands:", "Info")
-        log("  xyz, destroy, summon, kickme, color, clear", "Default")
-        log("  tp <name> - teleport to player (no args = list)", "Default")
-        log("  codegui/guicode/xcode/code - open Xcode", "Default")
-        log("  getf3x/tool/gettool/f3xtool/f3x - give F3X tool", "Default")
-        log("  gun/m249 - give precise M249", "Default")
-        log("  dex - load DEX Explorer", "Default")
-        log("  (System output from Roblox is also displayed automatically)", "Info")
-    end,
-    ["xyz"] = function()
-        local _, _, hrp = getChar()
-        if not hrp then log("Character not found", "Error") return end
-        local p = hrp.Position
-        local msg = string.format("X=%.2f  Y=%.2f  Z=%.2f", p.X, p.Y, p.Z)
-        log(msg, "Success")
-        print("[CONSOLE] XYZ: " .. msg)
-    end,
-    ["destroy"] = function()
-        local target = LocalPlayer:GetMouse().Target
-        if not target then log("Nothing under cursor", "Error") return end
-        if target:IsA("Terrain") then log("Cannot destroy Terrain", "Error") return end
-        log("Destroyed: " .. target:GetFullName(), "Info")
-        target:Destroy()
-    end,
-    ["summon"] = function(args)
-        local shape = (args[1] or ""):lower()
-        local validShapes = {
-            ["part"] = Enum.PartType.Block, ["block"] = Enum.PartType.Block,
-            ["sphere"] = Enum.PartType.Ball, ["ball"] = Enum.PartType.Ball,
-            ["cylinder"] = Enum.PartType.Cylinder, ["wedge"] = Enum.PartType.Wedge,
-            ["cornerwedge"] = Enum.PartType.CornerWedge
-        }
-        local partType = validShapes[shape]
-        if not partType then log("Usage: summon <part|sphere|cylinder|wedge|cornerwedge>", "Error") return end
-        local spawnPos = LocalPlayer:GetMouse().Hit.Position + Vector3.new(0, 5, 0)
-        local part = Instance.new("Part")
-        part.Anchored = false; part.CanCollide = true
-        part.Material = Enum.Material.SmoothPlastic; part.Color = Color3.fromRGB(255, 255, 255)
-        part.Position = spawnPos; part.Size = Vector3.new(4, 4, 4)
-        part.Name = "SummonedPart"; part.Shape = partType; part.Parent = workspace
-        log("Spawned " .. shape, "Success")
-    end,
-    ["kickme"] = function(args)
-        local reason = #args > 0 and table.concat(args, " ") or "No reason provided"
-        log("Kicking self: " .. reason, "Error")
-        task.wait(0.2)
-        pcall(function() LocalPlayer:Kick(reason) end)
-    end,
-    ["color"] = function(args)
-        if #args < 1 then log("Usage: color <bg_code><text_code>", "Error") return end
-        local code = args[1]:upper()
-        if #code ~= 2 then log("Color code must be 2 characters", "Error") return end
-        local bg, fg = CMD_COLORS[code:sub(1, 1)], CMD_COLORS[code:sub(2, 2)]
-        if bg and fg then
-            ConsoleFrame.BackgroundColor3 = bg
-            LogFrame.BackgroundColor3 = bg
-            COLORS.Default = fg
-            CommandBox.TextColor3 = fg
-            Title.TextColor3 = fg
-            stroke.Color = fg
-            log("Color changed to " .. code, "Success")
-        else
-            log("Invalid color code", "Error")
-        end
-    end,
-    -- Телепорт
-    ["tp"]   = tpToPlayer,
-    ["to"]   = tpToPlayer,   -- алиас
-    ["goto"] = tpToPlayer,   -- алиас
-    -- Алиасы для открытия Xcode
-    ["codegui"] = openXcode,
-    ["guicode"] = openXcode,
-    ["xcode"]   = openXcode,
-    ["code"]    = openXcode,
-    -- Алиасы для выдачи F3X
-    ["getf3x"]   = giveF3X,
-    ["tool"]     = giveF3X,
-    ["gettool"]  = giveF3X,
-    ["f3xtool"]  = giveF3X,
-    ["f3x"]      = giveF3X,
-    -- Команды для выдачи пулемёта
-    ["gun"]      = giveGun,
-    ["m249"]     = giveGun,
-    ["dex"] = function()
-        log("Loading DEX...", "Info")
-        local success, err = pcall(function()
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/luau/Dex/master/out.lua", true))()
+local function toggleNoclip(on)
+    STATES.noclip = on
+    if on then
+        if STATES.noclipConn then STATES.noclipConn:Disconnect() end
+        STATES.noclipConn = RunService.Stepped:Connect(function()
+            local char = LocalPlayer.Character; if not char then return end
+            for _, p in ipairs(char:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = false end
+            end
         end)
-        if success then log("DEX loaded successfully", "Success")
-        else log("Failed to load DEX: " .. tostring(err), "Error") end
-    end,
-    ["clear"] = function()
-        for _, child in ipairs(LogFrame:GetChildren()) do
-            if child:IsA("TextLabel") then child:Destroy() end
-        end
-        log("Log cleared", "Info")
-    end,
-}
+    else
+        if STATES.noclipConn then STATES.noclipConn:Disconnect(); STATES.noclipConn=nil end
+    end
+end
 
+local function toggleESP(on)
+    STATES.esp = on
+    if on then
+        if STATES.espFolder then STATES.espFolder:Destroy() end
+        local folder = Instance.new("Folder"); folder.Name="ConsoleESP"; folder.Parent=guiParent
+        STATES.espFolder = folder
+        local function add(plr)
+            if plr == LocalPlayer then return end
+            local function setup(char)
+                local hrp = char:WaitForChild("HumanoidRootPart", 5); if not hrp then return end
+                local hl = Instance.new("Highlight"); hl.Adornee=char
+                hl.FillColor=Color3.fromRGB(255,0,0); hl.OutlineColor=Color3.fromRGB(255,255,255)
+                hl.FillTransparency=0.5; hl.Parent=folder
+            end
+            if plr.Character then setup(plr.Character) end
+            plr.CharacterAdded:Connect(setup)
+        end
+        for _, p in ipairs(Players:GetPlayers()) do add(p) end
+        STATES.espConn = Players.PlayerAdded:Connect(add)
+    else
+        if STATES.espFolder then STATES.espFolder:Destroy(); STATES.espFolder=nil end
+        if STATES.espConn then STATES.espConn:Disconnect(); STATES.espConn=nil end
+    end
+end
+
+local function toggleSwim(on)
+    STATES.swim = on
+    if on then
+        if STATES.swimConn then STATES.swimConn:Disconnect() end
+        STATES.swimConn = RunService.Heartbeat:Connect(function()
+            local _,hum = getChar(); if hum then hum:ChangeState(Enum.HumanoidStateType.Swimming) end
+        end)
+    else
+        if STATES.swimConn then STATES.swimConn:Disconnect(); STATES.swimConn=nil end
+    end
+end
+
+local function toggleFling(on)
+    STATES.fling = on
+    if on then
+        if STATES.flingConn then STATES.flingConn:Disconnect() end
+        STATES.flingConn = RunService.Heartbeat:Connect(function()
+            local _,_,hrp = getChar(); if not hrp then return end
+            hrp.Velocity = Vector3.new(math.random(-5000,5000), math.random(-5000,5000), math.random(-5000,5000))
+        end)
+    else
+        if STATES.flingConn then STATES.flingConn:Disconnect(); STATES.flingConn=nil end
+    end
+end
+
+local function toggleInfJump(on)
+    STATES.infjump = on
+    if on then
+        if STATES.infjumpConn then STATES.infjumpConn:Disconnect() end
+        STATES.infjumpConn = UIS.JumpRequest:Connect(function()
+            local _,hum = getChar(); if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+        end)
+    else
+        if STATES.infjumpConn then STATES.infjumpConn:Disconnect(); STATES.infjumpConn=nil end
+    end
+end
+
+local function toggleSpasm(on)
+    STATES.spasm = on
+    if on then
+        if STATES.spasmConn then STATES.spasmConn:Disconnect() end
+        STATES.spasmConn = RunService.Heartbeat:Connect(function()
+            local _,_,hrp = getChar(); if not hrp then return end
+            hrp.CFrame = hrp.CFrame * CFrame.Angles(math.random()*2, math.random()*2, math.random()*2)
+        end)
+    else
+        if STATES.spasmConn then STATES.spasmConn:Disconnect(); STATES.spasmConn=nil end
+    end
+end
+
+local function toggleFullbright(on)
+    if on then
+        if STATES.fullbright then return end
+        STATES.fullbright = true
+        STATES.fbBackup = { Ambient=Lighting.Ambient, OutdoorAmbient=Lighting.OutdoorAmbient,
+            Brightness=Lighting.Brightness, FogEnd=Lighting.FogEnd, FogStart=Lighting.FogStart }
+        Lighting.Ambient=Color3.fromRGB(255,255,255); Lighting.OutdoorAmbient=Color3.fromRGB(255,255,255)
+        Lighting.Brightness=3; Lighting.FogEnd=1e6; Lighting.FogStart=1e6
+    else
+        if not STATES.fullbright then return end
+        STATES.fullbright = false
+        local b = STATES.fbBackup
+        if b then
+            Lighting.Ambient=b.Ambient; Lighting.OutdoorAmbient=b.OutdoorAmbient
+            Lighting.Brightness=b.Brightness; Lighting.FogEnd=b.FogEnd; Lighting.FogStart=b.FogStart
+            STATES.fbBackup = nil
+        end
+    end
+end
+
+local function toggleNofog(on)
+    if on then
+        if STATES.nofog then return end
+        STATES.nofog = true
+        STATES.fogBackup = { FogEnd=Lighting.FogEnd, FogStart=Lighting.FogStart }
+        Lighting.FogEnd=1e6; Lighting.FogStart=1e6
+    else
+        if not STATES.nofog then return end
+        STATES.nofog = false
+        local b = STATES.fogBackup
+        if b then Lighting.FogEnd=b.FogEnd; Lighting.FogStart=b.FogStart; STATES.fogBackup=nil end
+    end
+end
+
+-- ===================== ТЕМА =====================
+applyThemeToSettings = function(t)
+    if not SettingsFrame then return end
+    for _, obj in ipairs(SettingsFrame:GetDescendants()) do
+        if obj:IsA("TextLabel") then obj.TextColor3 = t.text
+        elseif obj:IsA("TextButton") then obj.TextColor3 = t.text; obj.BackgroundColor3 = t.input
+        elseif obj:IsA("TextBox") then obj.TextColor3 = t.text; obj.BackgroundColor3 = t.input end
+    end
+    for n, btn in pairs(themeButtons) do
+        btn.BackgroundColor3 = (currentTheme == n) and t.accent or t.input
+    end
+    for c, bb in pairs(langButtons) do
+        bb.BackgroundColor3 = (LANG == c) and t.accent or t.input
+    end
+    if BackBtn then BackBtn.BackgroundColor3 = Color3.fromRGB(200,50,50); BackBtn.TextColor3 = Color3.new(1,1,1) end
+    if SettingsTitle then SettingsTitle.TextColor3 = t.accent end
+    SettingsFrame.BackgroundColor3 = t.background
+end
+
+local function applyTheme(name)
+    local t = THEMES[name]; if not t then return end
+    currentTheme = name
+    ConsoleFrame.BackgroundColor3 = t.background
+    Header.BackgroundColor3 = t.header
+    InputFrame.BackgroundColor3 = t.input
+    LogFrame.BackgroundColor3 = t.log
+    Title.TextColor3 = t.accent; CommandBox.TextColor3 = t.accent
+    stroke.Color = t.stroke; LogFrame.ScrollBarImageColor3 = t.accent
+    if name == SECRET then
+        ConsoleFrame.BackgroundTransparency = 0.9
+        bgImage.Visible = true
+        bgImage.ImageTransparency = 0
+        LogFrame.BackgroundTransparency = 0.55
+        InputFrame.BackgroundTransparency = 0.45
+        Header.BackgroundTransparency = 0.45
+    else
+        bgImage.Visible = false
+        ConsoleFrame.BackgroundTransparency = 0.1
+        LogFrame.BackgroundTransparency = 0.3
+        InputFrame.BackgroundTransparency = 0.2
+        Header.BackgroundTransparency = 0.2
+    end
+    applyThemeToSettings(t)
+end
+
+-- ===================== НАСТРОЙКИ =====================
+SettingsFrame = Instance.new("Frame")
+SettingsFrame.Size = UDim2.new(1,0,1,0); SettingsFrame.Position = UDim2.new(0,0,0,0)
+SettingsFrame.BackgroundColor3 = THEMES.default.background
+SettingsFrame.BackgroundTransparency = 0.05; SettingsFrame.BorderSizePixel = 0
+SettingsFrame.Visible = false; SettingsFrame.ZIndex = 10; SettingsFrame.Parent = ConsoleFrame
+Instance.new("UICorner", SettingsFrame).CornerRadius = UDim.new(0,6)
+
+local function makeLabel(parent, text, y, size)
+    local l = Instance.new("TextLabel")
+    l.Size=UDim2.new(1,-20,0,size or 20); l.Position=UDim2.new(0,10,0,y)
+    l.BackgroundTransparency=1; l.Text=text; l.TextColor3=THEMES.default.text
+    l.Font=CONFIG.Font; l.TextSize=14; l.TextXAlignment=Enum.TextXAlignment.Left
+    l.ZIndex=11; l.Parent=parent
+    return l
+end
+local function makeButton(parent, text, x, y, w, h, cb)
+    local b = Instance.new("TextButton")
+    b.Size=UDim2.new(0,w,0,h); b.Position=UDim2.new(0,x,0,y)
+    b.BackgroundColor3=THEMES.default.input; b.Text=text; b.TextColor3=THEMES.default.text
+    b.Font=CONFIG.Font; b.TextSize=13; b.BorderSizePixel=0; b.ZIndex=12; b.Parent=parent
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,4)
+    b.MouseButton1Click:Connect(cb)
+    return b
+end
+
+SettingsScroll = Instance.new("ScrollingFrame")
+SettingsScroll.Size=UDim2.new(1,-10,1,-50); SettingsScroll.Position=UDim2.new(0,5,0,40)
+SettingsScroll.BackgroundTransparency=1; SettingsScroll.BorderSizePixel=0
+SettingsScroll.ScrollBarThickness=4; SettingsScroll.CanvasSize=UDim2.new(0,0,0,0)
+SettingsScroll.ZIndex=11; SettingsScroll.Parent=SettingsFrame
+local settingsLayout = Instance.new("UIListLayout")
+settingsLayout.Padding=UDim.new(0,6); settingsLayout.SortOrder=Enum.SortOrder.LayoutOrder; settingsLayout.Parent=SettingsScroll
+
+local function addSettingRow(widget)
+    widget.LayoutOrder = #SettingsScroll:GetChildren()
+    widget.Parent = SettingsScroll
+    SettingsScroll.CanvasSize = UDim2.new(0,0,0, settingsLayout.AbsoluteContentSize.Y + 20)
+end
+
+SettingsTitle = Instance.new("TextLabel")
+SettingsTitle.Size=UDim2.new(1,-100,0,30); SettingsTitle.Position=UDim2.new(0,10,0,5)
+SettingsTitle.BackgroundTransparency=1; SettingsTitle.Text=T("settings_title")
+SettingsTitle.TextColor3=THEMES.default.accent; SettingsTitle.Font=CONFIG.Font
+SettingsTitle.TextSize=18; SettingsTitle.TextXAlignment=Enum.TextXAlignment.Left
+SettingsTitle.ZIndex=12; SettingsTitle.Parent=SettingsFrame
+
+BackBtn = Instance.new("TextButton")
+BackBtn.Size=UDim2.new(0,80,0,26); BackBtn.Position=UDim2.new(1,-90,0,7)
+BackBtn.BackgroundColor3=Color3.fromRGB(200,50,50); BackBtn.Text=T("back")
+BackBtn.TextColor3=Color3.new(1,1,1); BackBtn.Font=CONFIG.Font; BackBtn.TextSize=13
+BackBtn.BorderSizePixel=0; BackBtn.ZIndex=12; BackBtn.Parent=SettingsFrame
+Instance.new("UICorner", BackBtn).CornerRadius = UDim.new(0,4)
+
+local function openSettings()
+    SettingsFrame.Visible = true; SettingsFrame.BackgroundTransparency = 1
+    SettingsFrame.Position = UDim2.new(0,0,0,20)
+    TweenService:Create(SettingsFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
+        BackgroundTransparency = 0.05, Position = UDim2.new(0,0,0,0),
+    }):Play()
+end
+local function closeSettings()
+    local tw = TweenService:Create(SettingsFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+        BackgroundTransparency = 1, Position = UDim2.new(0,0,0,20),
+    })
+    tw:Play(); tw.Completed:Once(function() SettingsFrame.Visible = false end)
+end
+BackBtn.MouseButton1Click:Connect(closeSettings)
+
+-- ТЕМЫ
+local themeRow = Instance.new("Frame")
+themeRow.Size=UDim2.new(1,-20,0,60); themeRow.BackgroundTransparency=1; themeRow.ZIndex=11
+themeLabel = makeLabel(themeRow, T("theme"), 0, 18)
+
+local tidx = 0
+for _, name in ipairs({"default","winter","halloween"}) do
+    local b = makeButton(themeRow, T("theme_"..name), tidx*110, 22, 100, 26, function()
+        applyTheme(name); refreshThemeButtons(); log(T("theme_set")..name, "Success")
+        if saveConfig then pcall(saveConfig) end
+    end)
+    themeButtons[name] = b; tidx += 1
+end
+secretBtn = makeButton(themeRow, SECRET, tidx*110, 22, 160, 26, function()
+    if svCheats then
+        applyTheme(SECRET); refreshThemeButtons(); log("Theme set: "..SECRET, "Success")
+        if saveConfig then pcall(saveConfig) end
+    end
+end)
+secretBtn.TextSize = 11
+themeButtons[SECRET] = secretBtn; secretBtn.Visible = false
+addSettingRow(themeRow)
+
+refreshThemeButtons = function()
+    local t = THEMES[currentTheme] or THEMES.default
+    for n, btn in pairs(themeButtons) do
+        btn.BackgroundColor3 = (currentTheme==n) and t.accent or t.input
+    end
+end
+refreshThemeButtons()
+
+-- ЯЗЫКИ
+local langRow = Instance.new("Frame")
+langRow.Size=UDim2.new(1,-20,0,90); langRow.BackgroundTransparency=1; langRow.ZIndex=11
+langLabel = makeLabel(langRow, T("language"), 0, 18)
+local LANG_NAMES = { en="EN", ru="RU", zh="中文", ja="日本語", uk="UK", ko="한국어" }
+local langIdx = 0
+
+refreshUILabels = function()
+    Title.Text = T("title"); CommandBox.PlaceholderText = T("placeholder")
+    SettingsTitle.Text = T("settings_title"); BackBtn.Text = T("back")
+    for name, btn in pairs(themeButtons) do
+        btn.Text = (name==SECRET) and SECRET or T("theme_"..name)
+    end
+    themeLabel.Text = T("theme"); langLabel.Text = T("language")
+    if SaveBtn then SaveBtn.Text = T("save_cfg") end
+    if LoadBtn then LoadBtn.Text = T("load_cfg") end
+    if eventsTitleLabel then eventsTitleLabel.Text = T("events_title") end
+    for evName, lbl in pairs(eventLabels) do lbl.Text = T("ev_"..evName:lower()) end
+    local t = THEMES[currentTheme] or THEMES.default
+    for c, bb in pairs(langButtons) do
+        bb.BackgroundColor3 = (LANG==c) and t.accent or t.input
+    end
+end
+
+for _, code in ipairs({"en","ru","zh","ja","uk","ko"}) do
+    local b = makeButton(langRow, LANG_NAMES[code], (langIdx%3)*70, 22 + math.floor(langIdx/3)*30, 65, 26, function()
+        LANG = code; refreshUILabels(); log(T("lang_set")..code, "Success")
+        if saveConfig then pcall(saveConfig) end
+    end)
+    langButtons[code] = b; langIdx += 1
+end
+addSettingRow(langRow)
+refreshUILabels()
+
+-- КОНФИГ
+local cfgRow = Instance.new("Frame")
+cfgRow.Size=UDim2.new(1,-20,0,40); cfgRow.BackgroundTransparency=1; cfgRow.ZIndex=11
+
+saveConfig = function()
+    local ok, err = pcall(function()
+        writefile(CONFIG_FILE, HttpService:JSONEncode({
+            theme=currentTheme, lang=LANG, binds=binds,
+            events=STATES.events, cheats=svCheats,
+        }))
+    end)
+    if not ok then log(T("cfg_fail")..": "..tostring(err), "Error") end
+end
+
+local function applyConfig(cfg)
+    if cfg.cheats ~= nil then
+        svCheats = cfg.cheats and true or false
+        if secretBtn then secretBtn.Visible = svCheats end
+    end
+    if cfg.theme and THEMES[cfg.theme] then
+        if cfg.theme == SECRET and not svCheats then
+        else
+            applyTheme(cfg.theme); if refreshThemeButtons then refreshThemeButtons() end
+        end
+    end
+    if cfg.lang and LOC[cfg.lang] then LANG = cfg.lang; if refreshUILabels then refreshUILabels() end end
+    if cfg.binds and setupBind then
+        for k, v in pairs(cfg.binds) do setupBind(k, v) end
+    end
+    if cfg.events then
+        for k, v in pairs(cfg.events) do
+            if STATES.events[k] ~= nil then STATES.events[k]=v end
+            if eventBoxes[k] then eventBoxes[k].Text = v end
+        end
+    end
+end
+
+local function loadConfig()
+    local ok, err = pcall(function()
+        if isfile and isfile(CONFIG_FILE) then
+            applyConfig(HttpService:JSONDecode(readfile(CONFIG_FILE)))
+            log(T("cfg_loaded"), "Success")
+        end
+    end)
+    if not ok then log(T("cfg_fail")..": "..tostring(err), "Error") end
+end
+
+SaveBtn = makeButton(cfgRow, T("save_cfg"), 0, 0, 120, 26, saveConfig)
+LoadBtn = makeButton(cfgRow, T("load_cfg"), 130, 0, 120, 26, loadConfig)
+addSettingRow(cfgRow)
+
+-- СОБЫТИЯ
+eventsTitleLabel = makeLabel(SettingsScroll, T("events_title"), 0, 20)
+addSettingRow(eventsTitleLabel)
+
+for _, evName in ipairs({"onKilled","onDied","onSpawn","onExecute","onJoin","onDamage","onLeave"}) do
+    local row = Instance.new("Frame")
+    row.Size=UDim2.new(1,-20,0,44); row.BackgroundTransparency=1; row.ZIndex=11
+    local lbl = makeLabel(row, T("ev_"..evName:lower()), 0, 16)
+    eventLabels[evName] = lbl
+    local box = Instance.new("TextBox")
+    box.Size=UDim2.new(1,0,0,22); box.Position=UDim2.new(0,0,0,18)
+    box.BackgroundColor3=THEMES.default.input; box.TextColor3=THEMES.default.text
+    box.Font=CONFIG.Font; box.TextSize=12; box.TextXAlignment=Enum.TextXAlignment.Left
+    box.Text = STATES.events[evName] or ""; box.PlaceholderText = "command or lua code"
+    box.ClearTextOnFocus = false; box.ZIndex=12; box.Parent=row
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0,3)
+    box.FocusLost:Connect(function()
+        STATES.events[evName] = box.Text
+        if saveConfig then pcall(saveConfig) end
+    end)
+    eventBoxes[evName] = box
+    addSettingRow(row)
+end
+
+local function runEvent(name)
+    local code = STATES.events[name]
+    if not code or code == "" then return end
+    local args = {}
+    for w in code:gmatch("%S+") do table.insert(args, w) end
+    if #args > 0 then
+        local cmdName = args[1]:lower(); table.remove(args, 1)
+        local f = commands[cmdName]
+        if f then
+            local ok, e = pcall(f, args)
+            if not ok then log("Event "..name.." error: "..tostring(e), "Error") end
+            return
+        end
+    end
+    pcall(executeLua, code)
+end
+
+local function watchCharacter(char)
+    local hum = char:WaitForChild("Humanoid", 5)
+    if hum then
+        local lastHealth = hum.Health
+        hum.Died:Connect(function() runEvent("onDied") end)
+        hum.HealthChanged:Connect(function(newH)
+            if newH < lastHealth then runEvent("onDamage") end
+            lastHealth = newH
+        end)
+    end
+    runEvent("onSpawn")
+end
+if LocalPlayer.Character then watchCharacter(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(watchCharacter)
+Players.PlayerAdded:Connect(function() runEvent("onJoin") end)
+Players.PlayerRemoving:Connect(function() runEvent("onLeave") end)
+
+local function trackKilled(plr)
+    if plr == LocalPlayer then return end
+    local function bind(char)
+        local hum = char:WaitForChild("Humanoid", 5)
+        if hum then hum.Died:Connect(function() runEvent("onKilled") end) end
+    end
+    plr.CharacterAdded:Connect(bind)
+    if plr.Character then bind(plr.Character) end
+end
+for _, p in ipairs(Players:GetPlayers()) do trackKilled(p) end
+Players.PlayerAdded:Connect(trackKilled)
+
+-- ===================== КОМАНДЫ =====================
+local function applyCorner(scale) consoleCorner.CornerRadius = UDim.new(scale, 0) end
+local function resolveKey(name)
+    name = name:upper()
+    local ok, kc = pcall(function() return Enum.KeyCode[name] end)
+    return ok and kc or nil
+end
+
+setupBind = function(keyName, cmdStr)
+    local key = resolveKey(keyName)
+    if not key then return false end
+    binds[keyName] = cmdStr
+    if bindConns[keyName] then bindConns[keyName]:Disconnect() end
+    bindConns[keyName] = UIS.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        if input.KeyCode == key then
+            log("> "..cmdStr, "Echo")
+            local aa = {}
+            for w in cmdStr:gmatch("%S+") do table.insert(aa, w) end
+            local cmd = aa[1] and aa[1]:lower(); table.remove(aa, 1)
+            runEvent("onExecute")
+            local f = cmd and commands[cmd]
+            if f then pcall(f, aa) else executeLua(cmdStr) end
+        end
+    end)
+    return true
+end
+
+commands["help"] = function()
+    log("Commands:", "Info")
+    log("  settings, bind <key> <cmd>, unload/exit", "Default")
+    log("  fly/unfly, noclip/clip, esp/unesp, swim/unswim", "Default")
+    log("  fling/unfling, infjump/uninfjump, spasm/unspasm, sit", "Default")
+    log("  fb/unfb, nofog, tppos x y z, ws, jp, copypos", "Default")
+    log("  serverinfo/info, vr, serverhop/shop, joinplayer", "Default")
+    log("  creatorid/creator, tools/untools, equipalltools/unequipalltools", "Default")
+    log("  uicorner <scale>, defaultcorner", "Default")
+    log("  code/xcode, getf3x, gun/m249, dex, tp <name>", "Default")
+end
+commands["settings"] = function() openSettings() end
+commands["unload"] = function()
+    log(T("unloaded"), "Success")
+    if logConnection then logConnection:Disconnect(); logConnection = nil end
+    ScreenGui:Destroy()
+end
+commands["exit"] = commands["unload"]
+
+commands["sv_cheats"] = function(args)
+    local v = args[1]
+    if v == "1" then
+        svCheats = true; secretBtn.Visible = true
+        log("Cheats enabled. Secret theme unlocked.", "Success")
+        if saveConfig then pcall(saveConfig) end
+    elseif v == "0" then
+        svCheats = false; secretBtn.Visible = false
+        log("Cheats disabled", "Info")
+        if saveConfig then pcall(saveConfig) end
+    else log("Usage: sv_cheats <0|1>", "Error") end
+end
+
+commands["fly"]    = function() toggleFly(true); log("Fly enabled","Success") end
+commands["unfly"]  = function() toggleFly(false); log("Fly disabled","Success") end
+commands["noclip"] = function() toggleNoclip(true); log("Noclip enabled","Success") end
+commands["clip"]   = function() toggleNoclip(false); log("Noclip disabled","Success") end
+commands["esp"]    = function() toggleESP(true); log("ESP enabled","Success") end
+commands["unesp"]  = function() toggleESP(false); log("ESP disabled","Success") end
+commands["swim"]   = function() toggleSwim(true); log("Swim enabled","Success") end
+commands["unswim"] = function() toggleSwim(false); log("Swim disabled","Success") end
+commands["fling"]  = function() toggleFling(true); log("Fling enabled","Success") end
+commands["unfling"]= function() toggleFling(false); log("Fling disabled","Success") end
+commands["infjump"]= function() toggleInfJump(true); log("InfJump enabled","Success") end
+commands["uninfjump"]=function() toggleInfJump(false); log("InfJump disabled","Success") end
+commands["spasm"]  = function() toggleSpasm(true); log("Spasm enabled","Success") end
+commands["unspasm"]= function() toggleSpasm(false); log("Spasm disabled","Success") end
+commands["fb"]     = function() toggleFullbright(true); log("Fullbright enabled","Success") end
+commands["unfb"]   = function() toggleFullbright(false); log("Fullbright disabled","Success") end
+commands["nofog"]  = function() toggleNofog(true); log("NoFog enabled","Success") end
+
+commands["sit"] = function()
+    local _, hum = getChar()
+    if hum then hum.Sit = true; log("Sitting...","Success") end
+end
+commands["ws"] = function(args)
+    local v = tonumber(args[1]); if not v then log("Usage: ws <value>","Error"); return end
+    local _, hum = getChar(); if hum then hum.WalkSpeed=v; log("WalkSpeed set to "..v,"Success") end
+end
+commands["jp"] = function(args)
+    local v = tonumber(args[1]); if not v then log("Usage: jp <value>","Error"); return end
+    local _, hum = getChar()
+    if hum then hum.UseJumpPower=true; hum.JumpPower=v; log("JumpPower set to "..v,"Success") end
+end
+commands["tppos"] = function(args)
+    local x,y,z = tonumber(args[1]), tonumber(args[2]), tonumber(args[3])
+    if not (x and y and z) then log("Usage: tppos x y z","Error"); return end
+    local _,_,hrp = getChar(); if hrp then hrp.CFrame = CFrame.new(x,y,z); log("Teleported to position","Success") end
+end
+commands["copypos"] = function(args)
+    local target = LocalPlayer
+    if args[1] then
+        local q = args[1]:lower()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Name:lower()==q or p.DisplayName:lower()==q then target=p; break end
+        end
+    end
+    local char = target.Character; local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then log(string.format("Pos of %s: %.1f, %.1f, %.1f", target.Name, hrp.Position.X, hrp.Position.Y, hrp.Position.Z), "Success")
+    else log("Player not found","Error") end
+end
+
+commands["uicorner"] = function(args)
+    local v = tonumber(args[1]); if not v then log("Usage: uicorner <scale>","Error"); return end
+    applyCorner(v); log(T("corner_set")..v, "Success")
+end
+commands["defaultcorner"] = function() consoleCorner.CornerRadius = UDim.new(0,6); log(T("corner_reset"),"Success") end
+
+commands["bind"] = function(args)
+    if #args < 1 then log("Usage: bind <key> <command> | bind list | bind clear","Error"); return end
+    local sub = args[1]:lower()
+    if sub == "list" then
+        log("Active binds:","Info"); local any=false
+        for k,v in pairs(binds) do log("  "..k.." -> "..v,"Default"); any=true end
+        if not any then log("No active binds","Info") end; return
+    elseif sub == "clear" then
+        for _, c in pairs(bindConns) do c:Disconnect() end
+        binds = {}; bindConns = {}; log("All binds cleared","Success")
+        if saveConfig then pcall(saveConfig) end
+        return
+    end
+    if #args < 2 then log("Usage: bind <key> <command>","Error"); return end
+    local cmdStr = table.concat(args, " ", 2)
+    if not setupBind(args[1], cmdStr) then log("Unknown key: "..args[1],"Error"); return end
+    log(string.format("Bound [%s] -> %s", args[1]:upper(), cmdStr), "Success")
+    if saveConfig then pcall(saveConfig) end
+end
+
+commands["serverinfo"] = function()
+    log("Server info:","Info")
+    log("  PlaceId: "..tostring(game.PlaceId),"Default")
+    log("  JobId: "..tostring(game.JobId),"Default")
+    log("  Players: "..#Players:GetPlayers().."/"..Players.MaxPlayers,"Default")
+    log("  Creator: "..game.CreatorId.." ("..tostring(game.CreatorType)..")","Default")
+    local ok, prod = pcall(function() return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId) end)
+    if ok and prod then log("  Game: "..tostring(prod.Name),"Default") end
+end
+commands["info"] = commands["serverinfo"]
+
+commands["vr"] = function()
+    local ok, VRS = pcall(function() return game:GetService("VRService") end)
+    if ok and VRS then log("VR available: "..tostring(VRS.VREnabled),"Info")
+    else log("VR mode not available","Error") end
+end
+
+commands["serverhop"] = function()
+    log("Searching for another server...","Info")
+    local ok, res = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet(("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)))
+    end)
+    if not ok or not res or not res.data then log("Failed to get server list","Error"); return end
+    local target
+    for _, s in ipairs(res.data) do
+        if s.id ~= game.JobId and s.playing < s.maxPlayers then target=s.id; break end
+    end
+    if not target then log("No other servers found","Error"); return end
+    log("Teleporting to server: "..target,"Success")
+    pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, target, LocalPlayer) end)
+end
+commands["shop"] = commands["serverhop"]
+
+commands["joinplayer"] = function(args)
+    if #args < 1 then log("Usage: joinplayer <username/ID> [placeId]","Error"); return end
+    local query = args[1]; local userId = tonumber(query)
+    if not userId then
+        local ok, id = pcall(function() return Players:GetUserIdFromNameAsync(query) end)
+        if ok then userId = id end
+    end
+    if not userId then log("Player not found","Error"); return end
+    local plr = Players:GetPlayerByUserId(userId)
+    if not plr then log("Player not in current server — cannot join","Error"); return end
+    log("Joining player: "..plr.Name,"Success")
+    pcall(function() TeleportService:TeleportToPlayer({plr}, LocalPlayer) end)
+end
+
+commands["creatorid"] = function() log("Creator ID: "..tostring(game.CreatorId).." ("..tostring(game.CreatorType)..")","Success") end
+commands["creator"] = commands["creatorid"]
+
+commands["tools"] = function()
+    local bp = LocalPlayer:FindFirstChild("Backpack"); if not bp then log("No backpack","Error"); return end
+    local n = 0
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Tool") and not obj:IsDescendantOf(LocalPlayer.Character) then
+            obj:Clone().Parent = bp; n += 1; if n >= 100 then break end
+        end
+    end
+    log("Tools added: "..n,"Success")
+end
+commands["untools"] = function()
+    local n = 0
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then for _,t in ipairs(bp:GetChildren()) do if t:IsA("Tool") then t:Destroy(); n+=1 end end end
+    local char = LocalPlayer.Character
+    if char then for _,t in ipairs(char:GetChildren()) do if t:IsA("Tool") then t:Destroy(); n+=1 end end end
+    log("Tools removed: "..n,"Success")
+end
+commands["equipalltools"] = function()
+    local char, hum = getChar(); if not char or not hum then log("No character","Error"); return end
+    local bp = LocalPlayer:FindFirstChild("Backpack"); local n=0
+    if bp then for _,t in ipairs(bp:GetChildren()) do
+        if t:IsA("Tool") then pcall(function() hum:EquipTool(t) end); n+=1; task.wait(0.05) end
+    end end
+    log("Equipped tools: "..n,"Success")
+end
+commands["unequipalltools"] = function()
+    local _, hum = getChar(); if not hum then log("No character","Error"); return end
+    pcall(function() hum:UnequipTools() end); log("Unequipped tools","Success")
+end
+commands["xyz"] = function()
+    local _,_,hrp = getChar(); if not hrp then return end
+    log(string.format("X=%.2f Y=%.2f Z=%.2f", hrp.Position.X, hrp.Position.Y, hrp.Position.Z),"Success")
+end
+commands["destroy"] = function()
+    local t = LocalPlayer:GetMouse().Target
+    if t and not t:IsA("Terrain") then t:Destroy(); log("Destroyed: "..t:GetFullName(),"Info") end
+end
+commands["summon"] = function(args)
+    local shape = (args[1] or "part"):lower()
+    local map = { part=Enum.PartType.Block, block=Enum.PartType.Block, sphere=Enum.PartType.Ball,
+        ball=Enum.PartType.Ball, cylinder=Enum.PartType.Cylinder, wedge=Enum.PartType.Wedge,
+        cornerwedge=Enum.PartType.CornerWedge }
+    local pt = map[shape]; if not pt then log("Usage: summon <part|sphere|cylinder|wedge>","Error"); return end
+    local p = Instance.new("Part"); p.Shape=pt; p.Size=Vector3.new(4,4,4)
+    p.Position = LocalPlayer:GetMouse().Hit.Position + Vector3.new(0,5,0); p.Parent = Workspace
+    log("Spawned "..shape,"Success")
+end
+commands["kickme"] = function(args) LocalPlayer:Kick(#args>0 and table.concat(args," ") or "No reason") end
+commands["color"] = function(args)
+    if #args < 1 then log("Usage: color <bg><fg>","Error"); return end
+    local code = args[1]:upper(); if #code ~= 2 then log("Bad code","Error"); return end
+    local bg, fg = CMD_COLORS[code:sub(1,1)], CMD_COLORS[code:sub(2,2)]
+    if bg and fg then ConsoleFrame.BackgroundColor3=bg; CommandBox.TextColor3=fg; log("Color changed: "..code,"Success")
+    else log("Bad code","Error") end
+end
+commands["clear"] = function()
+    for _,c in ipairs(LogFrame:GetChildren()) do if c:IsA("TextLabel") then c:Destroy() end end
+    log("Log cleared","Info")
+end
+commands["code"] = function()
+    pcall(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/dimoonsh195/xcode/main/xcode.lua", true))() end)
+end
+commands["xcode"] = commands["code"]
+commands["getf3x"] = function()
+    pcall(function() local obj = game:GetObjects("rbxassetid://6695644299")[1]; if obj then loadstring(obj.Source)() end end)
+end
+commands["tool"] = commands["getf3x"]; commands["f3x"] = commands["getf3x"]
+commands["gun"] = giveGun; commands["m249"] = giveGun
+commands["dex"] = function()
+    pcall(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/luau/Dex/master/out.lua", true))() end)
+end
+
+local function tpToPlayer(args)
+    if #args < 1 then
+        log("Online players:","Info")
+        for _,p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then log("  "..p.Name,"Default") end end
+        return
+    end
+    local q = table.concat(args," "):lower(); local target
+    for _,p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and (p.Name:lower()==q or p.DisplayName:lower()==q) then target=p; break end
+    end
+    if not target then for _,p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and (p.Name:lower():find(q,1,true) or p.DisplayName:lower():find(q,1,true)) then target=p; break end
+    end end
+    if not target then log("Player not found","Error"); return end
+    local char = target.Character; local thrp = char and char:FindFirstChild("HumanoidRootPart")
+    local _,_,myhrp = getChar()
+    if thrp and myhrp then myhrp.CFrame = thrp.CFrame * CFrame.new(0,2,3); log("Teleported to "..target.Name,"Success") end
+end
+commands["tp"] = tpToPlayer; commands["to"] = tpToPlayer; commands["goto"] = tpToPlayer
+
+-- ===================== ВВОД =====================
 CommandBox.FocusLost:Connect(function(enterPressed)
     if not enterPressed then return end
-    local text = CommandBox.Text
-    if text == "" then return end
+    local text = CommandBox.Text; if text == "" then return end
     CommandBox.Text = ""
     if #commandHistory == 0 or commandHistory[#commandHistory] ~= text then
         table.insert(commandHistory, text)
         if #commandHistory > CONFIG.MaxHistory then table.remove(commandHistory, 1) end
     end
     historyIndex = #commandHistory + 1
-    local args = {}
-    for word in text:gmatch("%S+") do table.insert(args, word) end
+    local args = {}; for w in text:gmatch("%S+") do table.insert(args, w) end
     if #args == 0 then return end
-    local cmdName = args[1]:lower()
-    table.remove(args, 1)
-    log("> " .. text, "Echo")
-    local commandFunc = commands[cmdName]
-    if commandFunc then
-        local success, e = pcall(commandFunc, args)
-        if not success then log("Error: " .. tostring(e), "Error") end
-    else
-        log("Unknown command: " .. cmdName, "Error")
-    end
+    local cmdName = args[1]:lower(); table.remove(args, 1)
+    log("> "..text,"Echo")
+    runEvent("onExecute")
+    local f = commands[cmdName]
+    if f then
+        local ok, e = pcall(f, args)
+        if not ok then log("Error: "..tostring(e),"Error") end
+    else executeLua(text) end
 end)
 
 CommandBox.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.Up then
-        if #commandHistory > 0 then
-            historyIndex = math.max(1, historyIndex - 1)
-            CommandBox.Text = commandHistory[historyIndex]
-        end
+        if #commandHistory > 0 then historyIndex = math.max(1, historyIndex-1); CommandBox.Text = commandHistory[historyIndex] end
     elseif input.KeyCode == Enum.KeyCode.Down then
         if #commandHistory > 0 then
-            historyIndex = math.min(#commandHistory + 1, historyIndex + 1)
+            historyIndex = math.min(#commandHistory+1, historyIndex+1)
             CommandBox.Text = historyIndex <= #commandHistory and commandHistory[historyIndex] or ""
         end
     end
 end)
 
--- Ресайз правым нижним углом
-local resizing = false
-local startSize, startMouse
+-- ===================== РЕСАЙЗ =====================
+local resizing, startSize, startMouse = false, nil, nil
 ResizeHandle.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        resizing = true
-        startSize = ConsoleFrame.AbsoluteSize
-        startMouse = input.Position
+        resizing=true; startSize=ConsoleFrame.AbsoluteSize; startMouse=input.Position
     end
 end)
 UIS.InputChanged:Connect(function(input)
     if resizing and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - startMouse
-        ConsoleFrame.Size = UDim2.new(0, math.max(300, startSize.X + delta.X), 0, math.max(150, startSize.Y + delta.Y))
+        local d = input.Position - startMouse
+        ConsoleFrame.Size = UDim2.new(0, math.max(300, startSize.X+d.X), 0, math.max(150, startSize.Y+d.Y))
     end
 end)
 UIS.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then resizing = false end
 end)
 
-log("CONSOLE loaded. Type help.", "Success")
-log("System logs from Roblox are now being mirrored.", "Info")
-log("Aliases for Xcode: codegui, guicode, xcode, code", "Info")
-log("Aliases for F3X: getf3x, tool, gettool, f3xtool, f3x", "Info")
-log("Aliases for M249: gun, m249", "Info")
-log("Teleport: tp <name> | tp (list players)", "Info")
+CloseBtn.MouseButton1Click:Connect(function()
+    if logConnection then logConnection:Disconnect(); logConnection = nil end
+    ScreenGui:Destroy()
+end)
+
+log(T("loaded"), "Success")
+log(T("settings_hint"), "Info")
+
+-- ===================== АВТОЗАГРУЗКА КОНФИГА =====================
+task.defer(function()
+    task.wait(0.1)
+    if isfile then
+        pcall(loadConfig)
+    end
+end)
