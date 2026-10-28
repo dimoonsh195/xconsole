@@ -124,10 +124,83 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SimpleConsole"; ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true; ScreenGui.DisplayOrder = 5000; ScreenGui.Parent = guiParent
 
+-- ===================== АНИМАЦИЯ ЗАГРУЗКИ =====================
+local LoadingCard = Instance.new("Frame")
+LoadingCard.Size = UDim2.new(0, 320, 0, 190)
+LoadingCard.Position = UDim2.new(0.5, -160, 0.5, -95)
+LoadingCard.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+LoadingCard.BackgroundTransparency = 0.08
+LoadingCard.BorderSizePixel = 0
+LoadingCard.ZIndex = 100
+LoadingCard.Parent = ScreenGui
+Instance.new("UICorner", LoadingCard).CornerRadius = UDim.new(0, 10)
+
+local loadStroke = Instance.new("UIStroke")
+loadStroke.Color = Color3.fromRGB(255, 255, 255)
+loadStroke.Thickness = 1.2
+loadStroke.Transparency = 0.8
+loadStroke.Parent = LoadingCard
+
+local loadTitle = Instance.new("TextLabel")
+loadTitle.Size = UDim2.new(1, 0, 0, 36)
+loadTitle.Position = UDim2.new(0, 0, 0, 22)
+loadTitle.BackgroundTransparency = 1
+loadTitle.Text = "XCONSOLE"
+loadTitle.Font = Enum.Font.Code
+loadTitle.TextSize = 28
+loadTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+loadTitle.TextTransparency = 1
+loadTitle.ZIndex = 101
+loadTitle.Parent = LoadingCard
+
+local loadSubtitle = Instance.new("TextLabel")
+loadSubtitle.Size = UDim2.new(1, 0, 0, 20)
+loadSubtitle.Position = UDim2.new(0, 0, 0, 62)
+loadSubtitle.BackgroundTransparency = 1
+loadSubtitle.Text = "loaded"
+loadSubtitle.Font = Enum.Font.Code
+loadSubtitle.TextSize = 16
+loadSubtitle.TextColor3 = Color3.fromRGB(180, 180, 180)
+loadSubtitle.TextTransparency = 1
+loadSubtitle.ZIndex = 101
+loadSubtitle.Parent = LoadingCard
+
+local loadVersion = Instance.new("TextLabel")
+loadVersion.Size = UDim2.new(1, 0, 0, 18)
+loadVersion.Position = UDim2.new(0, 0, 0, 86)
+loadVersion.BackgroundTransparency = 1
+loadVersion.Text = "v 2.7.0"
+loadVersion.Font = Enum.Font.Code
+loadVersion.TextSize = 13
+loadVersion.TextColor3 = Color3.fromRGB(120, 120, 120)
+loadVersion.TextTransparency = 1
+loadVersion.ZIndex = 101
+loadVersion.Parent = LoadingCard
+
+local loadBarBg = Instance.new("Frame")
+loadBarBg.Size = UDim2.new(0, 240, 0, 4)
+loadBarBg.Position = UDim2.new(0.5, -120, 0, 130)
+loadBarBg.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+loadBarBg.BackgroundTransparency = 1
+loadBarBg.BorderSizePixel = 0
+loadBarBg.ZIndex = 101
+loadBarBg.Parent = LoadingCard
+Instance.new("UICorner", loadBarBg).CornerRadius = UDim.new(1, 0)
+
+local loadBarFill = Instance.new("Frame")
+loadBarFill.Size = UDim2.new(0, 0, 1, 0)
+loadBarFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+loadBarFill.BackgroundTransparency = 1
+loadBarFill.BorderSizePixel = 0
+loadBarFill.ZIndex = 102
+loadBarFill.Parent = loadBarBg
+Instance.new("UICorner", loadBarFill).CornerRadius = UDim.new(1, 0)
+
 local ConsoleFrame = Instance.new("Frame")
 ConsoleFrame.Size = UDim2.new(0,600,0,350); ConsoleFrame.Position = UDim2.new(0,20,0,20)
 ConsoleFrame.BackgroundColor3 = THEMES.default.background; ConsoleFrame.BackgroundTransparency = 0.1
 ConsoleFrame.BorderSizePixel = 0; ConsoleFrame.Active = true; ConsoleFrame.Draggable = true
+ConsoleFrame.Visible = false
 ConsoleFrame.Parent = ScreenGui
 local consoleCorner = Instance.new("UICorner", ConsoleFrame); consoleCorner.CornerRadius = UDim.new(0,6)
 
@@ -1957,6 +2030,47 @@ end)
 log("CONSOLE loaded. Type help.", "Success")
 log("Type 'settings' to open the panel", "Info")
 log("hide/show Rctrl", "Info")
+
+-- ===================== СТАРТОВАЯ АНИМАЦИЯ =====================
+task.spawn(function()
+    local tInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    
+    TweenService:Create(loadTitle, tInfo, { TextTransparency = 0 }):Play()
+    task.wait(0.2)
+    TweenService:Create(loadSubtitle, tInfo, { TextTransparency = 0 }):Play()
+    task.wait(0.15)
+    TweenService:Create(loadVersion, tInfo, { TextTransparency = 0 }):Play()
+    task.wait(0.15)
+    
+    TweenService:Create(loadBarBg, tInfo, { BackgroundTransparency = 0.5 }):Play()
+    TweenService:Create(loadBarFill, tInfo, { BackgroundTransparency = 0 }):Play()
+    
+    local barTween = TweenService:Create(loadBarFill, TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
+        Size = UDim2.new(1, 0, 1, 0)
+    })
+    barTween:Play()
+    barTween.Completed:Wait()
+    task.wait(0.2)
+    
+    local fadeInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+    TweenService:Create(LoadingCard, fadeInfo, { BackgroundTransparency = 1, Position = LoadingCard.Position - UDim2.new(0, 0, 0, 15) }):Play()
+    TweenService:Create(loadStroke, fadeInfo, { Transparency = 1 }):Play()
+    TweenService:Create(loadTitle, fadeInfo, { TextTransparency = 1 }):Play()
+    TweenService:Create(loadSubtitle, fadeInfo, { TextTransparency = 1 }):Play()
+    TweenService:Create(loadVersion, fadeInfo, { TextTransparency = 1 }):Play()
+    TweenService:Create(loadBarBg, fadeInfo, { BackgroundTransparency = 1 }):Play()
+    local lastFade = TweenService:Create(loadBarFill, fadeInfo, { BackgroundTransparency = 1 })
+    lastFade:Play()
+    lastFade.Completed:Wait()
+    
+    LoadingCard:Destroy()
+    
+    if currentDevice == "Phone" and consoleHidden then
+        PhoneIconBtn.Visible = true
+    else
+        ConsoleFrame.Visible = true
+    end
+end)
 
 task.defer(function()
     task.wait(0.1)
