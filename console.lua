@@ -8,6 +8,7 @@ local Workspace = game:GetService("Workspace")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Debris = game:GetService("Debris")
+local CollectionService = game:GetService("CollectionService")
 local LocalPlayer = Players.LocalPlayer
 
 -- ============ FORWARD DECLS ============
@@ -15,8 +16,11 @@ local SaveBtn, LoadBtn, eventsTitleLabel, eventBoxes, eventLabels
 local SettingsFrame, SettingsScroll, SettingsTitle, BackBtn, LangPopup
 local themeButtons, langButtons, themeLabel, langLabel, secretBtn, win10Btn, langOpenBtn
 local bgRow, bgBox, bgApplyBtn, bgLabel
+local HideBtn, ExtraIcon, SettingsBtn, PhoneIconBtn
+local devicePCStroke, devicePhoneStroke
 local premiumEnabled = false
 local customBgId = ""
+local currentDevice = "PC"
 local commands = {}
 local applyThemeToSettings, saveConfig, refreshThemeButtons, refreshUILabels, setupBind
 local SECRET = "100110101011000101"
@@ -30,6 +34,7 @@ local LOC = {
     en = { title="CONSOLE", placeholder="Enter command or Lua code...", settings_title="SETTINGS", theme="Theme",
         theme_default="Default", theme_winter="Winter", theme_halloween="Halloween",
         language="Language", back="Back", save_cfg="Save config", load_cfg="Load config",
+        select_device="Select device",
         events_title="Events (command or Lua code)", ev_onkilled="onKilled", ev_ondied="onDied",
         ev_onspawn="onSpawn", ev_onexecute="onExecute", ev_onjoin="onJoin", ev_ondamage="onDamage", ev_onleave="onLeave",
         cfg_saved="Config saved", cfg_loaded="Config loaded", cfg_fail="Config operation failed",
@@ -40,6 +45,7 @@ local LOC = {
     ru = { title="КОНСОЛЬ", placeholder="Введите команду или Lua-код...", settings_title="НАСТРОЙКИ", theme="Тема",
         theme_default="Обычная", theme_winter="Зимняя", theme_halloween="Хэллоуин",
         language="Язык", back="Назад", save_cfg="Сохранить конфиг", load_cfg="Загрузить конфиг",
+        select_device="Выбор устройства",
         events_title="События (команда или Lua-код)", ev_onkilled="onKilled", ev_ondied="onDied",
         ev_onspawn="onSpawn", ev_onexecute="onExecute", ev_onjoin="onJoin", ev_ondamage="onDamage", ev_onleave="onLeave",
         cfg_saved="Конфиг сохранён", cfg_loaded="Конфиг загружен", cfg_fail="Ошибка операции с конфигом",
@@ -49,7 +55,7 @@ local LOC = {
         select_lang="Выбор языка", custom_bg="Свой фон (Asset ID)", apply="Применить", premium_req="Требуется Premium" },
     zh = { title="控制台", placeholder="输入命令或 Lua 代码...", settings_title="设置", theme="主题",
         theme_default="默认", theme_winter="冬季", theme_halloween="万圣节", language="语言", back="返回",
-        save_cfg="保存配置", load_cfg="加载配置", events_title="事件（命令或 Lua 代码）",
+        save_cfg="保存配置", load_cfg="加载配置", events_title="事件（命令或 Lua 代码）", select_device="选择设备",
         cfg_saved="配置已保存", cfg_loaded="配置已加载", cfg_fail="配置操作失败",
         theme_set="主题已设置：", lang_set="语言已设置：", corner_set="圆角已设置：", corner_reset="圆角已重置为默认",
         unloaded="控制台已卸载", settings_hint="输入 'settings' 打开面板", loaded="控制台已加载。输入 help。",
@@ -57,7 +63,7 @@ local LOC = {
         select_lang="选择语言", custom_bg="自定义背景 (Asset ID)", apply="应用", premium_req="需要高级版" },
     ja = { title="コンソール", placeholder="コマンドまたは Lua コードを入力...", settings_title="設定", theme="テーマ",
         theme_default="デフォルト", theme_winter="冬", theme_halloween="ハロウィン", language="言語", back="戻る",
-        save_cfg="設定を保存", load_cfg="設定を読み込む", events_title="イベント（コマンドまたは Lua コード）",
+        save_cfg="設定を保存", load_cfg="設定を読み込む", events_title="イベント（コマンドまたは Lua コード）", select_device="デバイスを選択",
         cfg_saved="設定を保存しました", cfg_loaded="設定を読み込みました", cfg_fail="設定操作に失敗しました",
         theme_set="テーマ設定：", lang_set="言語設定：", corner_set="角丸設定：", corner_reset="角丸をデフォルトに戻しました",
         unloaded="コンソールをアンロードしました", settings_hint="'settings' でパネルを開く", loaded="コンソール読み込み完了。help を入力。",
@@ -65,7 +71,7 @@ local LOC = {
         select_lang="言語を選択", custom_bg="カスタム背景 (Asset ID)", apply="適用", premium_req="プレミアムが必要" },
     uk = { title="КОНСОЛЬ", placeholder="Введіть команду або Lua-код...", settings_title="НАЛАШТУВАННЯ", theme="Тема",
         theme_default="Звичайна", theme_winter="Зимова", theme_halloween="Хелловін", language="Мова", back="Назад",
-        save_cfg="Зберегти конфіг", load_cfg="Завантажити конфіг", events_title="Події (команда або Lua-код)",
+        save_cfg="Зберегти конфіг", load_cfg="Завантажити конфіг", events_title="Події (команда або Lua-код)", select_device="Обрати пристрій",
         cfg_saved="Конфіг збережено", cfg_loaded="Конфіг завантажено", cfg_fail="Помилка операції з конфігом",
         theme_set="Тему встановлено: ", lang_set="Мову встановлено: ", corner_set="Заокруглення встановлено: ", corner_reset="Заокруглення скинуто",
         unloaded="Консоль вивантажено", settings_hint="Введіть 'settings' щоб відкрити панель", loaded="КОНСОЛЬ завантажена. Введіть help.",
@@ -73,7 +79,7 @@ local LOC = {
         select_lang="Обрати мову", custom_bg="Свій фон (Asset ID)", apply="Застосувати", premium_req="Потрібен Premium" },
     ko = { title="콘솔", placeholder="명령어 또는 Lua 코드 입력...", settings_title="설정", theme="테마",
         theme_default="기본", theme_winter="겨울", theme_halloween="할로윈", language="언어", back="뒤로",
-        save_cfg="설정 저장", load_cfg="설정 불러오기", events_title="이벤트 (명령어 또는 Lua 코드)",
+        save_cfg="설정 저장", load_cfg="설정 불러오기", events_title="이벤트 (명령어 또는 Lua 코드)", select_device="기기 선택",
         cfg_saved="설정이 저장되었습니다", cfg_loaded="설정이 로드되었습니다", cfg_fail="설정 작업 실패",
         theme_set="테마 설정: ", lang_set="언어 설정: ", corner_set="모서리 설정: ", corner_reset="모서리가 기본값으로 재설정됨",
         unloaded="콘솔이 언로드되었습니다", settings_hint="'settings'를 입력하여 패널 열기", loaded="콘솔 로드 완료. help 입력.",
@@ -81,7 +87,7 @@ local LOC = {
         select_lang="언어 선택", custom_bg="사용자 지정 배경 (Asset ID)", apply="적용", premium_req="프리미엄 필요" },
     de = { title="KONSOLE", placeholder="Befehl oder Lua-Code eingeben...", settings_title="EINSTELLUNGEN", theme="Thema",
         theme_default="Standard", theme_winter="Winter", theme_halloween="Halloween", language="Sprache", back="Zurück",
-        save_cfg="Konfiguration speichern", load_cfg="Konfiguration laden", events_title="Ereignisse (Befehl oder Lua-Code)",
+        save_cfg="Konfiguration speichern", load_cfg="Konfiguration laden", events_title="Ereignisse (Befehl oder Lua-Code)", select_device="Gerät auswählen",
         cfg_saved="Konfiguration gespeichert", cfg_loaded="Konfiguration geladen", cfg_fail="Konfigurationsvorgang fehlgeschlagen",
         theme_set="Thema gesetzt: ", lang_set="Sprache gesetzt: ", corner_set="Ecke gesetzt: ", corner_reset="Ecke auf Standard zurückgesetzt",
         unloaded="Konsole entladen", settings_hint="Geben Sie 'settings' ein, um das Panel zu öffnen", loaded="KONSOLE geladen. Geben Sie help ein.",
@@ -89,7 +95,7 @@ local LOC = {
         select_lang="Sprache auswählen", custom_bg="Benutzerdefinierter Hintergrund (Asset ID)", apply="Anwenden", premium_req="Premium erforderlich" },
     it = { title="CONSOLE", placeholder="Inserisci comando o codice Lua...", settings_title="IMPOSTAZIONI", theme="Tema",
         theme_default="Predefinito", theme_winter="Inverno", theme_halloween="Halloween", language="Lingua", back="Indietro",
-        save_cfg="Salva configurazione", load_cfg="Carica configurazione", events_title="Eventi (comando o codice Lua)",
+        save_cfg="Salva configurazione", load_cfg="Carica configurazione", events_title="Eventi (comando o codice Lua)", select_device="Seleziona dispositivo",
         cfg_saved="Configurazione salvata", cfg_loaded="Configurazione caricata", cfg_fail="Operazione di configurazione fallita",
         theme_set="Tema impostato: ", lang_set="Lingua impostata: ", corner_set="Angolo impostato: ", corner_reset="Angolo ripristinato",
         unloaded="Console scaricata", settings_hint="Digita 'settings' per aprire il pannello", loaded="CONSOLE caricata. Digita help.",
@@ -97,7 +103,7 @@ local LOC = {
         select_lang="Seleziona lingua", custom_bg="Sfondo personalizzato (Asset ID)", apply="Applica", premium_req="Premium richiesto" },
     es = { title="CONSOLA", placeholder="Ingresa comando o código Lua...", settings_title="AJUSTES", theme="Tema",
         theme_default="Predeterminado", theme_winter="Invierno", theme_halloween="Halloween", language="Idioma", back="Atrás",
-        save_cfg="Guardar configuración", load_cfg="Cargar configuración", events_title="Eventos (comando o código Lua)",
+        save_cfg="Guardar configuración", load_cfg="Cargar configuración", events_title="Eventos (comando o código Lua)", select_device="Seleccionar dispositivo",
         cfg_saved="Configuración guardada", cfg_loaded="Configuración cargada", cfg_fail="Operación de configuración fallida",
         theme_set="Tema establecido: ", lang_set="Idioma establecido: ", corner_set="Esquina establecida: ", corner_reset="Esquina restablecida",
         unloaded="Consola descargada", settings_hint="Escribe 'settings' para abrir el panel", loaded="CONSOLA cargada. Escribe help.",
@@ -133,11 +139,15 @@ local THEMES = {
 }
 local currentTheme = "default"
 
--- Функция для надежной загрузки картинок (обход блокировок rbxassetid)
 local function getThumb(id)
     local num = tostring(id):match("%d+")
     if not num then return "" end
     return "rbxthumb://type=Asset&id=" .. num .. "&w=768&h=432"
+end
+local function getIcon(id)
+    local num = tostring(id):match("%d+")
+    if not num then return "" end
+    return "rbxthumb://type=Asset&id=" .. num .. "&w=150&h=150"
 end
 
 local CONFIG = { Font = Enum.Font.Code, MaxHistory = 50 }
@@ -165,8 +175,17 @@ local STATES = {
     fling=false, flingConn=nil, infjump=false, infjumpConn=nil,
     spasm=false, spasmConn=nil, fullbright=false, fbBackup=nil,
     nofog=false, fogBackup=nil,
+    enableDrop=false, dropConn=nil,
+    enableJump=false, jumpConn=nil, jumpBackup=nil, jumpRequestConn=nil,
+    enableSit=false, sitInputConn=nil,
+    enableZoom=false, zoomConn=nil, zoomBackup=nil,
+    velocityActive=false, velocityConn=nil, velocityCollideBackup=nil, velocitySpeedBackup=nil,
     events = { onKilled="", onDied="", onSpawn="", onExecute="", onJoin="", onDamage="", onLeave="" },
 }
+
+local originalWalkSpeed = nil
+local speedCaptured = false
+local consoleHidden = false
 
 local CONFIG_FILE = "xconsole_config.json"
 
@@ -214,18 +233,67 @@ Header.Size = UDim2.new(1,0,0,30); Header.BackgroundColor3 = THEMES.default.head
 Header.BackgroundTransparency = 0.2; Header.BorderSizePixel = 0; Header.ZIndex = 2; Header.Parent = ConsoleFrame
 Instance.new("UICorner", Header).CornerRadius = UDim.new(0,6)
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1,-60,1,0); Title.Position = UDim2.new(0,10,0,0)
-Title.BackgroundTransparency = 1; Title.Text = T("title")
-Title.TextColor3 = THEMES.default.accent; Title.Font = CONFIG.Font; Title.TextSize = 16
-Title.TextXAlignment = Enum.TextXAlignment.Left; Title.ZIndex = 3; Title.Parent = Header
+-- Логотип
+local Title = Instance.new("ImageLabel")
+Title.Size = UDim2.new(0,26,0,26); Title.Position = UDim2.new(0,4,0,2)
+Title.BackgroundTransparency = 1
+Title.Image = getIcon(54479712)
+Title.ScaleType = Enum.ScaleType.Fit
+Title.ZIndex = 3; Title.Parent = Header
 
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0,24,0,24); CloseBtn.Position = UDim2.new(1,-30,0,3)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(200,50,50); CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.new(1,1,1); CloseBtn.Font = CONFIG.Font; CloseBtn.TextSize = 14
-CloseBtn.BorderSizePixel = 0; CloseBtn.ZIndex = 3; CloseBtn.Parent = Header
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0,4)
+-- ExtraIcon (левее настроек)
+ExtraIcon = Instance.new("ImageLabel")
+ExtraIcon.Size = UDim2.new(0,24,0,24); ExtraIcon.Position = UDim2.new(1,-110,0,3)
+ExtraIcon.BackgroundTransparency = 1
+ExtraIcon.Image = getIcon(2484276650)
+ExtraIcon.ScaleType = Enum.ScaleType.Fit
+ExtraIcon.ZIndex = 3; ExtraIcon.Parent = Header
+
+-- Кнопка настроек (9405931596) — вызывает команду settings с логированием
+SettingsBtn = Instance.new("ImageButton")
+SettingsBtn.Size = UDim2.new(0,24,0,24); SettingsBtn.Position = UDim2.new(1,-84,0,3)
+SettingsBtn.BackgroundTransparency = 1
+SettingsBtn.Image = getIcon(9405931596)
+SettingsBtn.ScaleType = Enum.ScaleType.Fit
+SettingsBtn.ZIndex = 3; SettingsBtn.Parent = Header
+
+-- Кнопка скрытия (толстая белая черта)
+HideBtn = Instance.new("TextButton")
+HideBtn.Size = UDim2.new(0,28,0,28); HideBtn.Position = UDim2.new(1,-58,0,1)
+HideBtn.BackgroundTransparency = 1
+HideBtn.Text = ""
+HideBtn.BorderSizePixel = 0; HideBtn.ZIndex = 3; HideBtn.Parent = Header
+
+local HideDash = Instance.new("Frame")
+HideDash.Size = UDim2.new(0,16,0,3); HideDash.Position = UDim2.new(0.5,-8,0.5,-1.5)
+HideDash.BackgroundColor3 = Color3.fromRGB(255,255,255)
+HideDash.BorderSizePixel = 0; HideDash.ZIndex = 4; HideDash.Parent = HideBtn
+Instance.new("UICorner", HideDash).CornerRadius = UDim.new(1,0)
+
+-- Кнопка закрытия
+local CloseBtn = Instance.new("ImageButton")
+CloseBtn.Size = UDim2.new(0,24,0,24); CloseBtn.Position = UDim2.new(1,-28,0,3)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Image = getIcon(111716979356360)
+CloseBtn.ScaleType = Enum.ScaleType.Fit
+CloseBtn.ZIndex = 3; CloseBtn.Parent = Header
+
+-- Иконка телефона (появляется при скрытии на телефоне)
+PhoneIconBtn = Instance.new("ImageButton")
+PhoneIconBtn.Size = UDim2.new(0, 40, 0, 40)
+PhoneIconBtn.Position = UDim2.new(0, 20, 0, 20)
+PhoneIconBtn.BackgroundTransparency = 1
+PhoneIconBtn.Image = getIcon(54479712)
+PhoneIconBtn.ScaleType = Enum.ScaleType.Fit
+PhoneIconBtn.Visible = false
+PhoneIconBtn.ZIndex = 10
+PhoneIconBtn.Parent = ScreenGui
+
+PhoneIconBtn.MouseButton1Click:Connect(function()
+    consoleHidden = false
+    ConsoleFrame.Visible = true
+    PhoneIconBtn.Visible = false
+end)
 
 local LogFrame = Instance.new("ScrollingFrame")
 LogFrame.Size = UDim2.new(1,-10,1,-75); LogFrame.Position = UDim2.new(0,5,0,35)
@@ -578,14 +646,15 @@ applyThemeToSettings = function(t)
     if not SettingsFrame then return end
     for _, obj in ipairs(SettingsFrame:GetDescendants()) do
         if obj:IsA("TextLabel") then obj.TextColor3 = t.text
-        elseif obj:IsA("TextButton") then obj.TextColor3 = t.text; obj.BackgroundColor3 = t.input
+        elseif obj:IsA("TextButton") then
+            if obj ~= HideBtn then
+                obj.TextColor3 = t.text; obj.BackgroundColor3 = t.input
+            end
         elseif obj:IsA("TextBox") then obj.TextColor3 = t.text; obj.BackgroundColor3 = t.input end
     end
     for n, btn in pairs(themeButtons) do
         btn.BackgroundColor3 = (currentTheme == n) and t.accent or t.input
     end
-    if BackBtn then BackBtn.BackgroundColor3 = Color3.fromRGB(200,50,50); BackBtn.TextColor3 = Color3.new(1,1,1) end
-    if SettingsTitle then SettingsTitle.TextColor3 = t.accent end
     SettingsFrame.BackgroundColor3 = t.background
 end
 
@@ -596,7 +665,7 @@ local function applyTheme(name)
     Header.BackgroundColor3 = t.header
     InputFrame.BackgroundColor3 = t.input
     LogFrame.BackgroundColor3 = t.log
-    Title.TextColor3 = t.accent; CommandBox.TextColor3 = t.accent
+    CommandBox.TextColor3 = t.accent
     stroke.Color = t.stroke; LogFrame.ScrollBarImageColor3 = t.accent
     
     if name == SECRET then
@@ -670,19 +739,21 @@ local function addSettingRow(widget)
     SettingsScroll.CanvasSize = UDim2.new(0,0,0, settingsLayout.AbsoluteContentSize.Y + 20)
 end
 
-SettingsTitle = Instance.new("TextLabel")
-SettingsTitle.Size=UDim2.new(1,-100,0,30); SettingsTitle.Position=UDim2.new(0,10,0,5)
-SettingsTitle.BackgroundTransparency=1; SettingsTitle.Text=T("settings_title")
-SettingsTitle.TextColor3=THEMES.default.accent; SettingsTitle.Font=CONFIG.Font
-SettingsTitle.TextSize=18; SettingsTitle.TextXAlignment=Enum.TextXAlignment.Left
-SettingsTitle.ZIndex=12; SettingsTitle.Parent=SettingsFrame
+-- Заголовок настроек — иконка
+SettingsTitle = Instance.new("ImageLabel")
+SettingsTitle.Size = UDim2.new(0,26,0,26); SettingsTitle.Position = UDim2.new(0,8,0,7)
+SettingsTitle.BackgroundTransparency = 1
+SettingsTitle.Image = getIcon(9405931596)
+SettingsTitle.ScaleType = Enum.ScaleType.Fit
+SettingsTitle.ZIndex = 12; SettingsTitle.Parent = SettingsFrame
 
-BackBtn = Instance.new("TextButton")
-BackBtn.Size=UDim2.new(0,80,0,26); BackBtn.Position=UDim2.new(1,-90,0,7)
-BackBtn.BackgroundColor3=Color3.fromRGB(200,50,50); BackBtn.Text=T("back")
-BackBtn.TextColor3=Color3.new(1,1,1); BackBtn.Font=CONFIG.Font; BackBtn.TextSize=13
-BackBtn.BorderSizePixel=0; BackBtn.ZIndex=12; BackBtn.Parent=SettingsFrame
-Instance.new("UICorner", BackBtn).CornerRadius = UDim.new(0,4)
+-- BackBtn — картинка, сдвинут правее
+BackBtn = Instance.new("ImageButton")
+BackBtn.Size = UDim2.new(0,40,0,24); BackBtn.Position = UDim2.new(1,-52,0,8)
+BackBtn.BackgroundTransparency = 1
+BackBtn.Image = getIcon(8674072445)
+BackBtn.ScaleType = Enum.ScaleType.Fit
+BackBtn.ZIndex = 12; BackBtn.Parent = SettingsFrame
 
 -- Окно выбора языка
 LangPopup = Instance.new("Frame")
@@ -720,6 +791,10 @@ end
 local function openSettings()
     SettingsFrame.Visible = true; SettingsFrame.BackgroundTransparency = 1
     SettingsFrame.Position = UDim2.new(0,0,0,20)
+    HideBtn.Visible = false
+    CloseBtn.Visible = false
+    ExtraIcon.Visible = false
+    SettingsBtn.Visible = false
     TweenService:Create(SettingsFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
         BackgroundTransparency = 0.05, Position = UDim2.new(0,0,0,0),
     }):Play()
@@ -728,7 +803,13 @@ local function closeSettings()
     local tw = TweenService:Create(SettingsFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
         BackgroundTransparency = 1, Position = UDim2.new(0,0,0,20),
     })
-    tw:Play(); tw.Completed:Once(function() SettingsFrame.Visible = false end)
+    tw:Play(); tw.Completed:Once(function()
+        SettingsFrame.Visible = false
+        HideBtn.Visible = true
+        CloseBtn.Visible = true
+        ExtraIcon.Visible = true
+        SettingsBtn.Visible = true
+    end)
 end
 BackBtn.MouseButton1Click:Connect(closeSettings)
 
@@ -771,7 +852,7 @@ refreshThemeButtons = function()
 end
 refreshThemeButtons()
 
--- ЯЗЫКИ (Одна кнопка)
+-- ЯЗЫКИ
 local langRow = Instance.new("Frame")
 langRow.Size=UDim2.new(1,-20,0,60); langRow.BackgroundTransparency=1; langRow.ZIndex=11
 langLabel = makeLabel(langRow, T("language"), 0, 18)
@@ -782,7 +863,56 @@ langOpenBtn = makeButton(langRow, "English", 0, 22, 100, 26, function()
 end)
 addSettingRow(langRow)
 
--- КАСТОМНЫЙ ФОН (Premium)
+-- ВЫБОР УСТРОЙСТВА (ПК / Телефон)
+local deviceRow = Instance.new("Frame")
+deviceRow.Size = UDim2.new(1,-20,0,75); deviceRow.BackgroundTransparency = 1; deviceRow.ZIndex = 11
+local deviceLabel = makeLabel(deviceRow, T("select_device"), 0, 18)
+
+local function makeDeviceBtn(imgId, x, name)
+    local btn = Instance.new("ImageButton")
+    btn.Size = UDim2.new(0, 40, 0, 40)
+    btn.Position = UDim2.new(0, x, 0, 22)
+    btn.BackgroundTransparency = 1
+    btn.Image = getIcon(imgId)
+    btn.ScaleType = Enum.ScaleType.Fit
+    btn.ZIndex = 12
+    btn.Parent = deviceRow
+
+    local strk = Instance.new("UIStroke")
+    strk.Color = Color3.fromRGB(255,255,255)
+    strk.Thickness = 2
+    strk.Transparency = 1
+    strk.Parent = btn
+    
+    btn.MouseButton1Click:Connect(function()
+        currentDevice = name
+        if name == "PC" then
+            devicePCStroke.Transparency = 0
+            devicePhoneStroke.Transparency = 1
+            PhoneIconBtn.Visible = false
+            consoleHidden = false
+            ConsoleFrame.Visible = true
+        else
+            devicePCStroke.Transparency = 1
+            devicePhoneStroke.Transparency = 0
+            if consoleHidden then
+                ConsoleFrame.Visible = false
+                PhoneIconBtn.Visible = true
+            end
+        end
+        if saveConfig then pcall(saveConfig) end
+    end)
+    return btn, strk
+end
+
+local pcBtn, pcs = makeDeviceBtn(12684119292, 0, "PC")
+local phoneBtn, phones = makeDeviceBtn(134410350720078, 50, "Phone")
+devicePCStroke = pcs
+devicePhoneStroke = phones
+
+addSettingRow(deviceRow)
+
+-- КАСТОМНЫЙ ФОН
 bgRow = Instance.new("Frame")
 bgRow.Size = UDim2.new(1,-20,0,60); bgRow.BackgroundTransparency=1; bgRow.ZIndex=11
 bgRow.Visible = false
@@ -806,12 +936,12 @@ end)
 addSettingRow(bgRow)
 
 refreshUILabels = function()
-    Title.Text = T("title"); CommandBox.PlaceholderText = T("placeholder")
-    SettingsTitle.Text = T("settings_title"); BackBtn.Text = T("back")
+    CommandBox.PlaceholderText = T("placeholder")
     for name, btn in pairs(themeButtons) do
         if name ~= SECRET and name ~= "win10" then btn.Text = T("theme_"..name) end
     end
     themeLabel.Text = T("theme"); langLabel.Text = T("language")
+    deviceLabel.Text = T("select_device")
     if langOpenBtn then langOpenBtn.Text = LANG_NAMES[LANG] or "English" end
     langTitle.Text = T("select_lang")
     if bgLabel then bgLabel.Text = T("custom_bg") end
@@ -833,7 +963,7 @@ cfgRow.Size=UDim2.new(1,-20,0,40); cfgRow.BackgroundTransparency=1; cfgRow.ZInde
 saveConfig = function()
     local ok, err = pcall(function()
         writefile(CONFIG_FILE, HttpService:JSONEncode({
-            theme=currentTheme, lang=LANG, binds=binds,
+            theme=currentTheme, lang=LANG, binds=binds, device=currentDevice,
             events=STATES.events, premium=premiumEnabled, customBg=customBgId
         }))
     end)
@@ -851,6 +981,23 @@ local function applyConfig(cfg)
         customBgId = tostring(cfg.customBg)
         if bgBox then bgBox.Text = customBgId end
     end
+    if cfg.device then
+        currentDevice = cfg.device
+        if currentDevice == "PC" then
+            if devicePCStroke then devicePCStroke.Transparency = 0 end
+            if devicePhoneStroke then devicePhoneStroke.Transparency = 1 end
+            PhoneIconBtn.Visible = false
+            consoleHidden = false
+            ConsoleFrame.Visible = true
+        else
+            if devicePCStroke then devicePCStroke.Transparency = 1 end
+            if devicePhoneStroke then devicePhoneStroke.Transparency = 0 end
+            if consoleHidden then
+                ConsoleFrame.Visible = false
+                PhoneIconBtn.Visible = true
+            end
+        end
+    end
     if cfg.theme and THEMES[cfg.theme] then
         if (cfg.theme == SECRET or cfg.theme == "win10" or cfg.theme == "custom") and not premiumEnabled then
             -- skip
@@ -859,7 +1006,7 @@ local function applyConfig(cfg)
         end
     end
     if cfg.lang and LOC[cfg.lang] then LANG = cfg.lang; if refreshUILabels then refreshUILabels() end end
-    if cfg.binds and setupBind then
+    if cfg.binds and setupBind and currentDevice ~= "Phone" then
         for k, v in pairs(cfg.binds) do setupBind(k, v) end
     end
     if cfg.events then
@@ -927,9 +1074,24 @@ local function runEvent(name)
     pcall(executeLua, code)
 end
 
+-- ===================== ЗАПОМИНАНИЕ СКОРОСТИ =====================
+local function captureOriginalSpeed()
+    local _, hum = getChar()
+    if hum and not speedCaptured then
+        originalWalkSpeed = hum.WalkSpeed
+        speedCaptured = true
+        log(string.format("Original WalkSpeed captured: %.1f", originalWalkSpeed), "Info")
+    end
+end
+
 local function watchCharacter(char)
     local hum = char:WaitForChild("Humanoid", 5)
     if hum then
+        if not speedCaptured then
+            originalWalkSpeed = hum.WalkSpeed
+            speedCaptured = true
+            log(string.format("Original WalkSpeed captured: %.1f", originalWalkSpeed), "Info")
+        end
         local lastHealth = hum.Health
         hum.Died:Connect(function() runEvent("onDied") end)
         hum.HealthChanged:Connect(function(newH)
@@ -937,6 +1099,13 @@ local function watchCharacter(char)
             lastHealth = newH
         end)
     end
+
+    char.ChildAdded:Connect(function(child)
+        if child:IsA("Tool") and child:GetAttribute("XConsoleDuplicate") then
+            log("Duplicated item taken in hand: "..child.Name, "Info")
+        end
+    end)
+
     runEvent("onSpawn")
 end
 if LocalPlayer.Character then watchCharacter(LocalPlayer.Character) end
@@ -956,6 +1125,67 @@ end
 for _, p in ipairs(Players:GetPlayers()) do trackKilled(p) end
 Players.PlayerAdded:Connect(trackKilled)
 
+-- ===================== VELOCITY (ТОЧНО WS 1 + NOCLIP) =====================
+local function setVelocityActive(active)
+    if active then
+        if STATES.velocityActive then return end
+        local char, hum = getChar()
+        if not char or not hum then
+            log(T("no_char"), "Error")
+            return
+        end
+        STATES.velocityActive = true
+        
+        STATES.velocitySpeedBackup = hum.WalkSpeed
+        hum.WalkSpeed = 1
+        
+        STATES.velocityCollideBackup = {}
+        for _, p in ipairs(char:GetDescendants()) do
+            if p:IsA("BasePart") then
+                STATES.velocityCollideBackup[p] = p.CanCollide
+                p.CanCollide = false
+            end
+        end
+        
+        if STATES.velocityConn then STATES.velocityConn:Disconnect() end
+        STATES.velocityConn = RunService.Stepped:Connect(function()
+            local c, h = getChar()
+            if not c or not h then return end
+            h.WalkSpeed = 1
+            for _, p in ipairs(c:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = false end
+            end
+        end)
+        
+        log("velocity: on", "Success")
+    else
+        if not STATES.velocityActive then return end
+        STATES.velocityActive = false
+        
+        if STATES.velocityConn then
+            STATES.velocityConn:Disconnect()
+            STATES.velocityConn = nil
+        end
+        
+        local char, hum = getChar()
+        if hum and STATES.velocitySpeedBackup then
+            hum.WalkSpeed = STATES.velocitySpeedBackup
+        end
+        STATES.velocitySpeedBackup = nil
+        
+        if char and STATES.velocityCollideBackup then
+            for p, state in pairs(STATES.velocityCollideBackup) do
+                if p and p.Parent then
+                    pcall(function() p.CanCollide = state end)
+                end
+            end
+            STATES.velocityCollideBackup = nil
+        end
+        
+        log("velocity: off", "Info")
+    end
+end
+
 -- ===================== КОМАНДЫ =====================
 local function applyCorner(scale) consoleCorner.CornerRadius = UDim.new(scale, 0) end
 local function resolveKey(name)
@@ -964,25 +1194,71 @@ local function resolveKey(name)
     return ok and kc or nil
 end
 
+-- Список hold-команд (зажимаемых)
+local HOLD_COMMANDS = { velocity = true }
+
 setupBind = function(keyName, cmdStr)
     local key = resolveKey(keyName)
     if not key then return false end
     binds[keyName] = cmdStr
-    if bindConns[keyName] then bindConns[keyName]:Disconnect() end
-    bindConns[keyName] = UIS.InputBegan:Connect(function(input, gp)
+
+    local parts = {}
+    for w in cmdStr:gmatch("%S+") do table.insert(parts, w) end
+    local cmdName = parts[1] and parts[1]:lower()
+    local isHold = cmdName and HOLD_COMMANDS[cmdName]
+
+    local old = bindConns[keyName]
+    if old then
+        if type(old) == "table" then
+            for _, c in ipairs(old) do if c then c:Disconnect() end end
+        else
+            old:Disconnect()
+        end
+    end
+
+    local beginConn = UIS.InputBegan:Connect(function(input, gp)
         if gp then return end
         if input.KeyCode == key then
             log("> "..cmdStr, "Echo")
-            local aa = {}
-            for w in cmdStr:gmatch("%S+") do table.insert(aa, w) end
-            local cmd = aa[1] and aa[1]:lower(); table.remove(aa, 1)
-            runEvent("onExecute")
-            local f = cmd and commands[cmd]
-            if f then pcall(f, aa) else executeLua(cmdStr) end
+            if isHold and cmdName == "velocity" then
+                setVelocityActive(true)
+            else
+                local aa = {}
+                for w in cmdStr:gmatch("%S+") do table.insert(aa, w) end
+                local cmd = aa[1] and aa[1]:lower(); table.remove(aa, 1)
+                runEvent("onExecute")
+                local f = cmd and commands[cmd]
+                if f then pcall(f, aa) else executeLua(cmdStr) end
+            end
         end
     end)
+
+    local endConn = nil
+    if isHold then
+        endConn = UIS.InputEnded:Connect(function(input)
+            if input.KeyCode == key then
+                if cmdName == "velocity" then
+                    setVelocityActive(false)
+                end
+            end
+        end)
+    end
+
+    bindConns[keyName] = {beginConn, endConn}
     return true
 end
+
+-- Привязка кнопки настроек — вызывает команду settings с логированием
+SettingsBtn.MouseButton1Click:Connect(function()
+    local text = "settings"
+    log("> "..text, "Echo")
+    runEvent("onExecute")
+    local f = commands["settings"]
+    if f then
+        local ok, e = pcall(f, {})
+        if not ok then log("Error: "..tostring(e), "Error") end
+    end
+end)
 
 commands["help"] = function()
     log("Commands:", "Info")
@@ -994,6 +1270,12 @@ commands["help"] = function()
     log("  creatorid/creator, tools/untools, equipalltools/unequipalltools", "Default")
     log("  uicorner <scale>, defaultcorner", "Default")
     log("  code/xcode, getf3x, gun/m249, dex, tp <name>", "Default")
+    log("  duplicateitem/ditem, destroy/destroytarget", "Default")
+    log("  speed/speedhack <n>, defaultspeed/dspeed", "Default")
+    log("  enabledrop/edrop, disabledrop", "Default")
+    log("  equipitems (all at once), deleteduplicate/dduplicate/dd", "Default")
+    log("  ejump/djump, esit/dsit, ezoom/dzoom", "Default")
+    log("  velocity (BIND ONLY for PC; toggle command for Phone)", "Default")
 end
 commands["settings"] = function() openSettings() end
 commands["unload"] = function()
@@ -1078,6 +1360,10 @@ end
 commands["defaultcorner"] = function() consoleCorner.CornerRadius = UDim.new(0,6); log(T("corner_reset"),"Success") end
 
 commands["bind"] = function(args)
+    if currentDevice == "Phone" then
+        log("no access. device is phone", "Error")
+        return
+    end
     if #args < 1 then log("Usage: bind <key> <command> | bind list | bind clear","Error"); return end
     local sub = args[1]:lower()
     if sub == "list" then
@@ -1085,7 +1371,13 @@ commands["bind"] = function(args)
         for k,v in pairs(binds) do log("  "..k.." -> "..v,"Default"); any=true end
         if not any then log("No active binds","Info") end; return
     elseif sub == "clear" then
-        for _, c in pairs(bindConns) do c:Disconnect() end
+        for _, c in pairs(bindConns) do
+            if type(c) == "table" then
+                for _, cc in ipairs(c) do if cc then cc:Disconnect() end end
+            else
+                c:Disconnect()
+            end
+        end
         binds = {}; bindConns = {}; log("All binds cleared","Success")
         if saveConfig then pcall(saveConfig) end
         return
@@ -1095,6 +1387,14 @@ commands["bind"] = function(args)
     if not setupBind(args[1], cmdStr) then log("Unknown key: "..args[1],"Error"); return end
     log(string.format("Bound [%s] -> %s", args[1]:upper(), cmdStr), "Success")
     if saveConfig then pcall(saveConfig) end
+end
+
+commands["velocity"] = function(args)
+    if currentDevice == "PC" then
+        log("no access. write bind {key} velocity", "Error")
+        return
+    end
+    setVelocityActive(not STATES.velocityActive)
 end
 
 commands["serverinfo"] = function()
@@ -1165,26 +1465,110 @@ commands["untools"] = function()
     if char then for _,t in ipairs(char:GetChildren()) do if t:IsA("Tool") then t:Destroy(); n+=1 end end end
     log("Tools removed: "..n,"Success")
 end
-commands["equipalltools"] = function()
-    local char, hum = getChar(); if not char or not hum then log("No character","Error"); return end
-    local bp = LocalPlayer:FindFirstChild("Backpack"); local n=0
-    if bp then for _,t in ipairs(bp:GetChildren()) do
-        if t:IsA("Tool") then pcall(function() hum:EquipTool(t) end); n+=1; task.wait(0.05) end
-    end end
-    log("Equipped tools: "..n,"Success")
+
+-- ===================== EQUIP ITEMS (все сразу) =====================
+local function equipAllSimultaneous()
+    local char = LocalPlayer.Character
+    if not char then log("No character","Error"); return end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if not bp then log("No backpack","Error"); return end
+
+    for _, child in ipairs(char:GetChildren()) do
+        if child:IsA("Tool") then pcall(function() child.Parent = bp end) end
+    end
+    task.wait(0.05)
+
+    for _, d in ipairs(char:GetDescendants()) do
+        if d:IsA("Weld") and d.Name == "XConsoleEquipWeld" then d:Destroy() end
+    end
+
+    local rightHand = char:FindFirstChild("RightHand") or char:FindFirstChild("Right Arm")
+    local leftHand = char:FindFirstChild("LeftHand") or char:FindFirstChild("Left Arm")
+    local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+    local head = char:FindFirstChild("Head")
+    local limbs = {}
+    if rightHand then table.insert(limbs, rightHand) end
+    if leftHand then table.insert(limbs, leftHand) end
+    if torso then table.insert(limbs, torso) end
+    if head then table.insert(limbs, head) end
+    if #limbs == 0 then log("No limbs found on character","Error"); return end
+
+    local tools = {}
+    for _, t in ipairs(bp:GetChildren()) do
+        if t:IsA("Tool") then table.insert(tools, t) end
+    end
+    if #tools == 0 then log("No tools in Backpack","Info"); return end
+
+    for _, tool in ipairs(tools) do
+        pcall(function() tool.Parent = char end)
+    end
+    task.wait(0.1)
+
+    local count = 0
+    for i, tool in ipairs(tools) do
+        local handle = tool:FindFirstChild("Handle")
+        if handle and handle:IsA("BasePart") then
+            for _, w in ipairs(handle:GetChildren()) do
+                if w:IsA("JointInstance") and w.Name ~= "XConsoleEquipWeld" then
+                    local p0, p1 = w.Part0, w.Part1
+                    if (p0 and p0:IsDescendantOf(char)) or (p1 and p1:IsDescendantOf(char)) then
+                        pcall(function() w:Destroy() end)
+                    end
+                end
+            end
+
+            local limb = limbs[(i - 1) % #limbs + 1]
+            local weld = Instance.new("Weld")
+            weld.Name = "XConsoleEquipWeld"
+            weld.Part0 = limb
+            weld.Part1 = handle
+            local angle = math.rad((i - 1) * 35)
+            weld.C0 = CFrame.new(0, -0.2, -0.6 - (i * 0.15)) * CFrame.Angles(angle, 0, 0)
+            weld.Parent = limb
+            count += 1
+        else
+            count += 1
+        end
+    end
+    log("Simultaneously equipped: "..count.." tools (visual — clicking may not use them)", "Success")
 end
+commands["equipitems"] = equipAllSimultaneous
+commands["equipalltools"] = equipAllSimultaneous
+
 commands["unequipalltools"] = function()
-    local _, hum = getChar(); if not hum then log("No character","Error"); return end
-    pcall(function() hum:UnequipTools() end); log("Unequipped tools","Success")
+    local char = LocalPlayer.Character
+    if not char then log("No character","Error"); return end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    local n = 0
+    for _, d in ipairs(char:GetDescendants()) do
+        if d:IsA("Weld") and d.Name == "XConsoleEquipWeld" then d:Destroy() end
+    end
+    for _, t in ipairs(char:GetChildren()) do
+        if t:IsA("Tool") and bp then t.Parent = bp; n += 1 end
+    end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then pcall(function() hum:UnequipTools() end) end
+    log("Unequipped tools: "..n, "Success")
 end
+
 commands["xyz"] = function()
     local _,_,hrp = getChar(); if not hrp then return end
     log(string.format("X=%.2f Y=%.2f Z=%.2f", hrp.Position.X, hrp.Position.Y, hrp.Position.Z),"Success")
 end
-commands["destroy"] = function()
-    local t = LocalPlayer:GetMouse().Target
-    if t and not t:IsA("Terrain") then t:Destroy(); log("Destroyed: "..t:GetFullName(),"Info") end
+
+-- ===================== DESTROY TARGET =====================
+local function destroyTarget()
+    local mouse = LocalPlayer:GetMouse()
+    local target = mouse.Target
+    if not target then log("Nothing under cursor","Error"); return end
+    if target:IsA("Terrain") then log("Cannot destroy Terrain","Error"); return end
+    local name = target:GetFullName()
+    target:Destroy()
+    log("Destroyed: "..name,"Success")
 end
+commands["destroy"] = destroyTarget
+commands["destroytarget"] = destroyTarget
+
 commands["summon"] = function(args)
     local shape = (args[1] or "part"):lower()
     local map = { part=Enum.PartType.Block, block=Enum.PartType.Block, sphere=Enum.PartType.Ball,
@@ -1220,6 +1604,272 @@ commands["dex"] = function()
     pcall(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/luau/Dex/master/out.lua", true))() end)
 end
 
+-- ===================== DUPLICATE ITEM =====================
+local function duplicateHeldItem()
+    local char = LocalPlayer.Character
+    if not char then log("No character","Error"); return end
+    local tool = char:FindFirstChildOfClass("Tool")
+    if not tool then log("No tool in hand","Error"); return end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if not bp then log("No backpack","Error"); return end
+
+    local clone = tool:Clone()
+    clone.Name = tool.Name .. "_Copy"
+    clone:SetAttribute("XConsoleDuplicate", true)
+    clone.Enabled = true
+
+    for k, v in pairs(tool:GetAttributes()) do
+        if k ~= "XConsoleDuplicate" then
+            pcall(function() clone:SetAttribute(k, v) end)
+        end
+    end
+
+    pcall(function()
+        for _, tag in ipairs(CollectionService:GetTags(tool)) do
+            CollectionService:AddTag(clone, tag)
+        end
+    end)
+
+    for _, d in ipairs(clone:GetDescendants()) do
+        if d:IsA("BaseScript") then
+            pcall(function() d.Enabled = true end)
+        end
+    end
+
+    local handle = clone:FindFirstChild("Handle")
+    if handle and handle:IsA("BasePart") then
+        local charParts = {}
+        for _, p in ipairs(char:GetDescendants()) do
+            if p:IsA("BasePart") then charParts[p] = true end
+        end
+        for _, w in ipairs(handle:GetChildren()) do
+            if w:IsA("JointInstance") then
+                if (w.Part0 and charParts[w.Part0]) or (w.Part1 and charParts[w.Part1]) then
+                    pcall(function() w:Destroy() end)
+                end
+            end
+        end
+        handle.Anchored = false
+        handle.CanCollide = false
+    end
+
+    clone.Parent = bp
+    log("Duplicated: "..tool.Name.." (client-side copy)","Success")
+end
+commands["duplicateitem"] = duplicateHeldItem
+commands["ditem"] = duplicateHeldItem
+
+-- ===================== DELETE DUPLICATES =====================
+local function deleteDuplicates()
+    local n = 0
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then
+        for _, t in ipairs(bp:GetChildren()) do
+            if t:IsA("Tool") and t:GetAttribute("XConsoleDuplicate") then
+                t:Destroy(); n += 1
+            end
+        end
+    end
+    local char = LocalPlayer.Character
+    if char then
+        for _, t in ipairs(char:GetChildren()) do
+            if t:IsA("Tool") and t:GetAttribute("XConsoleDuplicate") then
+                t:Destroy(); n += 1
+            end
+        end
+    end
+    log("Deleted duplicated items: "..n, "Success")
+end
+commands["deleteduplicate"] = deleteDuplicates
+commands["dduplicate"] = deleteDuplicates
+commands["dd"] = deleteDuplicates
+
+-- ===================== ENABLE DROP =====================
+local function forceDroppable()
+    if not STATES.enableDrop then return end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then
+        for _, t in ipairs(bp:GetChildren()) do
+            if t:IsA("Tool") and not t.CanBeDropped then t.CanBeDropped = true end
+        end
+    end
+    local char = LocalPlayer.Character
+    if char then
+        for _, t in ipairs(char:GetChildren()) do
+            if t:IsA("Tool") and not t.CanBeDropped then t.CanBeDropped = true end
+        end
+    end
+end
+local function toggleEnableDrop(on)
+    STATES.enableDrop = on
+    if STATES.dropConn then STATES.dropConn:Disconnect(); STATES.dropConn = nil end
+    if on then
+        STATES.dropConn = RunService.Heartbeat:Connect(forceDroppable)
+        log("Dropping of all items enabled","Success")
+    else
+        log("Dropping of all items disabled","Info")
+    end
+end
+commands["enabledrop"] = function() toggleEnableDrop(true) end
+commands["edrop"] = commands["enabledrop"]
+commands["disabledrop"] = function() toggleEnableDrop(false) end
+
+-- ===================== SPEEDHACK =====================
+local function setSpeed(val)
+    local _, hum = getChar()
+    if not hum then log(T("no_char"),"Error"); return end
+    hum.WalkSpeed = val
+    log("WalkSpeed set to "..tostring(val),"Success")
+end
+
+commands["speed"] = function(args)
+    local v = tonumber(args[1])
+    if not v then log("Usage: speed <value>","Error"); return end
+    setSpeed(v)
+end
+commands["speedhack"] = commands["speed"]
+
+commands["defaultspeed"] = function()
+    if not speedCaptured or not originalWalkSpeed then
+        captureOriginalSpeed()
+    end
+    if not originalWalkSpeed then
+        log("Original speed unknown, using 16","Info")
+        setSpeed(16)
+    else
+        setSpeed(originalWalkSpeed)
+        log(string.format("Speed reset to original (%.1f)", originalWalkSpeed),"Success")
+    end
+end
+commands["dspeed"] = commands["defaultspeed"]
+
+-- ===================== EJUMP / DJUMP =====================
+local function toggleEnableJump(on)
+    STATES.enableJump = on
+    if STATES.jumpConn then STATES.jumpConn:Disconnect(); STATES.jumpConn = nil end
+    if STATES.jumpRequestConn then STATES.jumpRequestConn:Disconnect(); STATES.jumpRequestConn = nil end
+    if on then
+        local _, hum = getChar()
+        if hum and not STATES.jumpBackup then
+            STATES.jumpBackup = {
+                JumpPower = hum.JumpPower,
+                JumpHeight = hum.JumpHeight,
+                UseJumpPower = hum.UseJumpPower,
+            }
+        end
+        STATES.jumpConn = RunService.Heartbeat:Connect(function()
+            local _, h = getChar()
+            if h then
+                if not STATES.jumpBackup then
+                    STATES.jumpBackup = {
+                        JumpPower = h.JumpPower,
+                        JumpHeight = h.JumpHeight,
+                        UseJumpPower = h.UseJumpPower,
+                    }
+                end
+                pcall(function()
+                    if h.UseJumpPower then
+                        if h.JumpPower < 50 then h.JumpPower = 50 end
+                    else
+                        if h.JumpHeight < 7.2 then h.JumpHeight = 7.2 end
+                    end
+                    if h.JumpPower <= 0 and h.JumpHeight <= 0 then
+                        h.UseJumpPower = true
+                        h.JumpPower = 50
+                    end
+                end)
+            end
+        end)
+        STATES.jumpRequestConn = UIS.JumpRequest:Connect(function()
+            local char, h = getChar()
+            if not char or not h then return end
+            pcall(function() h:ChangeState(Enum.HumanoidStateType.Jumping) end)
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp and h.FloorMaterial ~= Enum.Material.Air then
+                hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z)
+            end
+        end)
+        log("Jump enabled","Success")
+    else
+        if STATES.jumpBackup then
+            local _, h = getChar()
+            if h then
+                pcall(function()
+                    h.JumpPower = STATES.jumpBackup.JumpPower
+                    h.JumpHeight = STATES.jumpBackup.JumpHeight
+                    h.UseJumpPower = STATES.jumpBackup.UseJumpPower
+                end)
+            end
+            STATES.jumpBackup = nil
+        end
+        log("Jump disabled","Info")
+    end
+end
+commands["ejump"] = function() toggleEnableJump(true) end
+commands["djump"] = function() toggleEnableJump(false) end
+
+-- ===================== ESIT / DSIT =====================
+local function toggleEnableSit(on)
+    STATES.enableSit = on
+    if STATES.sitInputConn then STATES.sitInputConn:Disconnect(); STATES.sitInputConn = nil end
+    if on then
+        STATES.sitInputConn = UIS.InputBegan:Connect(function(input, gp)
+            if input.KeyCode == Enum.KeyCode.X then
+                if UIS:GetFocusedTextBox() then return end
+                local _, h = getChar()
+                if h then
+                    pcall(function() h.Sit = not h.Sit end)
+                    log("Sit toggled: "..tostring(h.Sit), "Info")
+                end
+            end
+        end)
+        log("Sit enabled (press X)","Success")
+    else
+        local _, h = getChar()
+        if h then pcall(function() h.Sit = false end) end
+        log("Sit disabled","Info")
+    end
+end
+commands["esit"] = function() toggleEnableSit(true) end
+commands["dsit"] = function() toggleEnableSit(false) end
+
+-- ===================== EZOOM / DZOOM =====================
+local function toggleEnableZoom(on)
+    STATES.enableZoom = on
+    if STATES.zoomConn then STATES.zoomConn:Disconnect(); STATES.zoomConn = nil end
+    if on then
+        if not STATES.zoomBackup then
+            STATES.zoomBackup = {
+                CameraMaxZoomDistance = LocalPlayer.CameraMaxZoomDistance,
+                CameraMinZoomDistance = LocalPlayer.CameraMinZoomDistance,
+            }
+        end
+        STATES.zoomConn = RunService.RenderStepped:Connect(function()
+            pcall(function()
+                LocalPlayer.CameraMaxZoomDistance = 128
+                LocalPlayer.CameraMinZoomDistance = 0.5
+                local cam = Workspace.CurrentCamera
+                if cam.CameraType == Enum.CameraType.LockFirstPerson then
+                    cam.CameraType = Enum.CameraType.Custom
+                end
+            end)
+        end)
+        log("Zoom enabled","Success")
+    else
+        if STATES.zoomBackup then
+            pcall(function()
+                LocalPlayer.CameraMaxZoomDistance = STATES.zoomBackup.CameraMaxZoomDistance
+                LocalPlayer.CameraMinZoomDistance = STATES.zoomBackup.CameraMinZoomDistance
+            end)
+            STATES.zoomBackup = nil
+        end
+        log("Zoom disabled","Info")
+    end
+end
+commands["ezoom"] = function() toggleEnableZoom(true) end
+commands["dzoom"] = function() toggleEnableZoom(false) end
+
+-- ===================== TP =====================
 local function tpToPlayer(args)
     if #args < 1 then
         log("Online players:","Info")
@@ -1239,6 +1889,28 @@ local function tpToPlayer(args)
     if thrp and myhrp then myhrp.CFrame = thrp.CFrame * CFrame.new(0,2,3); log("Teleported to "..target.Name,"Success") end
 end
 commands["tp"] = tpToPlayer; commands["to"] = tpToPlayer; commands["goto"] = tpToPlayer
+
+-- ===================== СКРЫТИЕ / РАСКРЫТИЕ =====================
+local function setConsoleHidden(hidden)
+    consoleHidden = hidden
+    if currentDevice == "Phone" then
+        ConsoleFrame.Visible = false
+        PhoneIconBtn.Visible = hidden
+    else
+        ConsoleFrame.Visible = not hidden
+        PhoneIconBtn.Visible = false
+    end
+end
+
+HideBtn.MouseButton1Click:Connect(function()
+    setConsoleHidden(true)
+end)
+
+UIS.InputBegan:Connect(function(input, gp)
+    if input.KeyCode == Enum.KeyCode.RightControl then
+        setConsoleHidden(not consoleHidden)
+    end
+end)
 
 -- ===================== ВВОД =====================
 CommandBox.FocusLost:Connect(function(enterPressed)
@@ -1297,6 +1969,7 @@ end)
 
 log(T("loaded"), "Success")
 log(T("settings_hint"), "Info")
+log("hide/show Rctrl", "Info")
 
 -- ===================== АВТОЗАГРУЗКА КОНФИГА =====================
 task.defer(function()
@@ -1304,4 +1977,6 @@ task.defer(function()
     if isfile then
         pcall(loadConfig)
     end
+    task.wait(0.5)
+    captureOriginalSpeed()
 end)
