@@ -13,108 +13,23 @@ local LocalPlayer = Players.LocalPlayer
 
 -- ============ FORWARD DECLS ============
 local SaveBtn, LoadBtn, eventsTitleLabel, eventBoxes, eventLabels
-local SettingsFrame, SettingsScroll, SettingsTitle, BackBtn, LangPopup
-local themeButtons, langButtons, themeLabel, langLabel, secretBtn, win10Btn, langOpenBtn
+local SettingsFrame, SettingsScroll, SettingsTitle, BackBtn
+local themeButtons, themeLabel, secretBtn, win10Btn
 local bgRow, bgBox, bgApplyBtn, bgLabel
 local HideBtn, ExtraIcon, SettingsBtn, PhoneIconBtn
 local devicePCStroke, devicePhoneStroke
+local filterPrintBtn, filterWarnBtn, filterErrorBtn, filterSuccessBtn, filterEchoBtn
+local pcBtn, phoneBtn
 local premiumEnabled = false
 local customBgId = ""
 local currentDevice = "PC"
+local showPrint, showWarn, showError, showSuccess, showEcho = true, true, true, true, true
 local commands = {}
-local applyThemeToSettings, saveConfig, refreshThemeButtons, refreshUILabels, setupBind
+local applyThemeToSettings, saveConfig, refreshThemeButtons, setupBind
 local SECRET = "100110101011000101"
 local WIN10_THEME_ID = "13932338252"
 eventBoxes = {}; eventLabels = {}
-themeButtons = {}; langButtons = {}
-
--- ===================== ЛОКАЛИЗАЦИЯ =====================
-local LANG = "en"
-local LOC = {
-    en = { title="CONSOLE", placeholder="Enter command or Lua code...", settings_title="SETTINGS", theme="Theme",
-        theme_default="Default", theme_winter="Winter", theme_halloween="Halloween",
-        language="Language", back="Back", save_cfg="Save config", load_cfg="Load config",
-        select_device="Select device",
-        events_title="Events (command or Lua code)", ev_onkilled="onKilled", ev_ondied="onDied",
-        ev_onspawn="onSpawn", ev_onexecute="onExecute", ev_onjoin="onJoin", ev_ondamage="onDamage", ev_onleave="onLeave",
-        cfg_saved="Config saved", cfg_loaded="Config loaded", cfg_fail="Config operation failed",
-        theme_set="Theme set: ", lang_set="Language set: ", corner_set="Corner set: ", corner_reset="Corner reset to default",
-        unloaded="Console unloaded", settings_hint="Type 'settings' to open the panel", loaded="CONSOLE loaded. Type help.",
-        lua_compile="Lua compile error: ", lua_runtime="Lua runtime error: ", no_char="No character",
-        select_lang="Select Language", custom_bg="Custom Background (Asset ID)", apply="Apply", premium_req="Premium required" },
-    ru = { title="КОНСОЛЬ", placeholder="Введите команду или Lua-код...", settings_title="НАСТРОЙКИ", theme="Тема",
-        theme_default="Обычная", theme_winter="Зимняя", theme_halloween="Хэллоуин",
-        language="Язык", back="Назад", save_cfg="Сохранить конфиг", load_cfg="Загрузить конфиг",
-        select_device="Выбор устройства",
-        events_title="События (команда или Lua-код)", ev_onkilled="onKilled", ev_ondied="onDied",
-        ev_onspawn="onSpawn", ev_onexecute="onExecute", ev_onjoin="onJoin", ev_ondamage="onDamage", ev_onleave="onLeave",
-        cfg_saved="Конфиг сохранён", cfg_loaded="Конфиг загружен", cfg_fail="Ошибка операции с конфигом",
-        theme_set="Тема установлена: ", lang_set="Язык установлен: ", corner_set="Скругление установлено: ", corner_reset="Скругление сброшено",
-        unloaded="Консоль выгружена", settings_hint="Введите 'settings' чтобы открыть панель", loaded="КОНСОЛЬ загружена. Введите help.",
-        lua_compile="Ошибка компиляции Lua: ", lua_runtime="Ошибка выполнения Lua: ", no_char="Нет персонажа",
-        select_lang="Выбор языка", custom_bg="Свой фон (Asset ID)", apply="Применить", premium_req="Требуется Premium" },
-    zh = { title="控制台", placeholder="输入命令或 Lua 代码...", settings_title="设置", theme="主题",
-        theme_default="默认", theme_winter="冬季", theme_halloween="万圣节", language="语言", back="返回",
-        save_cfg="保存配置", load_cfg="加载配置", events_title="事件（命令或 Lua 代码）", select_device="选择设备",
-        cfg_saved="配置已保存", cfg_loaded="配置已加载", cfg_fail="配置操作失败",
-        theme_set="主题已设置：", lang_set="语言已设置：", corner_set="圆角已设置：", corner_reset="圆角已重置为默认",
-        unloaded="控制台已卸载", settings_hint="输入 'settings' 打开面板", loaded="控制台已加载。输入 help。",
-        lua_compile="Lua 编译错误：", lua_runtime="Lua 运行时错误：", no_char="没有角色",
-        select_lang="选择语言", custom_bg="自定义背景 (Asset ID)", apply="应用", premium_req="需要高级版" },
-    ja = { title="コンソール", placeholder="コマンドまたは Lua コードを入力...", settings_title="設定", theme="テーマ",
-        theme_default="デフォルト", theme_winter="冬", theme_halloween="ハロウィン", language="言語", back="戻る",
-        save_cfg="設定を保存", load_cfg="設定を読み込む", events_title="イベント（コマンドまたは Lua コード）", select_device="デバイスを選択",
-        cfg_saved="設定を保存しました", cfg_loaded="設定を読み込みました", cfg_fail="設定操作に失敗しました",
-        theme_set="テーマ設定：", lang_set="言語設定：", corner_set="角丸設定：", corner_reset="角丸をデフォルトに戻しました",
-        unloaded="コンソールをアンロードしました", settings_hint="'settings' でパネルを開く", loaded="コンソール読み込み完了。help を入力。",
-        lua_compile="Lua コンパイルエラー：", lua_runtime="Lua 実行時エラー：", no_char="キャラクターがいません",
-        select_lang="言語を選択", custom_bg="カスタム背景 (Asset ID)", apply="適用", premium_req="プレミアムが必要" },
-    uk = { title="КОНСОЛЬ", placeholder="Введіть команду або Lua-код...", settings_title="НАЛАШТУВАННЯ", theme="Тема",
-        theme_default="Звичайна", theme_winter="Зимова", theme_halloween="Хелловін", language="Мова", back="Назад",
-        save_cfg="Зберегти конфіг", load_cfg="Завантажити конфіг", events_title="Події (команда або Lua-код)", select_device="Обрати пристрій",
-        cfg_saved="Конфіг збережено", cfg_loaded="Конфіг завантажено", cfg_fail="Помилка операції з конфігом",
-        theme_set="Тему встановлено: ", lang_set="Мову встановлено: ", corner_set="Заокруглення встановлено: ", corner_reset="Заокруглення скинуто",
-        unloaded="Консоль вивантажено", settings_hint="Введіть 'settings' щоб відкрити панель", loaded="КОНСОЛЬ завантажена. Введіть help.",
-        lua_compile="Помилка компіляції Lua: ", lua_runtime="Помилка виконання Lua: ", no_char="Немає персонажа",
-        select_lang="Обрати мову", custom_bg="Свій фон (Asset ID)", apply="Застосувати", premium_req="Потрібен Premium" },
-    ko = { title="콘솔", placeholder="명령어 또는 Lua 코드 입력...", settings_title="설정", theme="테마",
-        theme_default="기본", theme_winter="겨울", theme_halloween="할로윈", language="언어", back="뒤로",
-        save_cfg="설정 저장", load_cfg="설정 불러오기", events_title="이벤트 (명령어 또는 Lua 코드)", select_device="기기 선택",
-        cfg_saved="설정이 저장되었습니다", cfg_loaded="설정이 로드되었습니다", cfg_fail="설정 작업 실패",
-        theme_set="테마 설정: ", lang_set="언어 설정: ", corner_set="모서리 설정: ", corner_reset="모서리가 기본값으로 재설정됨",
-        unloaded="콘솔이 언로드되었습니다", settings_hint="'settings'를 입력하여 패널 열기", loaded="콘솔 로드 완료. help 입력.",
-        lua_compile="Lua 컴파일 오류: ", lua_runtime="Lua 런타임 오류: ", no_char="캐릭터가 없습니다",
-        select_lang="언어 선택", custom_bg="사용자 지정 배경 (Asset ID)", apply="적용", premium_req="프리미엄 필요" },
-    de = { title="KONSOLE", placeholder="Befehl oder Lua-Code eingeben...", settings_title="EINSTELLUNGEN", theme="Thema",
-        theme_default="Standard", theme_winter="Winter", theme_halloween="Halloween", language="Sprache", back="Zurück",
-        save_cfg="Konfiguration speichern", load_cfg="Konfiguration laden", events_title="Ereignisse (Befehl oder Lua-Code)", select_device="Gerät auswählen",
-        cfg_saved="Konfiguration gespeichert", cfg_loaded="Konfiguration geladen", cfg_fail="Konfigurationsvorgang fehlgeschlagen",
-        theme_set="Thema gesetzt: ", lang_set="Sprache gesetzt: ", corner_set="Ecke gesetzt: ", corner_reset="Ecke auf Standard zurückgesetzt",
-        unloaded="Konsole entladen", settings_hint="Geben Sie 'settings' ein, um das Panel zu öffnen", loaded="KONSOLE geladen. Geben Sie help ein.",
-        lua_compile="Lua-Kompilierungsfehler: ", lua_runtime="Lua-Laufzeitfehler: ", no_char="Kein Charakter",
-        select_lang="Sprache auswählen", custom_bg="Benutzerdefinierter Hintergrund (Asset ID)", apply="Anwenden", premium_req="Premium erforderlich" },
-    it = { title="CONSOLE", placeholder="Inserisci comando o codice Lua...", settings_title="IMPOSTAZIONI", theme="Tema",
-        theme_default="Predefinito", theme_winter="Inverno", theme_halloween="Halloween", language="Lingua", back="Indietro",
-        save_cfg="Salva configurazione", load_cfg="Carica configurazione", events_title="Eventi (comando o codice Lua)", select_device="Seleziona dispositivo",
-        cfg_saved="Configurazione salvata", cfg_loaded="Configurazione caricata", cfg_fail="Operazione di configurazione fallita",
-        theme_set="Tema impostato: ", lang_set="Lingua impostata: ", corner_set="Angolo impostato: ", corner_reset="Angolo ripristinato",
-        unloaded="Console scaricata", settings_hint="Digita 'settings' per aprire il pannello", loaded="CONSOLE caricata. Digita help.",
-        lua_compile="Errore di compilazione Lua: ", lua_runtime="Errore di runtime Lua: ", no_char="Nessun personaggio",
-        select_lang="Seleziona lingua", custom_bg="Sfondo personalizzato (Asset ID)", apply="Applica", premium_req="Premium richiesto" },
-    es = { title="CONSOLA", placeholder="Ingresa comando o código Lua...", settings_title="AJUSTES", theme="Tema",
-        theme_default="Predeterminado", theme_winter="Invierno", theme_halloween="Halloween", language="Idioma", back="Atrás",
-        save_cfg="Guardar configuración", load_cfg="Cargar configuración", events_title="Eventos (comando o código Lua)", select_device="Seleccionar dispositivo",
-        cfg_saved="Configuración guardada", cfg_loaded="Configuración cargada", cfg_fail="Operación de configuración fallida",
-        theme_set="Tema establecido: ", lang_set="Idioma establecido: ", corner_set="Esquina establecida: ", corner_reset="Esquina restablecida",
-        unloaded="Consola descargada", settings_hint="Escribe 'settings' para abrir el panel", loaded="CONSOLA cargada. Escribe help.",
-        lua_compile="Error de compilación Lua: ", lua_runtime="Error de tiempo de ejecución Lua: ", no_char="Sin personaje",
-        select_lang="Seleccionar idioma", custom_bg="Fondo personalizado (Asset ID)", apply="Aplicar", premium_req="Se requiere Premium" },
-}
-local function T(key, ...)
-    local s = (LOC[LANG] and LOC[LANG][key]) or LOC.en[key] or key
-    if select("#", ...) > 0 then return string.format(s, ...) end
-    return s
-end
+themeButtons = {}
 
 -- ===================== ТЕМЫ =====================
 local THEMES = {
@@ -241,7 +156,7 @@ Title.Image = getIcon(54479712)
 Title.ScaleType = Enum.ScaleType.Fit
 Title.ZIndex = 3; Title.Parent = Header
 
--- ExtraIcon (левее настроек)
+-- ExtraIcon
 ExtraIcon = Instance.new("ImageLabel")
 ExtraIcon.Size = UDim2.new(0,24,0,24); ExtraIcon.Position = UDim2.new(1,-110,0,3)
 ExtraIcon.BackgroundTransparency = 1
@@ -249,7 +164,7 @@ ExtraIcon.Image = getIcon(2484276650)
 ExtraIcon.ScaleType = Enum.ScaleType.Fit
 ExtraIcon.ZIndex = 3; ExtraIcon.Parent = Header
 
--- Кнопка настроек (9405931596) — вызывает команду settings с логированием
+-- Кнопка настроек
 SettingsBtn = Instance.new("ImageButton")
 SettingsBtn.Size = UDim2.new(0,24,0,24); SettingsBtn.Position = UDim2.new(1,-84,0,3)
 SettingsBtn.BackgroundTransparency = 1
@@ -257,7 +172,7 @@ SettingsBtn.Image = getIcon(9405931596)
 SettingsBtn.ScaleType = Enum.ScaleType.Fit
 SettingsBtn.ZIndex = 3; SettingsBtn.Parent = Header
 
--- Кнопка скрытия (толстая белая черта)
+-- Кнопка скрытия
 HideBtn = Instance.new("TextButton")
 HideBtn.Size = UDim2.new(0,28,0,28); HideBtn.Position = UDim2.new(1,-58,0,1)
 HideBtn.BackgroundTransparency = 1
@@ -278,7 +193,7 @@ CloseBtn.Image = getIcon(111716979356360)
 CloseBtn.ScaleType = Enum.ScaleType.Fit
 CloseBtn.ZIndex = 3; CloseBtn.Parent = Header
 
--- Иконка телефона (появляется при скрытии на телефоне)
+-- Иконка телефона
 PhoneIconBtn = Instance.new("ImageButton")
 PhoneIconBtn.Size = UDim2.new(0, 40, 0, 40)
 PhoneIconBtn.Position = UDim2.new(0, 20, 0, 20)
@@ -315,7 +230,8 @@ Instance.new("UICorner", InputFrame).CornerRadius = UDim.new(0,4)
 local CommandBox = Instance.new("TextBox")
 CommandBox.Size = UDim2.new(1,-10,1,-6); CommandBox.Position = UDim2.new(0,5,0,3)
 CommandBox.BackgroundTransparency = 1; CommandBox.Text = ""
-CommandBox.PlaceholderText = T("placeholder"); CommandBox.PlaceholderColor3 = Color3.fromRGB(100,100,100)
+CommandBox.PlaceholderText = "Enter command or Lua code..."
+CommandBox.PlaceholderColor3 = Color3.fromRGB(100,100,100)
 CommandBox.TextColor3 = THEMES.default.accent; CommandBox.Font = CONFIG.Font; CommandBox.TextSize = 16
 CommandBox.TextXAlignment = Enum.TextXAlignment.Left; CommandBox.ClearTextOnFocus = false
 CommandBox.ZIndex = 3; CommandBox.Parent = InputFrame
@@ -330,6 +246,15 @@ Instance.new("UICorner", ResizeHandle).CornerRadius = UDim.new(0,4)
 
 -- ===================== ЛОГ =====================
 local function log(text, colorType)
+    local pass = true
+    if colorType == "Error" and not showError then pass = false end
+    if colorType == "Info" and not showWarn then pass = false end
+    if colorType == "Success" and not showSuccess then pass = false end
+    if colorType == "Echo" and not showEcho then pass = false end
+    if (not colorType or colorType == "Default" or colorType == "Output") and not showPrint then pass = false end
+
+    if not pass then return end
+
     local color = COLORS[colorType] or COLORS.Default
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1,-5,0,18); label.BackgroundTransparency = 1
@@ -342,10 +267,10 @@ local function log(text, colorType)
 end
 
 local function getSystemLogData(mt)
-    if mt == Enum.MessageType.MessageError then return "[ERROR]", COLORS.Error
-    elseif mt == Enum.MessageType.MessageWarning then return "[WARN]", COLORS.Info
-    elseif mt == Enum.MessageType.MessageInfo then return "[INFO]", COLORS.Output
-    else return "[OUTPUT]", COLORS.Output end
+    if mt == Enum.MessageType.MessageError then return "[ERROR]", COLORS.Error, "Error"
+    elseif mt == Enum.MessageType.MessageWarning then return "[WARN]", COLORS.Info, "Info"
+    elseif mt == Enum.MessageType.MessageInfo then return "[INFO]", COLORS.Output, "Output"
+    else return "[OUTPUT]", COLORS.Output, "Output" end
 end
 
 if logConnection then logConnection:Disconnect() end
@@ -353,7 +278,14 @@ logConnection = LogService.MessageOut:Connect(function(message, messageType)
     if not ConsoleFrame or not ConsoleFrame.Parent then
         if logConnection then logConnection:Disconnect() end; return
     end
-    local prefix, color = getSystemLogData(messageType)
+    local prefix, color, cType = getSystemLogData(messageType)
+    
+    local pass = true
+    if cType == "Error" and not showError then pass = false end
+    if cType == "Info" and not showWarn then pass = false end
+    if (cType == "Output" or cType == "Default") and not showPrint then pass = false end
+    if not pass then return end
+
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1,-5,0,18); label.BackgroundTransparency = 1
     label.Text = string.format("%s %s", prefix, tostring(message))
@@ -367,9 +299,9 @@ end)
 -- ===================== LUA EXEC =====================
 local function executeLua(code)
     local fn, err = loadstring(code)
-    if not fn then log(T("lua_compile") .. tostring(err), "Error"); return end
+    if not fn then log("Lua compile error: " .. tostring(err), "Error"); return end
     local ok, e = pcall(fn)
-    if not ok then log(T("lua_runtime") .. tostring(e), "Error") end
+    if not ok then log("Lua runtime error: " .. tostring(e), "Error") end
 end
 
 -- ===================== ФИЧИ =====================
@@ -484,7 +416,7 @@ end
 
 local function toggleFly(on)
     local _, _, hrp = getChar()
-    if not hrp then log(T("no_char"), "Error"); return end
+    if not hrp then log("No character", "Error"); return end
     if on then
         if STATES.flying then return end
         STATES.flying = true
@@ -739,7 +671,7 @@ local function addSettingRow(widget)
     SettingsScroll.CanvasSize = UDim2.new(0,0,0, settingsLayout.AbsoluteContentSize.Y + 20)
 end
 
--- Заголовок настроек — иконка
+-- Заголовок настроек
 SettingsTitle = Instance.new("ImageLabel")
 SettingsTitle.Size = UDim2.new(0,26,0,26); SettingsTitle.Position = UDim2.new(0,8,0,7)
 SettingsTitle.BackgroundTransparency = 1
@@ -747,46 +679,13 @@ SettingsTitle.Image = getIcon(9405931596)
 SettingsTitle.ScaleType = Enum.ScaleType.Fit
 SettingsTitle.ZIndex = 12; SettingsTitle.Parent = SettingsFrame
 
--- BackBtn — картинка, сдвинут правее
+-- BackBtn
 BackBtn = Instance.new("ImageButton")
 BackBtn.Size = UDim2.new(0,40,0,24); BackBtn.Position = UDim2.new(1,-52,0,8)
 BackBtn.BackgroundTransparency = 1
 BackBtn.Image = getIcon(8674072445)
 BackBtn.ScaleType = Enum.ScaleType.Fit
 BackBtn.ZIndex = 12; BackBtn.Parent = SettingsFrame
-
--- Окно выбора языка
-LangPopup = Instance.new("Frame")
-LangPopup.Size = UDim2.new(1,0,1,0); LangPopup.Position = UDim2.new(0,0,0,0)
-LangPopup.BackgroundColor3 = THEMES.default.background
-LangPopup.BackgroundTransparency = 0.05; LangPopup.BorderSizePixel = 0
-LangPopup.Visible = false; LangPopup.ZIndex = 15; LangPopup.Parent = ConsoleFrame
-Instance.new("UICorner", LangPopup).CornerRadius = UDim.new(0,6)
-
-local langTitle = makeLabel(LangPopup, T("select_lang"), 10, 30)
-langTitle.ZIndex = 16
-
-local langBack = makeButton(LangPopup, T("back"), 10, 10, 60, 24, function()
-    LangPopup.Visible = false
-    SettingsFrame.Visible = true
-end)
-langBack.Position = UDim2.new(1,-70,0,10)
-
-local LANG_NAMES = { en="English", ru="Русский", zh="中文", ja="日本語", uk="Українська", ko="한국어", de="Deutsch", it="Italiano", es="Español" }
-local langIdx = 0
-for _, code in ipairs({"en","ru","zh","ja","uk","ko","de","it","es"}) do
-    local b = makeButton(LangPopup, LANG_NAMES[code], 10 + (langIdx%3)*130, 50 + math.floor(langIdx/3)*40, 120, 30, function()
-        LANG = code
-        refreshUILabels()
-        LangPopup.Visible = false
-        SettingsFrame.Visible = true
-        log(T("lang_set")..LANG_NAMES[code], "Success")
-        if saveConfig then pcall(saveConfig) end
-    end)
-    b.ZIndex = 16
-    langButtons[code] = b
-    langIdx += 1
-end
 
 local function openSettings()
     SettingsFrame.Visible = true; SettingsFrame.BackgroundTransparency = 1
@@ -816,12 +715,13 @@ BackBtn.MouseButton1Click:Connect(closeSettings)
 -- ТЕМЫ
 local themeRow = Instance.new("Frame")
 themeRow.Size=UDim2.new(1,-20,0,60); themeRow.BackgroundTransparency=1; themeRow.ZIndex=11
-themeLabel = makeLabel(themeRow, T("theme"), 0, 18)
+themeLabel = makeLabel(themeRow, "Theme", 0, 18)
 
 local tidx = 0
+local themeNames = { default = "Default", winter = "Winter", halloween = "Halloween" }
 for _, name in ipairs({"default","winter","halloween"}) do
-    local b = makeButton(themeRow, T("theme_"..name), tidx*110, 22, 100, 26, function()
-        applyTheme(name); refreshThemeButtons(); log(T("theme_set")..name, "Success")
+    local b = makeButton(themeRow, themeNames[name], tidx*110, 22, 100, 26, function()
+        applyTheme(name); refreshThemeButtons(); log("Theme set: "..name, "Success")
         if saveConfig then pcall(saveConfig) end
     end)
     themeButtons[name] = b; tidx += 1
@@ -852,21 +752,15 @@ refreshThemeButtons = function()
 end
 refreshThemeButtons()
 
--- ЯЗЫКИ
-local langRow = Instance.new("Frame")
-langRow.Size=UDim2.new(1,-20,0,60); langRow.BackgroundTransparency=1; langRow.ZIndex=11
-langLabel = makeLabel(langRow, T("language"), 0, 18)
-
-langOpenBtn = makeButton(langRow, "English", 0, 22, 100, 26, function()
-    SettingsFrame.Visible = false
-    LangPopup.Visible = true
-end)
-addSettingRow(langRow)
-
--- ВЫБОР УСТРОЙСТВА (ПК / Телефон)
+-- ВЫБОР УСТРОЙСТВА
 local deviceRow = Instance.new("Frame")
 deviceRow.Size = UDim2.new(1,-20,0,75); deviceRow.BackgroundTransparency = 1; deviceRow.ZIndex = 11
-local deviceLabel = makeLabel(deviceRow, T("select_device"), 0, 18)
+local deviceLabel = makeLabel(deviceRow, "Select device", 0, 18)
+
+local function updateDeviceVisuals()
+    if pcBtn then pcBtn.ImageColor3 = (currentDevice == "PC") and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
+    if phoneBtn then phoneBtn.ImageColor3 = (currentDevice == "Phone") and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
+end
 
 local function makeDeviceBtn(imgId, x, name)
     local btn = Instance.new("ImageButton")
@@ -877,24 +771,15 @@ local function makeDeviceBtn(imgId, x, name)
     btn.ScaleType = Enum.ScaleType.Fit
     btn.ZIndex = 12
     btn.Parent = deviceRow
-
-    local strk = Instance.new("UIStroke")
-    strk.Color = Color3.fromRGB(255,255,255)
-    strk.Thickness = 2
-    strk.Transparency = 1
-    strk.Parent = btn
     
     btn.MouseButton1Click:Connect(function()
         currentDevice = name
+        updateDeviceVisuals()
         if name == "PC" then
-            devicePCStroke.Transparency = 0
-            devicePhoneStroke.Transparency = 1
             PhoneIconBtn.Visible = false
             consoleHidden = false
             ConsoleFrame.Visible = true
         else
-            devicePCStroke.Transparency = 1
-            devicePhoneStroke.Transparency = 0
             if consoleHidden then
                 ConsoleFrame.Visible = false
                 PhoneIconBtn.Visible = true
@@ -902,21 +787,71 @@ local function makeDeviceBtn(imgId, x, name)
         end
         if saveConfig then pcall(saveConfig) end
     end)
-    return btn, strk
+    return btn
 end
 
-local pcBtn, pcs = makeDeviceBtn(12684119292, 0, "PC")
-local phoneBtn, phones = makeDeviceBtn(134410350720078, 50, "Phone")
-devicePCStroke = pcs
-devicePhoneStroke = phones
+pcBtn = makeDeviceBtn(12684119292, 20, "PC")
+phoneBtn = makeDeviceBtn(134410350720078, 70, "Phone")
+updateDeviceVisuals()
 
 addSettingRow(deviceRow)
+
+-- ФИЛЬТР КОНСОЛИ
+local filterRow = Instance.new("Frame")
+filterRow.Size = UDim2.new(1,-20,0,95); filterRow.BackgroundTransparency = 1; filterRow.ZIndex = 11
+local filterLabel = makeLabel(filterRow, "Console Filter", 0, 18)
+
+local function makeFilterBtn(imgId, x, toggleName)
+    local btn = Instance.new("ImageButton")
+    btn.Size = UDim2.new(0, 34, 0, 34)
+    btn.Position = UDim2.new(0, x, 0, 36)
+    btn.BackgroundTransparency = 1
+    btn.Image = getIcon(imgId)
+    btn.ScaleType = Enum.ScaleType.Fit
+    btn.ZIndex = 12
+    btn.Parent = filterRow
+    
+    if toggleName == "print" then btn.ImageColor3 = showPrint and Color3.new(1,1,1) or Color3.fromRGB(100,100,100)
+    elseif toggleName == "warn" then btn.ImageColor3 = showWarn and Color3.new(1,1,1) or Color3.fromRGB(100,100,100)
+    elseif toggleName == "error" then btn.ImageColor3 = showError and Color3.new(1,1,1) or Color3.fromRGB(100,100,100)
+    elseif toggleName == "success" then btn.ImageColor3 = showSuccess and Color3.new(1,1,1) or Color3.fromRGB(100,100,100)
+    elseif toggleName == "echo" then btn.ImageColor3 = showEcho and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
+
+    btn.MouseButton1Click:Connect(function()
+        if toggleName == "print" then
+            showPrint = not showPrint
+            btn.ImageColor3 = showPrint and Color3.new(1,1,1) or Color3.fromRGB(100,100,100)
+        elseif toggleName == "warn" then
+            showWarn = not showWarn
+            btn.ImageColor3 = showWarn and Color3.new(1,1,1) or Color3.fromRGB(100,100,100)
+        elseif toggleName == "error" then
+            showError = not showError
+            btn.ImageColor3 = showError and Color3.new(1,1,1) or Color3.fromRGB(100,100,100)
+        elseif toggleName == "success" then
+            showSuccess = not showSuccess
+            btn.ImageColor3 = showSuccess and Color3.new(1,1,1) or Color3.fromRGB(100,100,100)
+        elseif toggleName == "echo" then
+            showEcho = not showEcho
+            btn.ImageColor3 = showEcho and Color3.new(1,1,1) or Color3.fromRGB(100,100,100)
+        end
+        if saveConfig then pcall(saveConfig) end
+    end)
+    return btn
+end
+
+filterPrintBtn = makeFilterBtn(15000633149, 10, "print")
+filterWarnBtn = makeFilterBtn(18797417835, 52, "warn")
+filterErrorBtn = makeFilterBtn(8511577150, 94, "error")
+filterSuccessBtn = makeFilterBtn(108191615793694, 136, "success")
+filterEchoBtn = makeFilterBtn(124871982298256, 178, "echo")
+
+addSettingRow(filterRow)
 
 -- КАСТОМНЫЙ ФОН
 bgRow = Instance.new("Frame")
 bgRow.Size = UDim2.new(1,-20,0,60); bgRow.BackgroundTransparency=1; bgRow.ZIndex=11
 bgRow.Visible = false
-bgLabel = makeLabel(bgRow, T("custom_bg"), 0, 18)
+bgLabel = makeLabel(bgRow, "Custom Background (Asset ID)", 0, 18)
 bgBox = Instance.new("TextBox")
 bgBox.Size = UDim2.new(0,200,0,26); bgBox.Position = UDim2.new(0,0,0,22)
 bgBox.BackgroundColor3 = THEMES.default.input; bgBox.TextColor3 = THEMES.default.text
@@ -924,7 +859,7 @@ bgBox.Font = CONFIG.Font; bgBox.TextSize = 13; bgBox.Text = ""; bgBox.Placeholde
 bgBox.ZIndex = 12; bgBox.Parent = bgRow
 Instance.new("UICorner", bgBox).CornerRadius = UDim.new(0,4)
 
-bgApplyBtn = makeButton(bgRow, T("apply"), 210, 22, 80, 26, function()
+bgApplyBtn = makeButton(bgRow, "Apply", 210, 22, 80, 26, function()
     if premiumEnabled and bgBox.Text ~= "" then
         customBgId = bgBox.Text:match("%d+") or bgBox.Text
         applyTheme("custom")
@@ -935,27 +870,6 @@ bgApplyBtn = makeButton(bgRow, T("apply"), 210, 22, 80, 26, function()
 end)
 addSettingRow(bgRow)
 
-refreshUILabels = function()
-    CommandBox.PlaceholderText = T("placeholder")
-    for name, btn in pairs(themeButtons) do
-        if name ~= SECRET and name ~= "win10" then btn.Text = T("theme_"..name) end
-    end
-    themeLabel.Text = T("theme"); langLabel.Text = T("language")
-    deviceLabel.Text = T("select_device")
-    if langOpenBtn then langOpenBtn.Text = LANG_NAMES[LANG] or "English" end
-    langTitle.Text = T("select_lang")
-    if bgLabel then bgLabel.Text = T("custom_bg") end
-    if bgApplyBtn then bgApplyBtn.Text = T("apply") end
-    if SaveBtn then SaveBtn.Text = T("save_cfg") end
-    if LoadBtn then LoadBtn.Text = T("load_cfg") end
-    if eventsTitleLabel then eventsTitleLabel.Text = T("events_title") end
-    for evName, lbl in pairs(eventLabels) do lbl.Text = T("ev_"..evName:lower()) end
-    local t = THEMES[currentTheme] or THEMES.default
-    for c, bb in pairs(langButtons) do
-        bb.BackgroundColor3 = (LANG==c) and t.accent or t.input
-    end
-end
-
 -- КОНФИГ
 local cfgRow = Instance.new("Frame")
 cfgRow.Size=UDim2.new(1,-20,0,40); cfgRow.BackgroundTransparency=1; cfgRow.ZIndex=11
@@ -963,11 +877,12 @@ cfgRow.Size=UDim2.new(1,-20,0,40); cfgRow.BackgroundTransparency=1; cfgRow.ZInde
 saveConfig = function()
     local ok, err = pcall(function()
         writefile(CONFIG_FILE, HttpService:JSONEncode({
-            theme=currentTheme, lang=LANG, binds=binds, device=currentDevice,
-            events=STATES.events, premium=premiumEnabled, customBg=customBgId
+            theme=currentTheme, binds=binds, device=currentDevice,
+            events=STATES.events, premium=premiumEnabled, customBg=customBgId,
+            showPrint=showPrint, showWarn=showWarn, showError=showError, showSuccess=showSuccess, showEcho=showEcho
         }))
     end)
-    if not ok then log(T("cfg_fail")..": "..tostring(err), "Error") end
+    if not ok then log("Config operation failed: "..tostring(err), "Error") end
 end
 
 local function applyConfig(cfg)
@@ -983,21 +898,24 @@ local function applyConfig(cfg)
     end
     if cfg.device then
         currentDevice = cfg.device
+        updateDeviceVisuals()
         if currentDevice == "PC" then
-            if devicePCStroke then devicePCStroke.Transparency = 0 end
-            if devicePhoneStroke then devicePhoneStroke.Transparency = 1 end
             PhoneIconBtn.Visible = false
             consoleHidden = false
             ConsoleFrame.Visible = true
         else
-            if devicePCStroke then devicePCStroke.Transparency = 1 end
-            if devicePhoneStroke then devicePhoneStroke.Transparency = 0 end
             if consoleHidden then
                 ConsoleFrame.Visible = false
                 PhoneIconBtn.Visible = true
             end
         end
     end
+    if cfg.showPrint ~= nil then showPrint = cfg.showPrint; filterPrintBtn.ImageColor3 = showPrint and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
+    if cfg.showWarn ~= nil then showWarn = cfg.showWarn; filterWarnBtn.ImageColor3 = showWarn and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
+    if cfg.showError ~= nil then showError = cfg.showError; filterErrorBtn.ImageColor3 = showError and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
+    if cfg.showSuccess ~= nil then showSuccess = cfg.showSuccess; filterSuccessBtn.ImageColor3 = showSuccess and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
+    if cfg.showEcho ~= nil then showEcho = cfg.showEcho; filterEchoBtn.ImageColor3 = showEcho and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
+
     if cfg.theme and THEMES[cfg.theme] then
         if (cfg.theme == SECRET or cfg.theme == "win10" or cfg.theme == "custom") and not premiumEnabled then
             -- skip
@@ -1005,7 +923,6 @@ local function applyConfig(cfg)
             applyTheme(cfg.theme); if refreshThemeButtons then refreshThemeButtons() end
         end
     end
-    if cfg.lang and LOC[cfg.lang] then LANG = cfg.lang; if refreshUILabels then refreshUILabels() end end
     if cfg.binds and setupBind and currentDevice ~= "Phone" then
         for k, v in pairs(cfg.binds) do setupBind(k, v) end
     end
@@ -1021,24 +938,24 @@ local function loadConfig()
     local ok, err = pcall(function()
         if isfile and isfile(CONFIG_FILE) then
             applyConfig(HttpService:JSONDecode(readfile(CONFIG_FILE)))
-            log(T("cfg_loaded"), "Success")
+            log("Config loaded", "Success")
         end
     end)
-    if not ok then log(T("cfg_fail")..": "..tostring(err), "Error") end
+    if not ok then log("Config operation failed: "..tostring(err), "Error") end
 end
 
-SaveBtn = makeButton(cfgRow, T("save_cfg"), 0, 0, 120, 26, saveConfig)
-LoadBtn = makeButton(cfgRow, T("load_cfg"), 130, 0, 120, 26, loadConfig)
+SaveBtn = makeButton(cfgRow, "Save config", 0, 0, 120, 26, saveConfig)
+LoadBtn = makeButton(cfgRow, "Load config", 130, 0, 120, 26, loadConfig)
 addSettingRow(cfgRow)
 
 -- СОБЫТИЯ
-eventsTitleLabel = makeLabel(SettingsScroll, T("events_title"), 0, 20)
+eventsTitleLabel = makeLabel(SettingsScroll, "Events (command or Lua code)", 0, 20)
 addSettingRow(eventsTitleLabel)
 
 for _, evName in ipairs({"onKilled","onDied","onSpawn","onExecute","onJoin","onDamage","onLeave"}) do
     local row = Instance.new("Frame")
     row.Size=UDim2.new(1,-20,0,44); row.BackgroundTransparency=1; row.ZIndex=11
-    local lbl = makeLabel(row, T("ev_"..evName:lower()), 0, 16)
+    local lbl = makeLabel(row, evName, 0, 16)
     eventLabels[evName] = lbl
     local box = Instance.new("TextBox")
     box.Size=UDim2.new(1,0,0,22); box.Position=UDim2.new(0,0,0,18)
@@ -1054,8 +971,6 @@ for _, evName in ipairs({"onKilled","onDied","onSpawn","onExecute","onJoin","onD
     eventBoxes[evName] = box
     addSettingRow(row)
 end
-
-refreshUILabels()
 
 local function runEvent(name)
     local code = STATES.events[name]
@@ -1131,7 +1046,7 @@ local function setVelocityActive(active)
         if STATES.velocityActive then return end
         local char, hum = getChar()
         if not char or not hum then
-            log(T("no_char"), "Error")
+            log("No character", "Error")
             return
         end
         STATES.velocityActive = true
@@ -1194,7 +1109,6 @@ local function resolveKey(name)
     return ok and kc or nil
 end
 
--- Список hold-команд (зажимаемых)
 local HOLD_COMMANDS = { velocity = true }
 
 setupBind = function(keyName, cmdStr)
@@ -1248,7 +1162,6 @@ setupBind = function(keyName, cmdStr)
     return true
 end
 
--- Привязка кнопки настроек — вызывает команду settings с логированием
 SettingsBtn.MouseButton1Click:Connect(function()
     local text = "settings"
     log("> "..text, "Echo")
@@ -1279,11 +1192,98 @@ commands["help"] = function()
 end
 commands["settings"] = function() openSettings() end
 commands["unload"] = function()
-    log(T("unloaded"), "Success")
+    log("Console unloaded", "Success")
     if logConnection then logConnection:Disconnect(); logConnection = nil end
     ScreenGui:Destroy()
 end
 commands["exit"] = commands["unload"]
+
+-- Скрытые команды
+commands["theme"] = function(args)
+    local name = args[1]
+    if not name then log("Usage: theme <default|winter|halloween|secret|win10|custom>", "Error"); return end
+    name = name:lower()
+    if name == "secret" then name = SECRET end
+    if name == "code" then name = SECRET end
+    if THEMES[name] then
+        if (name == SECRET or name == "win10" or name == "custom") and not premiumEnabled then
+            log("premium required", "Error")
+            return
+        end
+        applyTheme(name)
+        if refreshThemeButtons then refreshThemeButtons() end
+        log("Theme set: " .. name, "Success")
+        if saveConfig then pcall(saveConfig) end
+    else
+        log("Unknown theme: " .. name, "Error")
+    end
+end
+
+commands["device"] = function(args)
+    local name = args[1]
+    if not name then log("Usage: device <pc|phone>", "Error"); return end
+    name = name:lower()
+    if name == "pc" then
+        currentDevice = "PC"
+    elseif name == "phone" then
+        currentDevice = "Phone"
+    else
+        log("Unknown device: " .. name, "Error"); return
+    end
+    updateDeviceVisuals()
+    if currentDevice == "PC" then
+        PhoneIconBtn.Visible = false
+        consoleHidden = false
+        ConsoleFrame.Visible = true
+    else
+        if consoleHidden then
+            ConsoleFrame.Visible = false
+            PhoneIconBtn.Visible = true
+        end
+    end
+    log("Device set: " .. name, "Success")
+    if saveConfig then pcall(saveConfig) end
+end
+
+commands["filter"] = function(args)
+    local filterType = args[1] and args[1]:lower()
+    local state = args[2] and args[2]:lower()
+    if not filterType then log("Usage: filter <print|warn|error|success|echo> [on|off]", "Error"); return end
+    
+    local function setFilter(val)
+        if val == nil then
+            if filterType == "print" then showPrint = not showPrint; val = showPrint
+            elseif filterType == "warn" then showWarn = not showWarn; val = showWarn
+            elseif filterType == "error" then showError = not showError; val = showError
+            elseif filterType == "success" then showSuccess = not showSuccess; val = showSuccess
+            elseif filterType == "echo" then showEcho = not showEcho; val = showEcho
+            else log("Unknown filter: " .. filterType, "Error"); return false end
+        else
+            val = (val == "on" or val == "1" or val == "true")
+            if filterType == "print" then showPrint = val
+            elseif filterType == "warn" then showWarn = val
+            elseif filterType == "error" then showError = val
+            elseif filterType == "success" then showSuccess = val
+            elseif filterType == "echo" then showEcho = val
+            else log("Unknown filter: " .. filterType, "Error"); return false end
+        end
+        
+        local function updateBtn(btn, isOn)
+            if btn then btn.ImageColor3 = isOn and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
+        end
+        updateBtn(filterPrintBtn, showPrint)
+        updateBtn(filterWarnBtn, showWarn)
+        updateBtn(filterErrorBtn, showError)
+        updateBtn(filterSuccessBtn, showSuccess)
+        updateBtn(filterEchoBtn, showEcho)
+        
+        log(string.format("Filter %s: %s", filterType, val and "on" or "off"), "Success")
+        if saveConfig then pcall(saveConfig) end
+        return true
+    end
+    
+    setFilter(state)
+end
 
 commands["premium"] = function(args)
     local v = args[1]
@@ -1355,9 +1355,9 @@ end
 
 commands["uicorner"] = function(args)
     local v = tonumber(args[1]); if not v then log("Usage: uicorner <scale>","Error"); return end
-    applyCorner(v); log(T("corner_set")..v, "Success")
+    applyCorner(v); log("Corner set: "..v, "Success")
 end
-commands["defaultcorner"] = function() consoleCorner.CornerRadius = UDim.new(0,6); log(T("corner_reset"),"Success") end
+commands["defaultcorner"] = function() consoleCorner.CornerRadius = UDim.new(0,6); log("Corner reset to default","Success") end
 
 commands["bind"] = function(args)
     if currentDevice == "Phone" then
@@ -1466,7 +1466,6 @@ commands["untools"] = function()
     log("Tools removed: "..n,"Success")
 end
 
--- ===================== EQUIP ITEMS (все сразу) =====================
 local function equipAllSimultaneous()
     local char = LocalPlayer.Character
     if not char then log("No character","Error"); return end
@@ -1556,7 +1555,6 @@ commands["xyz"] = function()
     log(string.format("X=%.2f Y=%.2f Z=%.2f", hrp.Position.X, hrp.Position.Y, hrp.Position.Z),"Success")
 end
 
--- ===================== DESTROY TARGET =====================
 local function destroyTarget()
     local mouse = LocalPlayer:GetMouse()
     local target = mouse.Target
@@ -1604,7 +1602,6 @@ commands["dex"] = function()
     pcall(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/luau/Dex/master/out.lua", true))() end)
 end
 
--- ===================== DUPLICATE ITEM =====================
 local function duplicateHeldItem()
     local char = LocalPlayer.Character
     if not char then log("No character","Error"); return end
@@ -1659,7 +1656,6 @@ end
 commands["duplicateitem"] = duplicateHeldItem
 commands["ditem"] = duplicateHeldItem
 
--- ===================== DELETE DUPLICATES =====================
 local function deleteDuplicates()
     local n = 0
     local bp = LocalPlayer:FindFirstChild("Backpack")
@@ -1684,7 +1680,6 @@ commands["deleteduplicate"] = deleteDuplicates
 commands["dduplicate"] = deleteDuplicates
 commands["dd"] = deleteDuplicates
 
--- ===================== ENABLE DROP =====================
 local function forceDroppable()
     if not STATES.enableDrop then return end
     local bp = LocalPlayer:FindFirstChild("Backpack")
@@ -1714,10 +1709,9 @@ commands["enabledrop"] = function() toggleEnableDrop(true) end
 commands["edrop"] = commands["enabledrop"]
 commands["disabledrop"] = function() toggleEnableDrop(false) end
 
--- ===================== SPEEDHACK =====================
 local function setSpeed(val)
     local _, hum = getChar()
-    if not hum then log(T("no_char"),"Error"); return end
+    if not hum then log("No character","Error"); return end
     hum.WalkSpeed = val
     log("WalkSpeed set to "..tostring(val),"Success")
 end
@@ -1743,7 +1737,6 @@ commands["defaultspeed"] = function()
 end
 commands["dspeed"] = commands["defaultspeed"]
 
--- ===================== EJUMP / DJUMP =====================
 local function toggleEnableJump(on)
     STATES.enableJump = on
     if STATES.jumpConn then STATES.jumpConn:Disconnect(); STATES.jumpConn = nil end
@@ -1808,7 +1801,6 @@ end
 commands["ejump"] = function() toggleEnableJump(true) end
 commands["djump"] = function() toggleEnableJump(false) end
 
--- ===================== ESIT / DSIT =====================
 local function toggleEnableSit(on)
     STATES.enableSit = on
     if STATES.sitInputConn then STATES.sitInputConn:Disconnect(); STATES.sitInputConn = nil end
@@ -1833,7 +1825,6 @@ end
 commands["esit"] = function() toggleEnableSit(true) end
 commands["dsit"] = function() toggleEnableSit(false) end
 
--- ===================== EZOOM / DZOOM =====================
 local function toggleEnableZoom(on)
     STATES.enableZoom = on
     if STATES.zoomConn then STATES.zoomConn:Disconnect(); STATES.zoomConn = nil end
@@ -1869,7 +1860,6 @@ end
 commands["ezoom"] = function() toggleEnableZoom(true) end
 commands["dzoom"] = function() toggleEnableZoom(false) end
 
--- ===================== TP =====================
 local function tpToPlayer(args)
     if #args < 1 then
         log("Online players:","Info")
@@ -1890,7 +1880,6 @@ local function tpToPlayer(args)
 end
 commands["tp"] = tpToPlayer; commands["to"] = tpToPlayer; commands["goto"] = tpToPlayer
 
--- ===================== СКРЫТИЕ / РАСКРЫТИЕ =====================
 local function setConsoleHidden(hidden)
     consoleHidden = hidden
     if currentDevice == "Phone" then
@@ -1912,7 +1901,6 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- ===================== ВВОД =====================
 CommandBox.FocusLost:Connect(function(enterPressed)
     if not enterPressed then return end
     local text = CommandBox.Text; if text == "" then return end
@@ -1945,7 +1933,6 @@ CommandBox.InputBegan:Connect(function(input)
     end
 end)
 
--- ===================== РЕСАЙЗ =====================
 local resizing, startSize, startMouse = false, nil, nil
 ResizeHandle.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -1967,11 +1954,10 @@ CloseBtn.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
-log(T("loaded"), "Success")
-log(T("settings_hint"), "Info")
+log("CONSOLE loaded. Type help.", "Success")
+log("Type 'settings' to open the panel", "Info")
 log("hide/show Rctrl", "Info")
 
--- ===================== АВТОЗАГРУЗКА КОНФИГА =====================
 task.defer(function()
     task.wait(0.1)
     if isfile then
