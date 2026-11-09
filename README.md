@@ -1,2 +1,1 @@
-# xconsole
-simple xconsole for Xboat (for testing)
+# console (for testing)
