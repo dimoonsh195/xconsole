@@ -9,6 +9,7 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Debris = game:GetService("Debris")
 local CollectionService = game:GetService("CollectionService")
+local ContentProvider = game:GetService("ContentProvider")
 local LocalPlayer = Players.LocalPlayer
 
 -- ============ FORWARD DECLS ============
@@ -17,7 +18,6 @@ local SettingsFrame, SettingsScroll, SettingsTitle, BackBtn
 local themeButtons, themeLabel, secretBtn, win10Btn
 local bgRow, bgBox, bgApplyBtn, bgLabel
 local HideBtn, ExtraIcon, SettingsBtn, PhoneIconBtn
-local devicePCStroke, devicePhoneStroke
 local filterPrintBtn, filterWarnBtn, filterErrorBtn, filterSuccessBtn, filterEchoBtn
 local pcBtn, phoneBtn
 local premiumEnabled = false
@@ -30,6 +30,15 @@ local SECRET = "100110101011000101"
 local WIN10_THEME_ID = "13932338252"
 eventBoxes = {}; eventLabels = {}
 themeButtons = {}
+
+-- ============ PLUGIN STATE ============
+local pluginCommands = {}    -- cmdName -> pluginName
+local loadedPlugins = {}     -- pluginName -> {meta=, api=}
+local pluginEventHooks = {}  -- evName -> { fn, fn, ... }
+local backupPlugins = {}     -- list of unloaded plugin names
+-- ТУТ ИЗМЕНЕНИЕ: Ищем плагины прямо в workspace
+local PLUGIN_FOLDER = ""     
+local PLUGIN_EXT = ".xconr"
 
 -- ===================== ТЕМЫ =====================
 local THEMES = {
@@ -169,7 +178,7 @@ local loadVersion = Instance.new("TextLabel")
 loadVersion.Size = UDim2.new(1, 0, 0, 18)
 loadVersion.Position = UDim2.new(0, 0, 0, 86)
 loadVersion.BackgroundTransparency = 1
-loadVersion.Text = "v 2.7.0"
+loadVersion.Text = "v 2.7.1"
 loadVersion.Font = Enum.Font.Code
 loadVersion.TextSize = 13
 loadVersion.TextColor3 = Color3.fromRGB(120, 120, 120)
@@ -219,7 +228,7 @@ stroke.Color = THEMES.default.stroke; stroke.Thickness = 1; stroke.Transparency 
 local Header = Instance.new("Frame")
 Header.Size = UDim2.new(1,0,0,30); Header.BackgroundColor3 = THEMES.default.header
 Header.BackgroundTransparency = 0.2; Header.BorderSizePixel = 0; Header.ZIndex = 2; Header.Parent = ConsoleFrame
-Instance.new("UICorner", Header).CornerRadius = UDim.new(0,6)
+local headerCorner = Instance.new("UICorner", Header); headerCorner.CornerRadius = UDim.new(0,6)
 
 -- Логотип
 local Title = Instance.new("ImageLabel")
@@ -352,7 +361,6 @@ logConnection = LogService.MessageOut:Connect(function(message, messageType)
         if logConnection then logConnection:Disconnect() end; return
     end
     local prefix, color, cType = getSystemLogData(messageType)
-    
     local pass = true
     if cType == "Error" and not showError then pass = false end
     if cType == "Info" and not showWarn then pass = false end
@@ -439,7 +447,6 @@ local function giveGun()
 
             local s = shootSound:Clone(); s.Parent = handle; s.PlayOnRemove = true; s:Destroy()
             pcall(function() s:Play() end)
-
             muzzleFlash:Emit(8)
 
             local mouse = LocalPlayer:GetMouse()
@@ -672,34 +679,23 @@ local function applyTheme(name)
     LogFrame.BackgroundColor3 = t.log
     CommandBox.TextColor3 = t.accent
     stroke.Color = t.stroke; LogFrame.ScrollBarImageColor3 = t.accent
-    
+
     if name == SECRET then
-        bgImage.Image = getThumb("5456915026")
-        bgImage.Visible = true
-        ConsoleFrame.BackgroundTransparency = 0.9
-        LogFrame.BackgroundTransparency = 0.55
-        InputFrame.BackgroundTransparency = 0.45
-        Header.BackgroundTransparency = 0.45
+        bgImage.Image = getThumb("5456915026"); bgImage.Visible = true
+        ConsoleFrame.BackgroundTransparency = 0.9; LogFrame.BackgroundTransparency = 0.55
+        InputFrame.BackgroundTransparency = 0.45; Header.BackgroundTransparency = 0.45
     elseif name == "win10" then
-        bgImage.Image = getThumb(WIN10_THEME_ID)
-        bgImage.Visible = true
-        ConsoleFrame.BackgroundTransparency = 0.85
-        LogFrame.BackgroundTransparency = 0.5
-        InputFrame.BackgroundTransparency = 0.4
-        Header.BackgroundTransparency = 0.4
+        bgImage.Image = getThumb(WIN10_THEME_ID); bgImage.Visible = true
+        ConsoleFrame.BackgroundTransparency = 0.85; LogFrame.BackgroundTransparency = 0.5
+        InputFrame.BackgroundTransparency = 0.4; Header.BackgroundTransparency = 0.4
     elseif name == "custom" then
-        bgImage.Image = getThumb(customBgId)
-        bgImage.Visible = true
-        ConsoleFrame.BackgroundTransparency = 0.85
-        LogFrame.BackgroundTransparency = 0.5
-        InputFrame.BackgroundTransparency = 0.4
-        Header.BackgroundTransparency = 0.4
+        bgImage.Image = getThumb(customBgId); bgImage.Visible = true
+        ConsoleFrame.BackgroundTransparency = 0.85; LogFrame.BackgroundTransparency = 0.5
+        InputFrame.BackgroundTransparency = 0.4; Header.BackgroundTransparency = 0.4
     else
         bgImage.Visible = false
-        ConsoleFrame.BackgroundTransparency = 0.1
-        LogFrame.BackgroundTransparency = 0.3
-        InputFrame.BackgroundTransparency = 0.2
-        Header.BackgroundTransparency = 0.2
+        ConsoleFrame.BackgroundTransparency = 0.1; LogFrame.BackgroundTransparency = 0.3
+        InputFrame.BackgroundTransparency = 0.2; Header.BackgroundTransparency = 0.2
     end
     applyThemeToSettings(t)
 end
@@ -744,7 +740,6 @@ local function addSettingRow(widget)
     SettingsScroll.CanvasSize = UDim2.new(0,0,0, settingsLayout.AbsoluteContentSize.Y + 20)
 end
 
--- Заголовок настроек
 SettingsTitle = Instance.new("ImageLabel")
 SettingsTitle.Size = UDim2.new(0,26,0,26); SettingsTitle.Position = UDim2.new(0,8,0,7)
 SettingsTitle.BackgroundTransparency = 1
@@ -752,7 +747,6 @@ SettingsTitle.Image = getIcon(9405931596)
 SettingsTitle.ScaleType = Enum.ScaleType.Fit
 SettingsTitle.ZIndex = 12; SettingsTitle.Parent = SettingsFrame
 
--- BackBtn
 BackBtn = Instance.new("ImageButton")
 BackBtn.Size = UDim2.new(0,40,0,24); BackBtn.Position = UDim2.new(1,-52,0,8)
 BackBtn.BackgroundTransparency = 1
@@ -763,10 +757,8 @@ BackBtn.ZIndex = 12; BackBtn.Parent = SettingsFrame
 local function openSettings()
     SettingsFrame.Visible = true; SettingsFrame.BackgroundTransparency = 1
     SettingsFrame.Position = UDim2.new(0,0,0,20)
-    HideBtn.Visible = false
-    CloseBtn.Visible = false
-    ExtraIcon.Visible = false
-    SettingsBtn.Visible = false
+    HideBtn.Visible = false; CloseBtn.Visible = false
+    ExtraIcon.Visible = false; SettingsBtn.Visible = false
     TweenService:Create(SettingsFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
         BackgroundTransparency = 0.05, Position = UDim2.new(0,0,0,0),
     }):Play()
@@ -777,10 +769,8 @@ local function closeSettings()
     })
     tw:Play(); tw.Completed:Once(function()
         SettingsFrame.Visible = false
-        HideBtn.Visible = true
-        CloseBtn.Visible = true
-        ExtraIcon.Visible = true
-        SettingsBtn.Visible = true
+        HideBtn.Visible = true; CloseBtn.Visible = true
+        ExtraIcon.Visible = true; SettingsBtn.Visible = true
     end)
 end
 BackBtn.MouseButton1Click:Connect(closeSettings)
@@ -837,26 +827,18 @@ end
 
 local function makeDeviceBtn(imgId, x, name)
     local btn = Instance.new("ImageButton")
-    btn.Size = UDim2.new(0, 40, 0, 40)
-    btn.Position = UDim2.new(0, x, 0, 22)
+    btn.Size = UDim2.new(0, 40, 0, 40); btn.Position = UDim2.new(0, x, 0, 22)
     btn.BackgroundTransparency = 1
-    btn.Image = getIcon(imgId)
-    btn.ScaleType = Enum.ScaleType.Fit
-    btn.ZIndex = 12
-    btn.Parent = deviceRow
-    
+    btn.Image = getIcon(imgId); btn.ScaleType = Enum.ScaleType.Fit
+    btn.ZIndex = 12; btn.Parent = deviceRow
+
     btn.MouseButton1Click:Connect(function()
         currentDevice = name
         updateDeviceVisuals()
         if name == "PC" then
-            PhoneIconBtn.Visible = false
-            consoleHidden = false
-            ConsoleFrame.Visible = true
+            PhoneIconBtn.Visible = false; consoleHidden = false; ConsoleFrame.Visible = true
         else
-            if consoleHidden then
-                ConsoleFrame.Visible = false
-                PhoneIconBtn.Visible = true
-            end
+            if consoleHidden then ConsoleFrame.Visible = false; PhoneIconBtn.Visible = true end
         end
         if saveConfig then pcall(saveConfig) end
     end)
@@ -866,7 +848,6 @@ end
 pcBtn = makeDeviceBtn(12684119292, 20, "PC")
 phoneBtn = makeDeviceBtn(134410350720078, 70, "Phone")
 updateDeviceVisuals()
-
 addSettingRow(deviceRow)
 
 -- ФИЛЬТР КОНСОЛИ
@@ -876,14 +857,11 @@ local filterLabel = makeLabel(filterRow, "Console Filter", 0, 18)
 
 local function makeFilterBtn(imgId, x, toggleName)
     local btn = Instance.new("ImageButton")
-    btn.Size = UDim2.new(0, 34, 0, 34)
-    btn.Position = UDim2.new(0, x, 0, 36)
+    btn.Size = UDim2.new(0, 34, 0, 34); btn.Position = UDim2.new(0, x, 0, 36)
     btn.BackgroundTransparency = 1
-    btn.Image = getIcon(imgId)
-    btn.ScaleType = Enum.ScaleType.Fit
-    btn.ZIndex = 12
-    btn.Parent = filterRow
-    
+    btn.Image = getIcon(imgId); btn.ScaleType = Enum.ScaleType.Fit
+    btn.ZIndex = 12; btn.Parent = filterRow
+
     if toggleName == "print" then btn.ImageColor3 = showPrint and Color3.new(1,1,1) or Color3.fromRGB(100,100,100)
     elseif toggleName == "warn" then btn.ImageColor3 = showWarn and Color3.new(1,1,1) or Color3.fromRGB(100,100,100)
     elseif toggleName == "error" then btn.ImageColor3 = showError and Color3.new(1,1,1) or Color3.fromRGB(100,100,100)
@@ -917,7 +895,6 @@ filterWarnBtn = makeFilterBtn(18797417835, 52, "warn")
 filterErrorBtn = makeFilterBtn(8511577150, 94, "error")
 filterSuccessBtn = makeFilterBtn(108191615793694, 136, "success")
 filterEchoBtn = makeFilterBtn(124871982298256, 178, "echo")
-
 addSettingRow(filterRow)
 
 -- КАСТОМНЫЙ ФОН
@@ -935,8 +912,7 @@ Instance.new("UICorner", bgBox).CornerRadius = UDim.new(0,4)
 bgApplyBtn = makeButton(bgRow, "Apply", 210, 22, 80, 26, function()
     if premiumEnabled and bgBox.Text ~= "" then
         customBgId = bgBox.Text:match("%d+") or bgBox.Text
-        applyTheme("custom")
-        refreshThemeButtons()
+        applyTheme("custom"); refreshThemeButtons()
         log("Custom background applied", "Success")
         if saveConfig then pcall(saveConfig) end
     end
@@ -949,10 +925,13 @@ cfgRow.Size=UDim2.new(1,-20,0,40); cfgRow.BackgroundTransparency=1; cfgRow.ZInde
 
 saveConfig = function()
     local ok, err = pcall(function()
+        local pluginList = {}
+        for name in pairs(loadedPlugins) do table.insert(pluginList, name) end
         writefile(CONFIG_FILE, HttpService:JSONEncode({
             theme=currentTheme, binds=binds, device=currentDevice,
             events=STATES.events, premium=premiumEnabled, customBg=customBgId,
-            showPrint=showPrint, showWarn=showWarn, showError=showError, showSuccess=showSuccess, showEcho=showEcho
+            showPrint=showPrint, showWarn=showWarn, showError=showError, showSuccess=showSuccess, showEcho=showEcho,
+            plugins=pluginList, pluginBackups=backupPlugins,
         }))
     end)
     if not ok then log("Config operation failed: "..tostring(err), "Error") end
@@ -973,14 +952,9 @@ local function applyConfig(cfg)
         currentDevice = cfg.device
         updateDeviceVisuals()
         if currentDevice == "PC" then
-            PhoneIconBtn.Visible = false
-            consoleHidden = false
-            ConsoleFrame.Visible = true
+            PhoneIconBtn.Visible = false; consoleHidden = false; ConsoleFrame.Visible = true
         else
-            if consoleHidden then
-                ConsoleFrame.Visible = false
-                PhoneIconBtn.Visible = true
-            end
+            if consoleHidden then ConsoleFrame.Visible = false; PhoneIconBtn.Visible = true end
         end
     end
     if cfg.showPrint ~= nil then showPrint = cfg.showPrint; filterPrintBtn.ImageColor3 = showPrint and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
@@ -1003,6 +977,15 @@ local function applyConfig(cfg)
         for k, v in pairs(cfg.events) do
             if STATES.events[k] ~= nil then STATES.events[k]=v end
             if eventBoxes[k] then eventBoxes[k].Text = v end
+        end
+    end
+    if type(cfg.pluginBackups) == "table" then
+        backupPlugins = {}
+        for _, n in ipairs(cfg.pluginBackups) do table.insert(backupPlugins, n) end
+    end
+    if type(cfg.plugins) == "table" then
+        for _, name in ipairs(cfg.plugins) do
+            pcall(loadPlugin, name)
         end
     end
 end
@@ -1045,7 +1028,219 @@ for _, evName in ipairs({"onKilled","onDied","onSpawn","onExecute","onJoin","onD
     addSettingRow(row)
 end
 
+-- ===================== ПЛАГИНЫ =====================
+local function ensurePluginFolder()
+    -- Так как ищем прямо в корне (workspace), создавать папку не нужно
+end
+
+local function makePluginAPI(pluginName)
+    local api = {}
+    api.pluginName = pluginName
+    api.version = "1.0"
+    api._myHooks = {}
+
+    api.log = function(text, colorType)
+        log("[" .. pluginName .. "] " .. tostring(text), colorType or "Output")
+    end
+
+    api.registerCommand = function(name, fn, aliases)
+        if type(name) ~= "string" or type(fn) ~= "function" then return false, "bad args" end
+        if commands[name] then return false, "already exists" end
+        commands[name] = function(args)
+            local ok, e = pcall(fn, args or {})
+            if not ok then log("[" .. pluginName .. "] error in " .. name .. ": " .. tostring(e), "Error") end
+        end
+        pluginCommands[name] = pluginName
+        if aliases then
+            for _, a in ipairs(aliases) do
+                if not commands[a] then
+                    commands[a] = commands[name]
+                    pluginCommands[a] = pluginName
+                end
+            end
+        end
+        return true
+    end
+
+    api.unregisterCommand = function(name)
+        if pluginCommands[name] == pluginName then
+            commands[name] = nil; pluginCommands[name] = nil
+            return true
+        end
+        return false
+    end
+
+    api.runCommand = function(name, args)
+        local f = commands[name]
+        if not f then return false, "no such command" end
+        local ok, e = pcall(f, args or {})
+        if not ok then api.log("runCommand error: " .. tostring(e), "Error") end
+        return ok
+    end
+
+    api.executeLua = executeLua
+    api.getChar = getChar
+    api.getPlayer = function() return LocalPlayer end
+    api.getSettings = function()
+        return { theme = currentTheme, device = currentDevice,
+                 showPrint = showPrint, showWarn = showWarn,
+                 showError = showError, showSuccess = showSuccess, showEcho = showEcho }
+    end
+    api.setTheme = function(name) applyTheme(name); if saveConfig then pcall(saveConfig) end end
+
+    api.hookEvent = function(evName, fn)
+        if type(fn) ~= "function" then return false end
+        pluginEventHooks[evName] = pluginEventHooks[evName] or {}
+        table.insert(pluginEventHooks[evName], fn)
+        table.insert(api._myHooks, {evName = evName, fn = fn})
+        return true
+    end
+
+    api.ui = {
+        screenGui = ScreenGui,
+        consoleFrame = ConsoleFrame,
+        consoleCorner = consoleCorner,
+        header = Header,
+        headerCorner = headerCorner,
+        title = Title,
+        logFrame = LogFrame,
+        inputFrame = InputFrame,
+        commandBox = CommandBox,
+        settingsFrame = SettingsFrame,
+        stroke = stroke,
+        bgImage = bgImage,
+        getIcon = getIcon,
+        getThumb = getThumb,
+    }
+
+    return api
+end
+
+local function loadPlugin(pluginName)
+    pluginName = tostring(pluginName or ""):gsub("%.xconr$", ""):match("^%s*(.-)%s*$")
+    if pluginName == "" then return false end
+    if loadedPlugins[pluginName] then
+        log("Plugin already loaded: " .. pluginName, "Info")
+        return false
+    end
+    
+    -- ТУТ ТОЖЕ: Ищем просто "pluginName.xconr" без папок
+    local path = pluginName .. PLUGIN_EXT
+    if not (isfile and isfile(path)) then
+        log("Plugin file not found: " .. path, "Error")
+        return false
+    end
+    local ok, source = pcall(readfile, path)
+    if not ok then log("Read error: " .. tostring(source), "Error"); return false end
+
+    local chunk, err = loadstring(source, "=" .. pluginName)
+    if not chunk then
+        log("Compile error in " .. pluginName .. ": " .. tostring(err), "Error")
+        return false
+    end
+
+    local api = makePluginAPI(pluginName)
+    local ok2, result = pcall(chunk, api)
+    if not ok2 then
+        log("Runtime error in " .. pluginName .. ": " .. tostring(result), "Error")
+        return false
+    end
+
+    local meta = (type(result) == "table") and result or {}
+    loadedPlugins[pluginName] = {meta = meta, api = api}
+    for i = #backupPlugins, 1, -1 do
+        if backupPlugins[i] == pluginName then table.remove(backupPlugins, i) end
+    end
+    log("Plugin loaded: " .. pluginName .. (meta.version and (" v" .. tostring(meta.version)) or ""), "Success")
+    return true
+end
+
+local function unloadPlugin(pluginName, skipBackup)
+    pluginName = tostring(pluginName or ""):gsub("%.xconr$", ""):match("^%s*(.-)%s*$")
+    local data = loadedPlugins[pluginName]
+    if not data then log("Plugin not loaded: " .. pluginName, "Error"); return false end
+
+    for cmdName, owner in pairs(pluginCommands) do
+        if owner == pluginName then
+            commands[cmdName] = nil; pluginCommands[cmdName] = nil
+        end
+    end
+    if data.meta and type(data.meta.onUnload) == "function" then
+        pcall(data.meta.onUnload, data.api)
+    end
+    for _, h in ipairs(data.api._myHooks or {}) do
+        local list = pluginEventHooks[h.evName]
+        if list then
+            for i = #list, 1, -1 do
+                if list[i] == h.fn then table.remove(list, i) end
+            end
+        end
+    end
+    loadedPlugins[pluginName] = nil
+
+    if not skipBackup then
+        local found = false
+        for _, n in ipairs(backupPlugins) do
+            if n == pluginName then found = true; break end
+        end
+        if not found then table.insert(backupPlugins, pluginName) end
+    end
+    log("Plugin unloaded: " .. pluginName, "Info")
+    return true
+end
+
+local function listPlugins()
+    log("Loaded plugins:", "Info")
+    local any = false
+    for name, data in pairs(loadedPlugins) do
+        any = true
+        local v = (data.meta and data.meta.version) or "?"
+        log("  " .. name .. " v" .. tostring(v), "Default")
+    end
+    if not any then log("  (none)", "Info") end
+end
+
+-- ---- UI строка Manage Plugins ----
+local pluginRow = Instance.new("Frame")
+pluginRow.Size = UDim2.new(1,-20,0,140); pluginRow.BackgroundTransparency = 1; pluginRow.ZIndex = 11
+local pluginLabel = makeLabel(pluginRow, "Manage Plugins", 0, 18)
+
+local pluginBox = Instance.new("TextBox")
+pluginBox.Size = UDim2.new(0,200,0,26); pluginBox.Position = UDim2.new(0,0,0,22)
+pluginBox.BackgroundColor3 = THEMES.default.input; pluginBox.TextColor3 = THEMES.default.text
+pluginBox.Font = CONFIG.Font; pluginBox.TextSize = 13; pluginBox.Text = ""
+pluginBox.PlaceholderText = "plugin name (no .xconr)"
+pluginBox.ClearTextOnFocus = false; pluginBox.ZIndex = 12; pluginBox.Parent = pluginRow
+Instance.new("UICorner", pluginBox).CornerRadius = UDim.new(0,4)
+
+makeButton(pluginRow, "Load",   210, 22, 70, 26, function()
+    if pluginBox.Text == "" then log("Enter plugin name", "Error"); return end
+    loadPlugin(pluginBox.Text); if saveConfig then pcall(saveConfig) end
+end)
+makeButton(pluginRow, "Unload", 290, 22, 70, 26, function()
+    if pluginBox.Text == "" then log("Enter plugin name", "Error"); return end
+    unloadPlugin(pluginBox.Text); if saveConfig then pcall(saveConfig) end
+end)
+makeButton(pluginRow, "List",   370, 22, 70, 26, function() listPlugins() end)
+
+-- Текст подсказок изменен на workspace
+local pluginHint = makeLabel(pluginRow, "Folder: workspace (root)", 56, 16)
+pluginHint.TextSize = 11; pluginHint.TextColor3 = Color3.fromRGB(150,150,150)
+local pluginHint2 = makeLabel(pluginRow, "Example: legacyconsole" .. PLUGIN_EXT, 76, 16)
+pluginHint2.TextSize = 11; pluginHint2.TextColor3 = Color3.fromRGB(150,150,150)
+local pluginHint3 = makeLabel(pluginRow, "Reload = Unload → Load. Unloaded plugins go to backup list, restore with `backup load`.", 96, 16)
+pluginHint3.TextSize = 11; pluginHint3.TextColor3 = Color3.fromRGB(150,150,150)
+local pluginHint4 = makeLabel(pluginRow, "Backup: `backup list` / `backup load [name|all]` / `backup clear`", 116, 16)
+pluginHint4.TextSize = 11; pluginHint4.TextColor3 = Color3.fromRGB(150,150,150)
+
+addSettingRow(pluginRow)
+
 local function runEvent(name)
+    if pluginEventHooks[name] then
+        for _, fn in ipairs(pluginEventHooks[name]) do
+            pcall(fn, name)
+        end
+    end
     local code = STATES.events[name]
     if not code or code == "" then return end
     local args = {}
@@ -1076,8 +1271,7 @@ local function watchCharacter(char)
     local hum = char:WaitForChild("Humanoid", 5)
     if hum then
         if not speedCaptured then
-            originalWalkSpeed = hum.WalkSpeed
-            speedCaptured = true
+            originalWalkSpeed = hum.WalkSpeed; speedCaptured = true
             log(string.format("Original WalkSpeed captured: %.1f", originalWalkSpeed), "Info")
         end
         local lastHealth = hum.Health
@@ -1087,13 +1281,11 @@ local function watchCharacter(char)
             lastHealth = newH
         end)
     end
-
     char.ChildAdded:Connect(function(child)
         if child:IsA("Tool") and child:GetAttribute("XConsoleDuplicate") then
             log("Duplicated item taken in hand: "..child.Name, "Info")
         end
     end)
-
     runEvent("onSpawn")
 end
 if LocalPlayer.Character then watchCharacter(LocalPlayer.Character) end
@@ -1113,20 +1305,15 @@ end
 for _, p in ipairs(Players:GetPlayers()) do trackKilled(p) end
 Players.PlayerAdded:Connect(trackKilled)
 
--- ===================== VELOCITY (ТОЧНО WS 1 + NOCLIP) =====================
+-- ===================== VELOCITY =====================
 local function setVelocityActive(active)
     if active then
         if STATES.velocityActive then return end
         local char, hum = getChar()
-        if not char or not hum then
-            log("No character", "Error")
-            return
-        end
+        if not char or not hum then log("No character", "Error"); return end
         STATES.velocityActive = true
-        
         STATES.velocitySpeedBackup = hum.WalkSpeed
         hum.WalkSpeed = 1
-        
         STATES.velocityCollideBackup = {}
         for _, p in ipairs(char:GetDescendants()) do
             if p:IsA("BasePart") then
@@ -1134,7 +1321,6 @@ local function setVelocityActive(active)
                 p.CanCollide = false
             end
         end
-        
         if STATES.velocityConn then STATES.velocityConn:Disconnect() end
         STATES.velocityConn = RunService.Stepped:Connect(function()
             local c, h = getChar()
@@ -1144,38 +1330,25 @@ local function setVelocityActive(active)
                 if p:IsA("BasePart") then p.CanCollide = false end
             end
         end)
-        
         log("velocity: on", "Success")
     else
         if not STATES.velocityActive then return end
         STATES.velocityActive = false
-        
-        if STATES.velocityConn then
-            STATES.velocityConn:Disconnect()
-            STATES.velocityConn = nil
-        end
-        
+        if STATES.velocityConn then STATES.velocityConn:Disconnect(); STATES.velocityConn = nil end
         local char, hum = getChar()
-        if hum and STATES.velocitySpeedBackup then
-            hum.WalkSpeed = STATES.velocitySpeedBackup
-        end
+        if hum and STATES.velocitySpeedBackup then hum.WalkSpeed = STATES.velocitySpeedBackup end
         STATES.velocitySpeedBackup = nil
-        
         if char and STATES.velocityCollideBackup then
             for p, state in pairs(STATES.velocityCollideBackup) do
-                if p and p.Parent then
-                    pcall(function() p.CanCollide = state end)
-                end
+                if p and p.Parent then pcall(function() p.CanCollide = state end) end
             end
             STATES.velocityCollideBackup = nil
         end
-        
         log("velocity: off", "Info")
     end
 end
 
 -- ===================== КОМАНДЫ =====================
-local function applyCorner(scale) consoleCorner.CornerRadius = UDim.new(scale, 0) end
 local function resolveKey(name)
     name = name:upper()
     local ok, kc = pcall(function() return Enum.KeyCode[name] end)
@@ -1224,9 +1397,7 @@ setupBind = function(keyName, cmdStr)
     if isHold then
         endConn = UIS.InputEnded:Connect(function(input)
             if input.KeyCode == key then
-                if cmdName == "velocity" then
-                    setVelocityActive(false)
-                end
+                if cmdName == "velocity" then setVelocityActive(false) end
             end
         end)
     end
@@ -1254,14 +1425,15 @@ commands["help"] = function()
     log("  fb/unfb, nofog, tppos x y z, ws, jp, copypos", "Default")
     log("  serverinfo/info, vr, serverhop/shop, joinplayer", "Default")
     log("  creatorid/creator, tools/untools, equipalltools/unequipalltools", "Default")
-    log("  uicorner <scale>, defaultcorner", "Default")
     log("  code/xcode, getf3x, gun/m249, dex, tp <name>", "Default")
     log("  duplicateitem/ditem, destroy/destroytarget", "Default")
     log("  speed/speedhack <n>, defaultspeed/dspeed", "Default")
     log("  enabledrop/edrop, disabledrop", "Default")
-    log("  equipitems (all at once), deleteduplicate/dduplicate/dd", "Default")
+    log("  equipitems, deleteduplicate/dduplicate/dd", "Default")
     log("  ejump/djump, esit/dsit, ezoom/dzoom", "Default")
     log("  velocity (BIND ONLY for PC; toggle command for Phone)", "Default")
+    log("  plugins | plugin <load|unload|reload|list> <name>", "Default")
+    log("  backup <load [name|all]|list|clear>", "Default")
 end
 commands["settings"] = function() openSettings() end
 commands["unload"] = function()
@@ -1270,6 +1442,57 @@ commands["unload"] = function()
     ScreenGui:Destroy()
 end
 commands["exit"] = commands["unload"]
+
+-- Команда: plugins
+commands["plugins"] = function() listPlugins() end
+commands["plugin"] = function(args)
+    local sub = (args[1] or ""):lower()
+    if sub == "reload" and args[2] then unloadPlugin(args[2], true); loadPlugin(args[2])
+    elseif sub == "load" and args[2] then loadPlugin(args[2])
+    elseif sub == "unload" and args[2] then unloadPlugin(args[2])
+    elseif sub == "list" or sub == "" then listPlugins()
+    else log("Usage: plugin <list|load|unload|reload> <name>", "Error") end
+    if saveConfig then pcall(saveConfig) end
+end
+
+-- Команда: backup
+commands["backup"] = function(args)
+    local sub = (args[1] or "list"):lower()
+    if sub == "list" then
+        log("Plugin backups:", "Info")
+        if #backupPlugins == 0 then log("  (none)", "Info") end
+        for i, name in ipairs(backupPlugins) do log("  " .. i .. ". " .. name, "Default") end
+    elseif sub == "load" then
+        local target = args[2]
+        if target then
+            if target:lower() == "all" then
+                local list = {}
+                for _, n in ipairs(backupPlugins) do table.insert(list, n) end
+                backupPlugins = {}
+                for _, n in ipairs(list) do loadPlugin(n) end
+            else
+                for i, n in ipairs(backupPlugins) do
+                    if n:lower() == target:lower() then
+                        table.remove(backupPlugins, i); loadPlugin(n); break
+                    end
+                end
+            end
+        else
+            if #backupPlugins > 0 then
+                local n = table.remove(backupPlugins)
+                loadPlugin(n)
+            else
+                log("No plugin backups", "Error")
+            end
+        end
+    elseif sub == "clear" then
+        backupPlugins = {}
+        log("Backup list cleared", "Info")
+    else
+        log("Usage: backup <load [name|all]|list|clear>", "Error")
+    end
+    if saveConfig then pcall(saveConfig) end
+end
 
 -- Скрытые команды
 commands["theme"] = function(args)
@@ -1280,11 +1503,9 @@ commands["theme"] = function(args)
     if name == "code" then name = SECRET end
     if THEMES[name] then
         if (name == SECRET or name == "win10" or name == "custom") and not premiumEnabled then
-            log("premium required", "Error")
-            return
+            log("premium required", "Error"); return
         end
-        applyTheme(name)
-        if refreshThemeButtons then refreshThemeButtons() end
+        applyTheme(name); if refreshThemeButtons then refreshThemeButtons() end
         log("Theme set: " .. name, "Success")
         if saveConfig then pcall(saveConfig) end
     else
@@ -1296,23 +1517,14 @@ commands["device"] = function(args)
     local name = args[1]
     if not name then log("Usage: device <pc|phone>", "Error"); return end
     name = name:lower()
-    if name == "pc" then
-        currentDevice = "PC"
-    elseif name == "phone" then
-        currentDevice = "Phone"
-    else
-        log("Unknown device: " .. name, "Error"); return
-    end
+    if name == "pc" then currentDevice = "PC"
+    elseif name == "phone" then currentDevice = "Phone"
+    else log("Unknown device: " .. name, "Error"); return end
     updateDeviceVisuals()
     if currentDevice == "PC" then
-        PhoneIconBtn.Visible = false
-        consoleHidden = false
-        ConsoleFrame.Visible = true
+        PhoneIconBtn.Visible = false; consoleHidden = false; ConsoleFrame.Visible = true
     else
-        if consoleHidden then
-            ConsoleFrame.Visible = false
-            PhoneIconBtn.Visible = true
-        end
+        if consoleHidden then ConsoleFrame.Visible = false; PhoneIconBtn.Visible = true end
     end
     log("Device set: " .. name, "Success")
     if saveConfig then pcall(saveConfig) end
@@ -1322,7 +1534,7 @@ commands["filter"] = function(args)
     local filterType = args[1] and args[1]:lower()
     local state = args[2] and args[2]:lower()
     if not filterType then log("Usage: filter <print|warn|error|success|echo> [on|off]", "Error"); return end
-    
+
     local function setFilter(val)
         if val == nil then
             if filterType == "print" then showPrint = not showPrint; val = showPrint
@@ -1340,21 +1552,16 @@ commands["filter"] = function(args)
             elseif filterType == "echo" then showEcho = val
             else log("Unknown filter: " .. filterType, "Error"); return false end
         end
-        
         local function updateBtn(btn, isOn)
             if btn then btn.ImageColor3 = isOn and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
         end
-        updateBtn(filterPrintBtn, showPrint)
-        updateBtn(filterWarnBtn, showWarn)
-        updateBtn(filterErrorBtn, showError)
-        updateBtn(filterSuccessBtn, showSuccess)
+        updateBtn(filterPrintBtn, showPrint); updateBtn(filterWarnBtn, showWarn)
+        updateBtn(filterErrorBtn, showError); updateBtn(filterSuccessBtn, showSuccess)
         updateBtn(filterEchoBtn, showEcho)
-        
         log(string.format("Filter %s: %s", filterType, val and "on" or "off"), "Success")
         if saveConfig then pcall(saveConfig) end
         return true
     end
-    
     setFilter(state)
 end
 
@@ -1362,16 +1569,12 @@ commands["premium"] = function(args)
     local v = args[1]
     if v == "1" then
         premiumEnabled = true
-        secretBtn.Visible = true
-        win10Btn.Visible = true
-        bgRow.Visible = true
+        secretBtn.Visible = true; win10Btn.Visible = true; bgRow.Visible = true
         log("Premium enabled. Code, Windows 10 and Custom background unlocked.", "Success")
         if saveConfig then pcall(saveConfig) end
     elseif v == "0" then
         premiumEnabled = false
-        secretBtn.Visible = false
-        win10Btn.Visible = false
-        bgRow.Visible = false
+        secretBtn.Visible = false; win10Btn.Visible = false; bgRow.Visible = false
         log("Premium disabled", "Info")
         if saveConfig then pcall(saveConfig) end
     else log("Usage: premium <0|1>", "Error") end
@@ -1426,17 +1629,8 @@ commands["copypos"] = function(args)
     else log("Player not found","Error") end
 end
 
-commands["uicorner"] = function(args)
-    local v = tonumber(args[1]); if not v then log("Usage: uicorner <scale>","Error"); return end
-    applyCorner(v); log("Corner set: "..v, "Success")
-end
-commands["defaultcorner"] = function() consoleCorner.CornerRadius = UDim.new(0,6); log("Corner reset to default","Success") end
-
 commands["bind"] = function(args)
-    if currentDevice == "Phone" then
-        log("no access. device is phone", "Error")
-        return
-    end
+    if currentDevice == "Phone" then log("no access. device is phone", "Error"); return end
     if #args < 1 then log("Usage: bind <key> <command> | bind list | bind clear","Error"); return end
     local sub = args[1]:lower()
     if sub == "list" then
@@ -1447,9 +1641,7 @@ commands["bind"] = function(args)
         for _, c in pairs(bindConns) do
             if type(c) == "table" then
                 for _, cc in ipairs(c) do if cc then cc:Disconnect() end end
-            else
-                c:Disconnect()
-            end
+            else c:Disconnect() end
         end
         binds = {}; bindConns = {}; log("All binds cleared","Success")
         if saveConfig then pcall(saveConfig) end
@@ -1463,10 +1655,7 @@ commands["bind"] = function(args)
 end
 
 commands["velocity"] = function(args)
-    if currentDevice == "PC" then
-        log("no access. write bind {key} velocity", "Error")
-        return
-    end
+    if currentDevice == "PC" then log("no access. write bind {key} velocity", "Error"); return end
     setVelocityActive(not STATES.velocityActive)
 end
 
@@ -1544,16 +1733,13 @@ local function equipAllSimultaneous()
     if not char then log("No character","Error"); return end
     local bp = LocalPlayer:FindFirstChild("Backpack")
     if not bp then log("No backpack","Error"); return end
-
     for _, child in ipairs(char:GetChildren()) do
         if child:IsA("Tool") then pcall(function() child.Parent = bp end) end
     end
     task.wait(0.05)
-
     for _, d in ipairs(char:GetDescendants()) do
         if d:IsA("Weld") and d.Name == "XConsoleEquipWeld" then d:Destroy() end
     end
-
     local rightHand = char:FindFirstChild("RightHand") or char:FindFirstChild("Right Arm")
     local leftHand = char:FindFirstChild("LeftHand") or char:FindFirstChild("Left Arm")
     local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
@@ -1564,18 +1750,11 @@ local function equipAllSimultaneous()
     if torso then table.insert(limbs, torso) end
     if head then table.insert(limbs, head) end
     if #limbs == 0 then log("No limbs found on character","Error"); return end
-
     local tools = {}
-    for _, t in ipairs(bp:GetChildren()) do
-        if t:IsA("Tool") then table.insert(tools, t) end
-    end
+    for _, t in ipairs(bp:GetChildren()) do if t:IsA("Tool") then table.insert(tools, t) end end
     if #tools == 0 then log("No tools in Backpack","Info"); return end
-
-    for _, tool in ipairs(tools) do
-        pcall(function() tool.Parent = char end)
-    end
+    for _, tool in ipairs(tools) do pcall(function() tool.Parent = char end) end
     task.wait(0.1)
-
     local count = 0
     for i, tool in ipairs(tools) do
         local handle = tool:FindFirstChild("Handle")
@@ -1588,19 +1767,15 @@ local function equipAllSimultaneous()
                     end
                 end
             end
-
             local limb = limbs[(i - 1) % #limbs + 1]
             local weld = Instance.new("Weld")
             weld.Name = "XConsoleEquipWeld"
-            weld.Part0 = limb
-            weld.Part1 = handle
+            weld.Part0 = limb; weld.Part1 = handle
             local angle = math.rad((i - 1) * 35)
             weld.C0 = CFrame.new(0, -0.2, -0.6 - (i * 0.15)) * CFrame.Angles(angle, 0, 0)
             weld.Parent = limb
             count += 1
-        else
-            count += 1
-        end
+        else count += 1 end
     end
     log("Simultaneously equipped: "..count.." tools (visual — clicking may not use them)", "Success")
 end
@@ -1682,30 +1857,21 @@ local function duplicateHeldItem()
     if not tool then log("No tool in hand","Error"); return end
     local bp = LocalPlayer:FindFirstChild("Backpack")
     if not bp then log("No backpack","Error"); return end
-
     local clone = tool:Clone()
     clone.Name = tool.Name .. "_Copy"
     clone:SetAttribute("XConsoleDuplicate", true)
     clone.Enabled = true
-
     for k, v in pairs(tool:GetAttributes()) do
-        if k ~= "XConsoleDuplicate" then
-            pcall(function() clone:SetAttribute(k, v) end)
-        end
+        if k ~= "XConsoleDuplicate" then pcall(function() clone:SetAttribute(k, v) end) end
     end
-
     pcall(function()
         for _, tag in ipairs(CollectionService:GetTags(tool)) do
             CollectionService:AddTag(clone, tag)
         end
     end)
-
     for _, d in ipairs(clone:GetDescendants()) do
-        if d:IsA("BaseScript") then
-            pcall(function() d.Enabled = true end)
-        end
+        if d:IsA("BaseScript") then pcall(function() d.Enabled = true end) end
     end
-
     local handle = clone:FindFirstChild("Handle")
     if handle and handle:IsA("BasePart") then
         local charParts = {}
@@ -1719,10 +1885,8 @@ local function duplicateHeldItem()
                 end
             end
         end
-        handle.Anchored = false
-        handle.CanCollide = false
+        handle.Anchored = false; handle.CanCollide = false
     end
-
     clone.Parent = bp
     log("Duplicated: "..tool.Name.." (client-side copy)","Success")
 end
@@ -1734,17 +1898,13 @@ local function deleteDuplicates()
     local bp = LocalPlayer:FindFirstChild("Backpack")
     if bp then
         for _, t in ipairs(bp:GetChildren()) do
-            if t:IsA("Tool") and t:GetAttribute("XConsoleDuplicate") then
-                t:Destroy(); n += 1
-            end
+            if t:IsA("Tool") and t:GetAttribute("XConsoleDuplicate") then t:Destroy(); n += 1 end
         end
     end
     local char = LocalPlayer.Character
     if char then
         for _, t in ipairs(char:GetChildren()) do
-            if t:IsA("Tool") and t:GetAttribute("XConsoleDuplicate") then
-                t:Destroy(); n += 1
-            end
+            if t:IsA("Tool") and t:GetAttribute("XConsoleDuplicate") then t:Destroy(); n += 1 end
         end
     end
     log("Deleted duplicated items: "..n, "Success")
@@ -1774,9 +1934,7 @@ local function toggleEnableDrop(on)
     if on then
         STATES.dropConn = RunService.Heartbeat:Connect(forceDroppable)
         log("Dropping of all items enabled","Success")
-    else
-        log("Dropping of all items disabled","Info")
-    end
+    else log("Dropping of all items disabled","Info") end
 end
 commands["enabledrop"] = function() toggleEnableDrop(true) end
 commands["edrop"] = commands["enabledrop"]
@@ -1790,19 +1948,15 @@ local function setSpeed(val)
 end
 
 commands["speed"] = function(args)
-    local v = tonumber(args[1])
-    if not v then log("Usage: speed <value>","Error"); return end
+    local v = tonumber(args[1]); if not v then log("Usage: speed <value>","Error"); return end
     setSpeed(v)
 end
 commands["speedhack"] = commands["speed"]
 
 commands["defaultspeed"] = function()
-    if not speedCaptured or not originalWalkSpeed then
-        captureOriginalSpeed()
-    end
+    if not speedCaptured or not originalWalkSpeed then captureOriginalSpeed() end
     if not originalWalkSpeed then
-        log("Original speed unknown, using 16","Info")
-        setSpeed(16)
+        log("Original speed unknown, using 16","Info"); setSpeed(16)
     else
         setSpeed(originalWalkSpeed)
         log(string.format("Speed reset to original (%.1f)", originalWalkSpeed),"Success")
@@ -1817,21 +1971,13 @@ local function toggleEnableJump(on)
     if on then
         local _, hum = getChar()
         if hum and not STATES.jumpBackup then
-            STATES.jumpBackup = {
-                JumpPower = hum.JumpPower,
-                JumpHeight = hum.JumpHeight,
-                UseJumpPower = hum.UseJumpPower,
-            }
+            STATES.jumpBackup = { JumpPower = hum.JumpPower, JumpHeight = hum.JumpHeight, UseJumpPower = hum.UseJumpPower }
         end
         STATES.jumpConn = RunService.Heartbeat:Connect(function()
             local _, h = getChar()
             if h then
                 if not STATES.jumpBackup then
-                    STATES.jumpBackup = {
-                        JumpPower = h.JumpPower,
-                        JumpHeight = h.JumpHeight,
-                        UseJumpPower = h.UseJumpPower,
-                    }
+                    STATES.jumpBackup = { JumpPower = h.JumpPower, JumpHeight = h.JumpHeight, UseJumpPower = h.UseJumpPower }
                 end
                 pcall(function()
                     if h.UseJumpPower then
@@ -1840,8 +1986,7 @@ local function toggleEnableJump(on)
                         if h.JumpHeight < 7.2 then h.JumpHeight = 7.2 end
                     end
                     if h.JumpPower <= 0 and h.JumpHeight <= 0 then
-                        h.UseJumpPower = true
-                        h.JumpPower = 50
+                        h.UseJumpPower = true; h.JumpPower = 50
                     end
                 end)
             end
@@ -1882,10 +2027,7 @@ local function toggleEnableSit(on)
             if input.KeyCode == Enum.KeyCode.X then
                 if UIS:GetFocusedTextBox() then return end
                 local _, h = getChar()
-                if h then
-                    pcall(function() h.Sit = not h.Sit end)
-                    log("Sit toggled: "..tostring(h.Sit), "Info")
-                end
+                if h then pcall(function() h.Sit = not h.Sit end); log("Sit toggled: "..tostring(h.Sit), "Info") end
             end
         end)
         log("Sit enabled (press X)","Success")
@@ -1964,9 +2106,7 @@ local function setConsoleHidden(hidden)
     end
 end
 
-HideBtn.MouseButton1Click:Connect(function()
-    setConsoleHidden(true)
-end)
+HideBtn.MouseButton1Click:Connect(function() setConsoleHidden(true) end)
 
 UIS.InputBegan:Connect(function(input, gp)
     if input.KeyCode == Enum.KeyCode.RightControl then
@@ -2027,44 +2167,76 @@ CloseBtn.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
-log("CONSOLE loaded. Type help.", "Success")
-log("Type 'settings' to open the panel", "Info")
-log("hide/show Rctrl", "Info")
-
--- ===================== СТАРТОВАЯ АНИМАЦИЯ =====================
+-- ===================== СТАРТОВАЯ АНИМАЦИЯ + РЕАЛЬНАЯ ЗАГРУЗКА =====================
 task.spawn(function()
-    local tInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    
+    local tInfo = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
     TweenService:Create(loadTitle, tInfo, { TextTransparency = 0 }):Play()
-    task.wait(0.2)
+    task.wait(0.18)
     TweenService:Create(loadSubtitle, tInfo, { TextTransparency = 0 }):Play()
-    task.wait(0.15)
+    task.wait(0.12)
     TweenService:Create(loadVersion, tInfo, { TextTransparency = 0 }):Play()
-    task.wait(0.15)
-    
+    task.wait(0.12)
     TweenService:Create(loadBarBg, tInfo, { BackgroundTransparency = 0.5 }):Play()
     TweenService:Create(loadBarFill, tInfo, { BackgroundTransparency = 0 }):Play()
-    
-    local barTween = TweenService:Create(loadBarFill, TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
-        Size = UDim2.new(1, 0, 1, 0)
-    })
-    barTween:Play()
-    barTween.Completed:Wait()
-    task.wait(0.2)
-    
+
+    local function setProgress(pct, msg)
+        if msg then loadSubtitle.Text = msg end
+        TweenService:Create(loadBarFill, TweenInfo.new(0.22, Enum.EasingStyle.Quad), {
+            Size = UDim2.new(pct, 0, 1, 0)
+        }):Play()
+    end
+
+    setProgress(0.10, "waiting for game...")
+    local t0 = tick()
+    while not game:IsLoaded() and tick() - t0 < 10 do task.wait(0.05) end
+
+    setProgress(0.30, "waiting for player...")
+    local t1 = tick()
+    while (not LocalPlayer or not LocalPlayer.Character) and tick() - t1 < 6 do
+        pcall(function() if LocalPlayer and not LocalPlayer.Character then LocalPlayer.CharacterAdded:Wait() end end)
+        task.wait(0.05)
+    end
+
+    setProgress(0.55, "preloading assets...")
+    local assets = {}
+    for _, d in ipairs(ScreenGui:GetDescendants()) do
+        if (d:IsA("ImageLabel") or d:IsA("ImageButton")) and d.Image ~= "" and d.Image ~= nil then
+            table.insert(assets, d.Image)
+        end
+    end
+    if #assets > 0 then
+        local done = false
+        task.spawn(function()
+            pcall(function() ContentProvider:PreloadAsync(assets) end)
+            done = true
+        end)
+        local t2 = tick()
+        while not done and tick() - t2 < 8 do task.wait(0.05) end
+    end
+
+    setProgress(0.80, "finalizing...")
+    if LocalPlayer.Character then
+        pcall(function() LocalPlayer.Character:WaitForChild("Humanoid", 3) end)
+    end
+
+    setProgress(1.00, "ready")
+    task.wait(0.35)
+
     local fadeInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-    TweenService:Create(LoadingCard, fadeInfo, { BackgroundTransparency = 1, Position = LoadingCard.Position - UDim2.new(0, 0, 0, 15) }):Play()
+    TweenService:Create(LoadingCard, fadeInfo, {
+        BackgroundTransparency = 1, Position = LoadingCard.Position - UDim2.new(0, 0, 0, 15)
+    }):Play()
     TweenService:Create(loadStroke, fadeInfo, { Transparency = 1 }):Play()
     TweenService:Create(loadTitle, fadeInfo, { TextTransparency = 1 }):Play()
     TweenService:Create(loadSubtitle, fadeInfo, { TextTransparency = 1 }):Play()
     TweenService:Create(loadVersion, fadeInfo, { TextTransparency = 1 }):Play()
     TweenService:Create(loadBarBg, fadeInfo, { BackgroundTransparency = 1 }):Play()
     local lastFade = TweenService:Create(loadBarFill, fadeInfo, { BackgroundTransparency = 1 })
-    lastFade:Play()
-    lastFade.Completed:Wait()
-    
+    lastFade:Play(); lastFade.Completed:Wait()
+
     LoadingCard:Destroy()
-    
+
     if currentDevice == "Phone" and consoleHidden then
         PhoneIconBtn.Visible = true
     else
@@ -2074,9 +2246,11 @@ end)
 
 task.defer(function()
     task.wait(0.1)
-    if isfile then
-        pcall(loadConfig)
-    end
+    if isfile then pcall(loadConfig) end
     task.wait(0.5)
     captureOriginalSpeed()
 end)
+
+log("CONSOLE loaded. Type help.", "Success")
+log("Type 'settings' to open the panel", "Info")
+log("hide/show Rctrl", "Info")
