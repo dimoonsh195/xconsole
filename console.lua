@@ -35,8 +35,7 @@ themeButtons = {}
 local pluginCommands = {}    -- cmdName -> pluginName
 local loadedPlugins = {}     -- pluginName -> {meta=, api=}
 local pluginEventHooks = {}  -- evName -> { fn, fn, ... }
-local backupPlugins = {}     -- list of unloaded plugin names
--- ТУТ ИЗМЕНЕНИЕ: Ищем плагины прямо в workspace
+local backupPlugins = {}     -- list of unloaded/saved plugin names
 local PLUGIN_FOLDER = ""     
 local PLUGIN_EXT = ".xconr"
 
@@ -110,7 +109,6 @@ local STATES = {
 local originalWalkSpeed = nil
 local speedCaptured = false
 local consoleHidden = false
-
 local CONFIG_FILE = "xconsole_config.json"
 
 local function getGuiParent()
@@ -667,7 +665,9 @@ applyThemeToSettings = function(t)
     for n, btn in pairs(themeButtons) do
         btn.BackgroundColor3 = (currentTheme == n) and t.accent or t.input
     end
+    -- СДЕСЬ ИСПРАВЛЕН ЦВЕТ НАСТРОЕК (как у обычного фона)
     SettingsFrame.BackgroundColor3 = t.background
+    SettingsFrame.BackgroundTransparency = ConsoleFrame.BackgroundTransparency
 end
 
 local function applyTheme(name)
@@ -679,6 +679,10 @@ local function applyTheme(name)
     LogFrame.BackgroundColor3 = t.log
     CommandBox.TextColor3 = t.accent
     stroke.Color = t.stroke; LogFrame.ScrollBarImageColor3 = t.accent
+
+    -- СДЕСЬ ИСПРАВЛЕН ЦВЕТ НАСТРОЕК
+    SettingsFrame.BackgroundColor3 = t.background
+    SettingsFrame.BackgroundTransparency = ConsoleFrame.BackgroundTransparency
 
     if name == SECRET then
         bgImage.Image = getThumb("5456915026"); bgImage.Visible = true
@@ -697,6 +701,8 @@ local function applyTheme(name)
         ConsoleFrame.BackgroundTransparency = 0.1; LogFrame.BackgroundTransparency = 0.3
         InputFrame.BackgroundTransparency = 0.2; Header.BackgroundTransparency = 0.2
     end
+    
+    SettingsFrame.BackgroundTransparency = ConsoleFrame.BackgroundTransparency
     applyThemeToSettings(t)
 end
 
@@ -704,7 +710,7 @@ end
 SettingsFrame = Instance.new("Frame")
 SettingsFrame.Size = UDim2.new(1,0,1,0); SettingsFrame.Position = UDim2.new(0,0,0,0)
 SettingsFrame.BackgroundColor3 = THEMES.default.background
-SettingsFrame.BackgroundTransparency = 0.05; SettingsFrame.BorderSizePixel = 0
+SettingsFrame.BackgroundTransparency = ConsoleFrame.BackgroundTransparency; SettingsFrame.BorderSizePixel = 0
 SettingsFrame.Visible = false; SettingsFrame.ZIndex = 10; SettingsFrame.Parent = ConsoleFrame
 Instance.new("UICorner", SettingsFrame).CornerRadius = UDim.new(0,6)
 
@@ -760,7 +766,7 @@ local function openSettings()
     HideBtn.Visible = false; CloseBtn.Visible = false
     ExtraIcon.Visible = false; SettingsBtn.Visible = false
     TweenService:Create(SettingsFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
-        BackgroundTransparency = 0.05, Position = UDim2.new(0,0,0,0),
+        BackgroundTransparency = ConsoleFrame.BackgroundTransparency, Position = UDim2.new(0,0,0,0),
     }):Play()
 end
 local function closeSettings()
@@ -1029,10 +1035,6 @@ for _, evName in ipairs({"onKilled","onDied","onSpawn","onExecute","onJoin","onD
 end
 
 -- ===================== ПЛАГИНЫ =====================
-local function ensurePluginFolder()
-    -- Так как ищем прямо в корне (workspace), создавать папку не нужно
-end
-
 local function makePluginAPI(pluginName)
     local api = {}
     api.pluginName = pluginName
@@ -1124,7 +1126,6 @@ local function loadPlugin(pluginName)
         return false
     end
     
-    -- ТУТ ТОЖЕ: Ищем просто "pluginName.xconr" без папок
     local path = pluginName .. PLUGIN_EXT
     if not (isfile and isfile(path)) then
         log("Plugin file not found: " .. path, "Error")
@@ -1202,7 +1203,7 @@ end
 
 -- ---- UI строка Manage Plugins ----
 local pluginRow = Instance.new("Frame")
-pluginRow.Size = UDim2.new(1,-20,0,140); pluginRow.BackgroundTransparency = 1; pluginRow.ZIndex = 11
+pluginRow.Size = UDim2.new(1,-20,0,170); pluginRow.BackgroundTransparency = 1; pluginRow.ZIndex = 11
 local pluginLabel = makeLabel(pluginRow, "Manage Plugins", 0, 18)
 
 local pluginBox = Instance.new("TextBox")
@@ -1213,24 +1214,42 @@ pluginBox.PlaceholderText = "plugin name (no .xconr)"
 pluginBox.ClearTextOnFocus = false; pluginBox.ZIndex = 12; pluginBox.Parent = pluginRow
 Instance.new("UICorner", pluginBox).CornerRadius = UDim.new(0,4)
 
-makeButton(pluginRow, "Load",   210, 22, 70, 26, function()
+makeButton(pluginRow, "Load",   210, 22, 50, 26, function()
     if pluginBox.Text == "" then log("Enter plugin name", "Error"); return end
     loadPlugin(pluginBox.Text); if saveConfig then pcall(saveConfig) end
 end)
-makeButton(pluginRow, "Unload", 290, 22, 70, 26, function()
+makeButton(pluginRow, "Unload", 265, 22, 60, 26, function()
     if pluginBox.Text == "" then log("Enter plugin name", "Error"); return end
     unloadPlugin(pluginBox.Text); if saveConfig then pcall(saveConfig) end
 end)
-makeButton(pluginRow, "List",   370, 22, 70, 26, function() listPlugins() end)
+makeButton(pluginRow, "List",   330, 22, 50, 26, function() listPlugins() end)
+makeButton(pluginRow, "Reload", 385, 22, 60, 26, function()
+    if pluginBox.Text == "" then log("Enter plugin name", "Error"); return end
+    unloadPlugin(pluginBox.Text, true); loadPlugin(pluginBox.Text)
+end)
+
+makeButton(pluginRow, "SaveB",   0, 52, 80, 26, function()
+    if pluginBox.Text == "" then log("Enter plugin name", "Error"); return end
+    table.insert(backupPlugins, pluginBox.Text)
+    log("Saved to backup: " .. pluginBox.Text, "Success")
+    if saveConfig then pcall(saveConfig) end
+end)
+makeButton(pluginRow, "LoadB",  85, 52, 80, 26, function()
+    if #backupPlugins == 0 then log("No saved plugins", "Error"); return end
+    local list = {}
+    for _, n in ipairs(backupPlugins) do table.insert(list, n) end
+    backupPlugins = {}
+    for _, n in ipairs(list) do loadPlugin(n) end
+end)
 
 -- Текст подсказок изменен на workspace
-local pluginHint = makeLabel(pluginRow, "Folder: workspace (root)", 56, 16)
+local pluginHint = makeLabel(pluginRow, "Folder: workspace (root)", 85, 16)
 pluginHint.TextSize = 11; pluginHint.TextColor3 = Color3.fromRGB(150,150,150)
-local pluginHint2 = makeLabel(pluginRow, "Example: legacyconsole" .. PLUGIN_EXT, 76, 16)
+local pluginHint2 = makeLabel(pluginRow, "Example: legacyconsole" .. PLUGIN_EXT, 105, 16)
 pluginHint2.TextSize = 11; pluginHint2.TextColor3 = Color3.fromRGB(150,150,150)
-local pluginHint3 = makeLabel(pluginRow, "Reload = Unload → Load. Unloaded plugins go to backup list, restore with `backup load`.", 96, 16)
+local pluginHint3 = makeLabel(pluginRow, "Reload = Unload → Load. Unloaded plugins go to backup list, restore with `backup load`.", 125, 16)
 pluginHint3.TextSize = 11; pluginHint3.TextColor3 = Color3.fromRGB(150,150,150)
-local pluginHint4 = makeLabel(pluginRow, "Backup: `backup list` / `backup load [name|all]` / `backup clear`", 116, 16)
+local pluginHint4 = makeLabel(pluginRow, "Backup: `backup list` / `backup load [name|all]` / `backup clear`", 145, 16)
 pluginHint4.TextSize = 11; pluginHint4.TextColor3 = Color3.fromRGB(150,150,150)
 
 addSettingRow(pluginRow)
