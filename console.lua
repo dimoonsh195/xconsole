@@ -665,7 +665,7 @@ applyThemeToSettings = function(t)
     for n, btn in pairs(themeButtons) do
         btn.BackgroundColor3 = (currentTheme == n) and t.accent or t.input
     end
-    -- СДЕСЬ ИСПРАВЛЕН ЦВЕТ НАСТРОЕК (как у обычного фона)
+    -- ЦВЕТ НАСТРОЕК КАК У ОБЫЧНОГО ФОНА
     SettingsFrame.BackgroundColor3 = t.background
     SettingsFrame.BackgroundTransparency = ConsoleFrame.BackgroundTransparency
 end
@@ -680,7 +680,7 @@ local function applyTheme(name)
     CommandBox.TextColor3 = t.accent
     stroke.Color = t.stroke; LogFrame.ScrollBarImageColor3 = t.accent
 
-    -- СДЕСЬ ИСПРАВЛЕН ЦВЕТ НАСТРОЕК
+    -- ЦВЕТ НАСТРОЕК КАК У ОБЫЧНОГО ФОНА
     SettingsFrame.BackgroundColor3 = t.background
     SettingsFrame.BackgroundTransparency = ConsoleFrame.BackgroundTransparency
 
@@ -1228,6 +1228,7 @@ makeButton(pluginRow, "Reload", 385, 22, 60, 26, function()
     unloadPlugin(pluginBox.Text, true); loadPlugin(pluginBox.Text)
 end)
 
+-- Кнопки сохранения и загрузки бэкапа
 makeButton(pluginRow, "SaveB",   0, 52, 80, 26, function()
     if pluginBox.Text == "" then log("Enter plugin name", "Error"); return end
     table.insert(backupPlugins, pluginBox.Text)
@@ -1242,7 +1243,6 @@ makeButton(pluginRow, "LoadB",  85, 52, 80, 26, function()
     for _, n in ipairs(list) do loadPlugin(n) end
 end)
 
--- Текст подсказок изменен на workspace
 local pluginHint = makeLabel(pluginRow, "Folder: workspace (root)", 85, 16)
 pluginHint.TextSize = 11; pluginHint.TextColor3 = Color3.fromRGB(150,150,150)
 local pluginHint2 = makeLabel(pluginRow, "Example: legacyconsole" .. PLUGIN_EXT, 105, 16)
