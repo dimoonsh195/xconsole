@@ -210,13 +210,20 @@ PhoneIconBtn.MouseButton1Click:Connect(function()
     PhoneIconBtn.Visible = false
 end)
 
+-- ===== ФОН ЛОГА (отдельный объект, НЕ родитель текста) =====
+local LogBg = Instance.new("Frame")
+LogBg.Size = UDim2.new(1,-10,1,-75); LogBg.Position = UDim2.new(0,5,0,35)
+LogBg.BackgroundColor3 = THEMES.default.log; LogBg.BackgroundTransparency = 0
+LogBg.BorderSizePixel = 0; LogBg.ZIndex = 1; LogBg.Parent = ConsoleFrame
+Instance.new("UICorner", LogBg).CornerRadius = UDim.new(0,4)
+
+-- ===== САМ ЛОГ (полностью прозрачный ScrollingFrame, только текст) =====
 local LogFrame = Instance.new("ScrollingFrame")
 LogFrame.Size = UDim2.new(1,-10,1,-75); LogFrame.Position = UDim2.new(0,5,0,35)
-LogFrame.BackgroundColor3 = THEMES.default.log; LogFrame.BackgroundTransparency = 0
+LogFrame.BackgroundTransparency = 1
 LogFrame.BorderSizePixel = 0; LogFrame.ScrollBarThickness = 4
 LogFrame.ScrollBarImageColor3 = THEMES.default.accent; LogFrame.CanvasSize = UDim2.new(0,0,0,0)
-LogFrame.ZIndex = 2; LogFrame.Parent = ConsoleFrame
-Instance.new("UICorner", LogFrame).CornerRadius = UDim.new(0,4)
+LogFrame.ZIndex = 5; LogFrame.Parent = ConsoleFrame
 
 local logLayout = Instance.new("UIListLayout")
 logLayout.SortOrder = Enum.SortOrder.LayoutOrder; logLayout.Padding = UDim.new(0,2); logLayout.Parent = LogFrame
@@ -245,26 +252,35 @@ ResizeHandle.Parent = ConsoleFrame
 Instance.new("UICorner", ResizeHandle).CornerRadius = UDim.new(0,4)
 
 -- ===================== ЛОГ =====================
-local function log(text, colorType)
-    local pass = true
-    if colorType == "Error" and not showError then pass = false end
-    if colorType == "Info" and not showWarn then pass = false end
-    if colorType == "Success" and not showSuccess then pass = false end
-    if colorType == "Echo" and not showEcho then pass = false end
-    if (not colorType or colorType == "Default" or colorType == "Output") and not showPrint then pass = false end
-
-    if not pass then return end
+local function log(text, colorType, force)
+    if not force then
+        local pass = true
+        if colorType == "Error" and not showError then pass = false end
+        if colorType == "Info" and not showWarn then pass = false end
+        if colorType == "Success" and not showSuccess then pass = false end
+        if colorType == "Echo" and not showEcho then pass = false end
+        if (not colorType or colorType == "Default" or colorType == "Output") and not showPrint then pass = false end
+        if not pass then return end
+    end
 
     local color = COLORS[colorType] or COLORS.Default
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1,-5,0,18); label.BackgroundTransparency = 1
-    label.Text = "> " .. tostring(text); label.TextColor3 = color
-    label.Font = CONFIG.Font; label.TextSize = 14; label.TextXAlignment = Enum.TextXAlignment.Left
-    label.ZIndex = 3
+    label.Size = UDim2.new(1,-5,0,18)
+    label.BackgroundTransparency = 1
+    label.Text = "> " .. tostring(text)
+    label.TextColor3 = color
+    label.Font = CONFIG.Font
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 6
     label.Parent = LogFrame
-    LogFrame.CanvasSize = UDim2.new(0,0,0, logLayout.AbsoluteContentSize.Y + 10)
-    task.wait()
-    LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
+
+    task.defer(function()
+        if not label.Parent then return end
+        local h = logLayout.AbsoluteContentSize.Y + 10
+        LogFrame.CanvasSize = UDim2.new(0,0,0, h)
+        LogFrame.CanvasPosition = Vector2.new(0, math.max(0, h - LogFrame.AbsoluteWindowSize.Y))
+    end)
 end
 
 local function getSystemLogData(mt)
@@ -287,15 +303,22 @@ logConnection = LogService.MessageOut:Connect(function(message, messageType)
     if not pass then return end
 
     local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1,-5,0,18); label.BackgroundTransparency = 1
+    label.Size = UDim2.new(1,-5,0,18)
+    label.BackgroundTransparency = 1
     label.Text = string.format("%s %s", prefix, tostring(message))
-    label.TextColor3 = color; label.Font = CONFIG.Font; label.TextSize = 14
+    label.TextColor3 = color
+    label.Font = CONFIG.Font
+    label.TextSize = 14
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.ZIndex = 3
+    label.ZIndex = 6
     label.Parent = LogFrame
-    LogFrame.CanvasSize = UDim2.new(0,0,0, logLayout.AbsoluteContentSize.Y + 10)
-    task.wait()
-    LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
+
+    task.defer(function()
+        if not label.Parent then return end
+        local h = logLayout.AbsoluteContentSize.Y + 10
+        LogFrame.CanvasSize = UDim2.new(0,0,0, h)
+        LogFrame.CanvasPosition = Vector2.new(0, math.max(0, h - LogFrame.AbsoluteWindowSize.Y))
+    end)
 end)
 
 -- ===================== LUA EXEC =====================
@@ -342,6 +365,7 @@ local function applyTheme(name)
     Header.BackgroundColor3 = t.header
     InputFrame.BackgroundColor3 = t.input
     LogFrame.BackgroundColor3 = t.log
+    LogBg.BackgroundColor3 = t.log
     CommandBox.TextColor3 = t.accent
     stroke.Color = t.stroke; LogFrame.ScrollBarImageColor3 = t.accent
 
@@ -350,24 +374,24 @@ local function applyTheme(name)
 
     if name == SECRET then
         bgImage.Image = getThumb("5456915026"); bgImage.Visible = true
-        ConsoleFrame.BackgroundTransparency = 0.9; LogFrame.BackgroundTransparency = 0.55
+        ConsoleFrame.BackgroundTransparency = 0.9; LogBg.BackgroundTransparency = 0.55
         InputFrame.BackgroundTransparency = 0.45; Header.BackgroundTransparency = 0.45
     elseif name == "win10" then
         bgImage.Image = getThumb(WIN10_THEME_ID); bgImage.Visible = true
-        ConsoleFrame.BackgroundTransparency = 0.85; LogFrame.BackgroundTransparency = 0.5
+        ConsoleFrame.BackgroundTransparency = 0.85; LogBg.BackgroundTransparency = 0.5
         InputFrame.BackgroundTransparency = 0.4; Header.BackgroundTransparency = 0.4
     elseif name == "custom" then
         bgImage.Image = getThumb(customBgId); bgImage.Visible = true
-        ConsoleFrame.BackgroundTransparency = 0.85; LogFrame.BackgroundTransparency = 0.5
+        ConsoleFrame.BackgroundTransparency = 0.85; LogBg.BackgroundTransparency = 0.5
         InputFrame.BackgroundTransparency = 0.4; Header.BackgroundTransparency = 0.4
     else
         bgImage.Visible = false
         ConsoleFrame.BackgroundTransparency = 0
-        LogFrame.BackgroundTransparency = 0
+        LogBg.BackgroundTransparency = 0
         InputFrame.BackgroundTransparency = 0
         Header.BackgroundTransparency = 0
     end
-    
+
     SettingsFrame.BackgroundTransparency = 0
     applyThemeToSettings(t)
 end
@@ -672,7 +696,7 @@ local function loadConfig()
     local ok, err = pcall(function()
         if isfile and isfile(CONFIG_FILE) then
             applyConfig(HttpService:JSONDecode(readfile(CONFIG_FILE)))
-            log("Config loaded", "Success")
+            log("Config loaded", "Success", true)
         end
     end)
     if not ok then log("Config operation failed: "..tostring(err), "Error") end
@@ -762,7 +786,6 @@ local function makePluginAPI(pluginName)
     end
     api.setTheme = function(name) applyTheme(name); if saveConfig then pcall(saveConfig) end end
 
-    -- ФУНКЦИЯ ДЛЯ СБРОСА ВЫДЕЛЕННОЙ ТЕМЫ
     api.resetTheme = function()
         currentTheme = "none"
         if refreshThemeButtons then refreshThemeButtons() end
@@ -803,7 +826,7 @@ local function loadPlugin(pluginName)
         log("Plugin already loaded: " .. pluginName, "Info")
         return false
     end
-    
+
     local path = pluginName .. PLUGIN_EXT
     if not (isfile and isfile(path)) then
         log("Plugin file not found: " .. path, "Error")
@@ -959,7 +982,7 @@ local function captureOriginalSpeed()
     if hum and not speedCaptured then
         originalWalkSpeed = hum.WalkSpeed
         speedCaptured = true
-        log(string.format("Original WalkSpeed captured: %.1f", originalWalkSpeed), "Info")
+        log(string.format("Original WalkSpeed captured: %.1f", originalWalkSpeed), "Info", true)
     end
 end
 
@@ -968,7 +991,7 @@ local function watchCharacter(char)
     if hum then
         if not speedCaptured then
             originalWalkSpeed = hum.WalkSpeed; speedCaptured = true
-            log(string.format("Original WalkSpeed captured: %.1f", originalWalkSpeed), "Info")
+            log(string.format("Original WalkSpeed captured: %.1f", originalWalkSpeed), "Info", true)
         end
         local lastHealth = hum.Health
         hum.Died:Connect(function() runEvent("onDied") end)
@@ -2014,4 +2037,7 @@ task.defer(function()
     if isfile then pcall(loadConfig) end
     task.wait(0.5)
     captureOriginalSpeed()
+    -- ПРОВЕРКА: если через 1 сек после старта не появилось сообщение — принудительно
+    task.wait(1)
+    log("=== XCONSOLE READY ===", "Success", true)
 end)
