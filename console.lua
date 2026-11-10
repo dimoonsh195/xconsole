@@ -1297,6 +1297,317 @@ commands["premium"] = function(args)
     else log("Usage: premium <0|1>", "Error") end
 end
 
+-- ===================== НЕДОСТАЮЩИЕ РЕАЛИЗАЦИИ =====================
+
+-- палитра для команды color
+CMD_COLORS = CMD_COLORS or {
+    R=Color3.fromRGB(255,0,0),    G=Color3.fromRGB(0,255,0),
+    B=Color3.fromRGB(0,0,255),    Y=Color3.fromRGB(255,255,0),
+    W=Color3.fromRGB(255,255,255),K=Color3.fromRGB(0,0,0),
+    O=Color3.fromRGB(255,140,0),  P=Color3.fromRGB(160,0,255),
+    C=Color3.fromRGB(0,255,255),  M=Color3.fromRGB(255,0,255),
+    A=Color3.fromRGB(128,128,128),S=Color3.fromRGB(200,200,200),
+}
+
+-- ---------- FLY ----------
+local flyBV, flyBG
+function toggleFly(on)
+    if on == STATES.flying then return end
+    STATES.flying = on
+    if STATES.flyConn then STATES.flyConn:Disconnect(); STATES.flyConn = nil end
+    if flyBV then flyBV:Destroy(); flyBV = nil end
+    if flyBG then flyBG:Destroy(); flyBG = nil end
+    if on then
+        local _, hum, hrp = getChar()
+        if not hrp then log("No character","Error"); STATES.flying=false; return end
+        flyBV = Instance.new("BodyVelocity")
+        flyBV.MaxForce = Vector3.new(1e5,1e5,1e5)
+        flyBV.Velocity = Vector3.zero
+        flyBV.Parent = hrp
+        flyBG = Instance.new("BodyGyro")
+        flyBG.MaxTorque = Vector3.new(1e5,1e5,1e5)
+        flyBG.P = 2000
+        flyBG.Parent = hrp
+        STATES.flyConn = RunService.RenderStepped:Connect(function()
+            local _, _, root = getChar()
+            if not root then return end
+            if not flyBV or not flyBV.Parent then return end
+            local cam = Workspace.CurrentCamera
+            local move = Vector3.zero
+            if UIS:IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0,1,0) end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then move -= Vector3.new(0,1,0) end
+            flyBV.Velocity = move * 50
+            flyBG.CFrame = cam.CFrame
+        end)
+    end
+end
+
+-- ---------- NOCLIP ----------
+function toggleNoclip(on)
+    STATES.noclip = on
+    if STATES.noclipConn then STATES.noclipConn:Disconnect(); STATES.noclipConn = nil end
+    if on then
+        STATES.noclipConn = RunService.Stepped:Connect(function()
+            local char = LocalPlayer.Character
+            if not char then return end
+            for _, p in ipairs(char:GetDescendants()) do
+                if p:IsA("BasePart") and p.CanCollide then p.CanCollide = false end
+            end
+        end)
+    else
+        local char = LocalPlayer.Character
+        if char then
+            for _, p in ipairs(char:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = true end
+            end
+        end
+    end
+end
+
+-- ---------- ESP ----------
+local espHighlights = {}
+function toggleESP(on)
+    STATES.esp = on
+    for _, h in pairs(espHighlights) do
+        if h and h.Parent then h:Destroy() end
+    end
+    espHighlights = {}
+    if on then
+        local function addESP(plr)
+            if plr == LocalPlayer then return end
+            local function bind(char)
+                if espHighlights[plr] and espHighlights[plr].Parent then return end
+                local hl = Instance.new("Highlight")
+                hl.FillColor = Color3.fromRGB(255,0,0)
+                hl.OutlineColor = Color3.fromRGB(255,255,255)
+                hl.FillTransparency = 0.5
+                hl.OutlineTransparency = 0
+                hl.Adornee = char
+                hl.Parent = char
+                espHighlights[plr] = hl
+            end
+            plr.CharacterAdded:Connect(bind)
+            if plr.Character then bind(plr.Character) end
+        end
+        for _, p in ipairs(Players:GetPlayers()) do addESP(p) end
+        if not STATES.espConn then
+            STATES.espConn = Players.PlayerAdded:Connect(addESP)
+        end
+    else
+        if STATES.espConn then STATES.espConn:Disconnect(); STATES.espConn = nil end
+    end
+end
+
+-- ---------- SWIM ----------
+function toggleSwim(on)
+    STATES.swim = on
+    if STATES.swimConn then STATES.swimConn:Disconnect(); STATES.swimConn = nil end
+    if on then
+        STATES.swimConn = RunService.Heartbeat:Connect(function()
+            local _, hum = getChar()
+            if hum then
+                pcall(function()
+                    hum:ChangeState(Enum.HumanoidStateType.Swimming)
+                end)
+            end
+        end)
+    end
+end
+
+-- ---------- FLING ----------
+function toggleFling(on)
+    STATES.fling = on
+    if STATES.flingConn then STATES.flingConn:Disconnect(); STATES.flingConn = nil end
+    if on then
+        STATES.flingConn = RunService.Heartbeat:Connect(function()
+            local _, _, myHrp = getChar()
+            if not myHrp then return end
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr ~= LocalPlayer and plr.Character then
+                    local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+                    if hrp and (hrp.Position - myHrp.Position).Magnitude < 10 then
+                        pcall(function()
+                            hrp.AssemblyAngularVelocity = Vector3.new(9999,9999,9999)
+                            hrp.AssemblyLinearVelocity = Vector3.new(9999,9999,9999)
+                        end)
+                    end
+                end
+            end
+        end)
+    end
+end
+
+-- ---------- INFINITE JUMP ----------
+function toggleInfJump(on)
+    STATES.infjump = on
+    if STATES.infjumpConn then STATES.infjumpConn:Disconnect(); STATES.infjumpConn = nil end
+    if on then
+        STATES.infjumpConn = UIS.JumpRequest:Connect(function()
+            local _, hum = getChar()
+            if hum then
+                pcall(function()
+                    hum:ChangeState(Enum.HumanoidStateType.Jumping)
+                end)
+            end
+        end)
+    end
+end
+
+-- ---------- SPASM ----------
+function toggleSpasm(on)
+    STATES.spasm = on
+    if STATES.spasmConn then STATES.spasmConn:Disconnect(); STATES.spasmConn = nil end
+    if on then
+        STATES.spasmConn = RunService.Heartbeat:Connect(function()
+            local _, _, hrp = getChar()
+            if not hrp then return end
+            pcall(function()
+                hrp.CFrame = hrp.CFrame * CFrame.new(
+                    (math.random()-0.5)*2,
+                    (math.random()-0.5)*2,
+                    (math.random()-0.5)*2
+                )
+            end)
+        end)
+    end
+end
+
+-- ---------- FULLBRIGHT ----------
+function toggleFullbright(on)
+    if on then
+        if not STATES.fbBackup then
+            STATES.fbBackup = {
+                Ambient = Lighting.Ambient,
+                OutdoorAmbient = Lighting.OutdoorAmbient,
+                Brightness = Lighting.Brightness,
+                ClockTime = Lighting.ClockTime,
+                FogEnd = Lighting.FogEnd,
+                GlobalShadows = Lighting.GlobalShadows,
+            }
+        end
+        Lighting.Ambient = Color3.fromRGB(255,255,255)
+        Lighting.OutdoorAmbient = Color3.fromRGB(255,255,255)
+        Lighting.Brightness = 3
+        Lighting.ClockTime = 12
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 1e6
+        STATES.fullbright = true
+    else
+        if STATES.fbBackup then
+            Lighting.Ambient = STATES.fbBackup.Ambient
+            Lighting.OutdoorAmbient = STATES.fbBackup.OutdoorAmbient
+            Lighting.Brightness = STATES.fbBackup.Brightness
+            Lighting.ClockTime = STATES.fbBackup.ClockTime
+            Lighting.FogEnd = STATES.fbBackup.FogEnd
+            Lighting.GlobalShadows = STATES.fbBackup.GlobalShadows
+            STATES.fbBackup = nil
+        end
+        STATES.fullbright = false
+    end
+end
+
+-- ---------- NOFOG ----------
+function toggleNofog(on)
+    if on then
+        if not STATES.fogBackup then
+            STATES.fogBackup = { FogEnd = Lighting.FogEnd, FogStart = Lighting.FogStart }
+        end
+        Lighting.FogEnd = 1e6
+        Lighting.FogStart = 0
+        STATES.nofog = true
+    else
+        if STATES.fogBackup then
+            Lighting.FogEnd = STATES.fogBackup.FogEnd
+            Lighting.FogStart = STATES.fogBackup.FogStart
+            STATES.fogBackup = nil
+        end
+        STATES.nofog = false
+    end
+end
+
+-- ---------- GUN ----------
+function giveGun()
+    local char = LocalPlayer.Character
+    if not char then log("No character","Error"); return end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if not bp then log("No backpack","Error"); return end
+
+    local tool = Instance.new("Tool")
+    tool.Name = "XConsoleGun"
+    tool.RequiresHandle = true
+    tool.CanBeDropped = false
+
+    local handle = Instance.new("Part")
+    handle.Name = "Handle"
+    handle.Size = Vector3.new(1,1,2)
+    handle.Color = Color3.fromRGB(40,40,40)
+    handle.Material = Enum.Material.Metal
+    handle.Parent = tool
+
+    local muzzle = Instance.new("Attachment")
+    muzzle.Position = Vector3.new(0,0,-1)
+    muzzle.Parent = handle
+
+    local beam = Instance.new("Beam")
+    beam.Attachment0 = muzzle
+    beam.Attachment1 = muzzle
+    beam.Enabled = false
+    beam.Parent = handle
+
+    tool.Activated:Connect(function()
+        local mouse = LocalPlayer:GetMouse()
+        local origin = handle.Position
+        local targetPos = mouse.Hit.Position
+        local dir = (targetPos - origin)
+        if dir.Magnitude < 0.01 then return end
+        dir = dir.Unit
+
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances = {char}
+
+        local result = Workspace:Raycast(origin, dir * 500, params)
+        local hitPos = result and result.Position or (origin + dir * 500)
+
+        local part = Instance.new("Part")
+        part.Size = Vector3.new(0.15,0.15,0.15)
+        part.Color = Color3.fromRGB(255,255,0)
+        part.Material = Enum.Material.Neon
+        part.CanCollide = false
+        part.Anchored = true
+        part.CFrame = CFrame.new(origin + dir * 2)
+        part.Parent = Workspace
+        Debris:AddItem(part, 0.1)
+
+        local att1 = Instance.new("Attachment")
+        att1.Position = Vector3.zero
+        att1.Parent = part
+        local tempBeam = Instance.new("Beam")
+        tempBeam.Attachment0 = muzzle
+        tempBeam.Attachment1 = att1
+        tempBeam.Width0 = 0.15
+        tempBeam.Width1 = 0.15
+        tempBeam.Color = ColorSequence.new(Color3.fromRGB(255,255,0))
+        tempBeam.FaceCamera = true
+        tempBeam.Parent = handle
+        Debris:AddItem(tempBeam, 0.1)
+
+        if result and result.Instance then
+            local hum = result.Instance.Parent and result.Instance.Parent:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Parent ~= char then
+                pcall(function() hum:TakeDamage(20) end)
+            end
+        end
+    end)
+
+    tool.Parent = bp
+    log("Gun added to backpack (client-side). Equip and click.","Success")
+end
+
 commands["fly"]    = function() toggleFly(true); log("Fly enabled","Success") end
 commands["unfly"]  = function() toggleFly(false); log("Fly disabled","Success") end
 commands["noclip"] = function() toggleNoclip(true); log("Noclip enabled","Success") end
