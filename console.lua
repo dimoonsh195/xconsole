@@ -260,6 +260,7 @@ local function log(text, colorType)
     label.Size = UDim2.new(1,-5,0,18); label.BackgroundTransparency = 1
     label.Text = "> " .. tostring(text); label.TextColor3 = color
     label.Font = CONFIG.Font; label.TextSize = 14; label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 3
     label.Parent = LogFrame
     LogFrame.CanvasSize = UDim2.new(0,0,0, logLayout.AbsoluteContentSize.Y + 10)
     task.wait()
@@ -289,7 +290,9 @@ logConnection = LogService.MessageOut:Connect(function(message, messageType)
     label.Size = UDim2.new(1,-5,0,18); label.BackgroundTransparency = 1
     label.Text = string.format("%s %s", prefix, tostring(message))
     label.TextColor3 = color; label.Font = CONFIG.Font; label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left; label.Parent = LogFrame
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 3
+    label.Parent = LogFrame
     LogFrame.CanvasSize = UDim2.new(0,0,0, logLayout.AbsoluteContentSize.Y + 10)
     task.wait()
     LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
