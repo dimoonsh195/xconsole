@@ -359,8 +359,10 @@ local function applyTheme(name)
         InputFrame.BackgroundTransparency = 0.4; Header.BackgroundTransparency = 0.4
     else
         bgImage.Visible = false
-        ConsoleFrame.BackgroundTransparency = 0; LogFrame.BackgroundTransparency = 0
-        InputFrame.BackgroundTransparency = 0; Header.BackgroundTransparency = 0
+        ConsoleFrame.BackgroundTransparency = 0
+        LogFrame.BackgroundTransparency = 0
+        InputFrame.BackgroundTransparency = 0
+        Header.BackgroundTransparency = 0
     end
     
     SettingsFrame.BackgroundTransparency = 0
@@ -757,17 +759,18 @@ local function makePluginAPI(pluginName)
     end
     api.setTheme = function(name) applyTheme(name); if saveConfig then pcall(saveConfig) end end
 
+    -- ФУНКЦИЯ ДЛЯ СБРОСА ВЫДЕЛЕННОЙ ТЕМЫ
+    api.resetTheme = function()
+        currentTheme = "none"
+        if refreshThemeButtons then refreshThemeButtons() end
+    end
+
     api.hookEvent = function(evName, fn)
         if type(fn) ~= "function" then return false end
         pluginEventHooks[evName] = pluginEventHooks[evName] or {}
         table.insert(pluginEventHooks[evName], fn)
         table.insert(api._myHooks, {evName = evName, fn = fn})
         return true
-    end
-
-    api.resetTheme = function()
-        currentTheme = "none"
-        if refreshThemeButtons then refreshThemeButtons() end
     end
 
     api.ui = {
@@ -995,6 +998,49 @@ end
 for _, p in ipairs(Players:GetPlayers()) do trackKilled(p) end
 Players.PlayerAdded:Connect(trackKilled)
 
+-- ===================== VELOCITY =====================
+local function setVelocityActive(active)
+    if active then
+        if STATES.velocityActive then return end
+        local char, hum = getChar()
+        if not char or not hum then log("No character", "Error"); return end
+        STATES.velocityActive = true
+        STATES.velocitySpeedBackup = hum.WalkSpeed
+        hum.WalkSpeed = 1
+        STATES.velocityCollideBackup = {}
+        for _, p in ipairs(char:GetDescendants()) do
+            if p:IsA("BasePart") then
+                STATES.velocityCollideBackup[p] = p.CanCollide
+                p.CanCollide = false
+            end
+        end
+        if STATES.velocityConn then STATES.velocityConn:Disconnect() end
+        STATES.velocityConn = RunService.Stepped:Connect(function()
+            local c, h = getChar()
+            if not c or not h then return end
+            h.WalkSpeed = 1
+            for _, p in ipairs(c:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = false end
+            end
+        end)
+        log("velocity: on", "Success")
+    else
+        if not STATES.velocityActive then return end
+        STATES.velocityActive = false
+        if STATES.velocityConn then STATES.velocityConn:Disconnect(); STATES.velocityConn = nil end
+        local char, hum = getChar()
+        if hum and STATES.velocitySpeedBackup then hum.WalkSpeed = STATES.velocitySpeedBackup end
+        STATES.velocitySpeedBackup = nil
+        if char and STATES.velocityCollideBackup then
+            for p, state in pairs(STATES.velocityCollideBackup) do
+                if p and p.Parent then pcall(function() p.CanCollide = state end) end
+            end
+            STATES.velocityCollideBackup = nil
+        end
+        log("velocity: off", "Info")
+    end
+end
+
 -- ===================== КОМАНДЫ =====================
 local function resolveKey(name)
     name = name:upper()
@@ -1139,8 +1185,678 @@ commands["backup"] = function(args)
     if saveConfig then pcall(saveConfig) end
 end
 
--- ПРОПУЩЕНЫ СТАНДАРТНЫЕ КОМАНДЫ ДЛЯ ЭКОНОМИИ МЕСТА (они у тебя есть в файле, ничего не удаляй)
--- ВСТАВЬ СЮДА ВСЕ ОСТАЛЬНЫЕ КОМАНДЫ (fly, noclip, esp и т.д.) ИЗ СВОЕГО ФАЙЛА
+-- Скрытые команды
+commands["theme"] = function(args)
+    local name = args[1]
+    if not name then log("Usage: theme <default|winter|halloween|secret|win10|custom>", "Error"); return end
+    name = name:lower()
+    if name == "secret" then name = SECRET end
+    if name == "code" then name = SECRET end
+    if THEMES[name] then
+        if (name == SECRET or name == "win10" or name == "custom") and not premiumEnabled then
+            log("premium required", "Error"); return
+        end
+        applyTheme(name); if refreshThemeButtons then refreshThemeButtons() end
+        log("Theme set: " .. name, "Success")
+        if saveConfig then pcall(saveConfig) end
+    else
+        log("Unknown theme: " .. name, "Error")
+    end
+end
+
+commands["device"] = function(args)
+    local name = args[1]
+    if not name then log("Usage: device <pc|phone>", "Error"); return end
+    name = name:lower()
+    if name == "pc" then currentDevice = "PC"
+    elseif name == "phone" then currentDevice = "Phone"
+    else log("Unknown device: " .. name, "Error"); return end
+    updateDeviceVisuals()
+    if currentDevice == "PC" then
+        PhoneIconBtn.Visible = false; consoleHidden = false; ConsoleFrame.Visible = true
+    else
+        if consoleHidden then ConsoleFrame.Visible = false; PhoneIconBtn.Visible = true end
+    end
+    log("Device set: " .. name, "Success")
+    if saveConfig then pcall(saveConfig) end
+end
+
+commands["filter"] = function(args)
+    local filterType = args[1] and args[1]:lower()
+    local state = args[2] and args[2]:lower()
+    if not filterType then log("Usage: filter <print|warn|error|success|echo> [on|off]", "Error"); return end
+
+    local function setFilter(val)
+        if val == nil then
+            if filterType == "print" then showPrint = not showPrint; val = showPrint
+            elseif filterType == "warn" then showWarn = not showWarn; val = showWarn
+            elseif filterType == "error" then showError = not showError; val = showError
+            elseif filterType == "success" then showSuccess = not showSuccess; val = showSuccess
+            elseif filterType == "echo" then showEcho = not showEcho; val = showEcho
+            else log("Unknown filter: " .. filterType, "Error"); return false end
+        else
+            val = (val == "on" or val == "1" or val == "true")
+            if filterType == "print" then showPrint = val
+            elseif filterType == "warn" then showWarn = val
+            elseif filterType == "error" then showError = val
+            elseif filterType == "success" then showSuccess = val
+            elseif filterType == "echo" then showEcho = val
+            else log("Unknown filter: " .. filterType, "Error"); return false end
+        end
+        local function updateBtn(btn, isOn)
+            if btn then btn.ImageColor3 = isOn and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
+        end
+        updateBtn(filterPrintBtn, showPrint); updateBtn(filterWarnBtn, showWarn)
+        updateBtn(filterErrorBtn, showError); updateBtn(filterSuccessBtn, showSuccess)
+        updateBtn(filterEchoBtn, showEcho)
+        log(string.format("Filter %s: %s", filterType, val and "on" or "off"), "Success")
+        if saveConfig then pcall(saveConfig) end
+        return true
+    end
+    setFilter(state)
+end
+
+commands["premium"] = function(args)
+    local v = args[1]
+    if v == "1" then
+        premiumEnabled = true
+        secretBtn.Visible = true; win10Btn.Visible = true; bgRow.Visible = true
+        log("Premium enabled. Code, Windows 10 and Custom background unlocked.", "Success")
+        if saveConfig then pcall(saveConfig) end
+    elseif v == "0" then
+        premiumEnabled = false
+        secretBtn.Visible = false; win10Btn.Visible = false; bgRow.Visible = false
+        log("Premium disabled", "Info")
+        if saveConfig then pcall(saveConfig) end
+    else log("Usage: premium <0|1>", "Error") end
+end
+
+commands["fly"]    = function() toggleFly(true); log("Fly enabled","Success") end
+commands["unfly"]  = function() toggleFly(false); log("Fly disabled","Success") end
+commands["noclip"] = function() toggleNoclip(true); log("Noclip enabled","Success") end
+commands["clip"]   = function() toggleNoclip(false); log("Noclip disabled","Success") end
+commands["esp"]    = function() toggleESP(true); log("ESP enabled","Success") end
+commands["unesp"]  = function() toggleESP(false); log("ESP disabled","Success") end
+commands["swim"]   = function() toggleSwim(true); log("Swim enabled","Success") end
+commands["unswim"] = function() toggleSwim(false); log("Swim disabled","Success") end
+commands["fling"]  = function() toggleFling(true); log("Fling enabled","Success") end
+commands["unfling"]= function() toggleFling(false); log("Fling disabled","Success") end
+commands["infjump"]= function() toggleInfJump(true); log("InfJump enabled","Success") end
+commands["uninfjump"]=function() toggleInfJump(false); log("InfJump disabled","Success") end
+commands["spasm"]  = function() toggleSpasm(true); log("Spasm enabled","Success") end
+commands["unspasm"]= function() toggleSpasm(false); log("Spasm disabled","Success") end
+commands["fb"]     = function() toggleFullbright(true); log("Fullbright enabled","Success") end
+commands["unfb"]   = function() toggleFullbright(false); log("Fullbright disabled","Success") end
+commands["nofog"]  = function() toggleNofog(true); log("NoFog enabled","Success") end
+
+commands["sit"] = function()
+    local _, hum = getChar()
+    if hum then hum.Sit = true; log("Sitting...","Success") end
+end
+commands["ws"] = function(args)
+    local v = tonumber(args[1]); if not v then log("Usage: ws <value>","Error"); return end
+    local _, hum = getChar(); if hum then hum.WalkSpeed=v; log("WalkSpeed set to "..v,"Success") end
+end
+commands["jp"] = function(args)
+    local v = tonumber(args[1]); if not v then log("Usage: jp <value>","Error"); return end
+    local _, hum = getChar()
+    if hum then hum.UseJumpPower=true; hum.JumpPower=v; log("JumpPower set to "..v,"Success") end
+end
+commands["tppos"] = function(args)
+    local x,y,z = tonumber(args[1]), tonumber(args[2]), tonumber(args[3])
+    if not (x and y and z) then log("Usage: tppos x y z","Error"); return end
+    local _,_,hrp = getChar(); if hrp then hrp.CFrame = CFrame.new(x,y,z); log("Teleported to position","Success") end
+end
+commands["copypos"] = function(args)
+    local target = LocalPlayer
+    if args[1] then
+        local q = args[1]:lower()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Name:lower()==q or p.DisplayName:lower()==q then target=p; break end
+        end
+    end
+    local char = target.Character; local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then log(string.format("Pos of %s: %.1f, %.1f, %.1f", target.Name, hrp.Position.X, hrp.Position.Y, hrp.Position.Z), "Success")
+    else log("Player not found","Error") end
+end
+
+commands["bind"] = function(args)
+    if currentDevice == "Phone" then log("no access. device is phone", "Error"); return end
+    if #args < 1 then log("Usage: bind <key> <command> | bind list | bind clear","Error"); return end
+    local sub = args[1]:lower()
+    if sub == "list" then
+        log("Active binds:","Info"); local any=false
+        for k,v in pairs(binds) do log("  "..k.." -> "..v,"Default"); any=true end
+        if not any then log("No active binds","Info") end; return
+    elseif sub == "clear" then
+        for _, c in pairs(bindConns) do
+            if type(c) == "table" then
+                for _, cc in ipairs(c) do if cc then cc:Disconnect() end end
+            else c:Disconnect() end
+        end
+        binds = {}; bindConns = {}; log("All binds cleared","Success")
+        if saveConfig then pcall(saveConfig) end
+        return
+    end
+    if #args < 2 then log("Usage: bind <key> <command>","Error"); return end
+    local cmdStr = table.concat(args, " ", 2)
+    if not setupBind(args[1], cmdStr) then log("Unknown key: "..args[1],"Error"); return end
+    log(string.format("Bound [%s] -> %s", args[1]:upper(), cmdStr), "Success")
+    if saveConfig then pcall(saveConfig) end
+end
+
+commands["velocity"] = function(args)
+    if currentDevice == "PC" then log("no access. write bind {key} velocity", "Error"); return end
+    setVelocityActive(not STATES.velocityActive)
+end
+
+commands["serverinfo"] = function()
+    log("Server info:","Info")
+    log("  PlaceId: "..tostring(game.PlaceId),"Default")
+    log("  JobId: "..tostring(game.JobId),"Default")
+    log("  Players: "..#Players:GetPlayers().."/"..Players.MaxPlayers,"Default")
+    log("  Creator: "..game.CreatorId.." ("..tostring(game.CreatorType)..")","Default")
+    local ok, prod = pcall(function() return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId) end)
+    if ok and prod then log("  Game: "..tostring(prod.Name),"Default") end
+end
+commands["info"] = commands["serverinfo"]
+
+commands["vr"] = function()
+    local ok, VRS = pcall(function() return game:GetService("VRService") end)
+    if ok and VRS then log("VR available: "..tostring(VRS.VREnabled),"Info")
+    else log("VR mode not available","Error") end
+end
+
+commands["serverhop"] = function()
+    log("Searching for another server...","Info")
+    local ok, res = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet(("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)))
+    end)
+    if not ok or not res or not res.data then log("Failed to get server list","Error"); return end
+    local target
+    for _, s in ipairs(res.data) do
+        if s.id ~= game.JobId and s.playing < s.maxPlayers then target=s.id; break end
+    end
+    if not target then log("No other servers found","Error"); return end
+    log("Teleporting to server: "..target,"Success")
+    pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, target, LocalPlayer) end)
+end
+commands["shop"] = commands["serverhop"]
+
+commands["joinplayer"] = function(args)
+    if #args < 1 then log("Usage: joinplayer <username/ID> [placeId]","Error"); return end
+    local query = args[1]; local userId = tonumber(query)
+    if not userId then
+        local ok, id = pcall(function() return Players:GetUserIdFromNameAsync(query) end)
+        if ok then userId = id end
+    end
+    if not userId then log("Player not found","Error"); return end
+    local plr = Players:GetPlayerByUserId(userId)
+    if not plr then log("Player not in current server — cannot join","Error"); return end
+    log("Joining player: "..plr.Name,"Success")
+    pcall(function() TeleportService:TeleportToPlayer({plr}, LocalPlayer) end)
+end
+
+commands["creatorid"] = function() log("Creator ID: "..tostring(game.CreatorId).." ("..tostring(game.CreatorType)..")","Success") end
+commands["creator"] = commands["creatorid"]
+
+commands["tools"] = function()
+    local bp = LocalPlayer:FindFirstChild("Backpack"); if not bp then log("No backpack","Error"); return end
+    local n = 0
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Tool") and not obj:IsDescendantOf(LocalPlayer.Character) then
+            obj:Clone().Parent = bp; n += 1; if n >= 100 then break end
+        end
+    end
+    log("Tools added: "..n,"Success")
+end
+commands["untools"] = function()
+    local n = 0
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then for _,t in ipairs(bp:GetChildren()) do if t:IsA("Tool") then t:Destroy(); n+=1 end end end
+    local char = LocalPlayer.Character
+    if char then for _,t in ipairs(char:GetChildren()) do if t:IsA("Tool") then t:Destroy(); n+=1 end end end
+    log("Tools removed: "..n,"Success")
+end
+
+local function equipAllSimultaneous()
+    local char = LocalPlayer.Character
+    if not char then log("No character","Error"); return end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if not bp then log("No backpack","Error"); return end
+    for _, child in ipairs(char:GetChildren()) do
+        if child:IsA("Tool") then pcall(function() child.Parent = bp end) end
+    end
+    task.wait(0.05)
+    for _, d in ipairs(char:GetDescendants()) do
+        if d:IsA("Weld") and d.Name == "XConsoleEquipWeld" then d:Destroy() end
+    end
+    local rightHand = char:FindFirstChild("RightHand") or char:FindFirstChild("Right Arm")
+    local leftHand = char:FindFirstChild("LeftHand") or char:FindFirstChild("Left Arm")
+    local torso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+    local head = char:FindFirstChild("Head")
+    local limbs = {}
+    if rightHand then table.insert(limbs, rightHand) end
+    if leftHand then table.insert(limbs, leftHand) end
+    if torso then table.insert(limbs, torso) end
+    if head then table.insert(limbs, head) end
+    if #limbs == 0 then log("No limbs found on character","Error"); return end
+    local tools = {}
+    for _, t in ipairs(bp:GetChildren()) do if t:IsA("Tool") then table.insert(tools, t) end end
+    if #tools == 0 then log("No tools in Backpack","Info"); return end
+    for _, tool in ipairs(tools) do pcall(function() tool.Parent = char end) end
+    task.wait(0.1)
+    local count = 0
+    for i, tool in ipairs(tools) do
+        local handle = tool:FindFirstChild("Handle")
+        if handle and handle:IsA("BasePart") then
+            for _, w in ipairs(handle:GetChildren()) do
+                if w:IsA("JointInstance") and w.Name ~= "XConsoleEquipWeld" then
+                    local p0, p1 = w.Part0, w.Part1
+                    if (p0 and p0:IsDescendantOf(char)) or (p1 and p1:IsDescendantOf(char)) then
+                        pcall(function() w:Destroy() end)
+                    end
+                end
+            end
+            local limb = limbs[(i - 1) % #limbs + 1]
+            local weld = Instance.new("Weld")
+            weld.Name = "XConsoleEquipWeld"
+            weld.Part0 = limb; weld.Part1 = handle
+            local angle = math.rad((i - 1) * 35)
+            weld.C0 = CFrame.new(0, -0.2, -0.6 - (i * 0.15)) * CFrame.Angles(angle, 0, 0)
+            weld.Parent = limb
+            count += 1
+        else count += 1 end
+    end
+    log("Simultaneously equipped: "..count.." tools (visual — clicking may not use them)", "Success")
+end
+commands["equipitems"] = equipAllSimultaneous
+commands["equipalltools"] = equipAllSimultaneous
+
+commands["unequipalltools"] = function()
+    local char = LocalPlayer.Character
+    if not char then log("No character","Error"); return end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    local n = 0
+    for _, d in ipairs(char:GetDescendants()) do
+        if d:IsA("Weld") and d.Name == "XConsoleEquipWeld" then d:Destroy() end
+    end
+    for _, t in ipairs(char:GetChildren()) do
+        if t:IsA("Tool") and bp then t.Parent = bp; n += 1 end
+    end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then pcall(function() hum:UnequipTools() end) end
+    log("Unequipped tools: "..n, "Success")
+end
+
+commands["xyz"] = function()
+    local _,_,hrp = getChar(); if not hrp then return end
+    log(string.format("X=%.2f Y=%.2f Z=%.2f", hrp.Position.X, hrp.Position.Y, hrp.Position.Z),"Success")
+end
+
+local function destroyTarget()
+    local mouse = LocalPlayer:GetMouse()
+    local target = mouse.Target
+    if not target then log("Nothing under cursor","Error"); return end
+    if target:IsA("Terrain") then log("Cannot destroy Terrain","Error"); return end
+    local name = target:GetFullName()
+    target:Destroy()
+    log("Destroyed: "..name,"Success")
+end
+commands["destroy"] = destroyTarget
+commands["destroytarget"] = destroyTarget
+
+commands["summon"] = function(args)
+    local shape = (args[1] or "part"):lower()
+    local map = { part=Enum.PartType.Block, block=Enum.PartType.Block, sphere=Enum.PartType.Ball,
+        ball=Enum.PartType.Ball, cylinder=Enum.PartType.Cylinder, wedge=Enum.PartType.Wedge,
+        cornerwedge=Enum.PartType.CornerWedge }
+    local pt = map[shape]; if not pt then log("Usage: summon <part|sphere|cylinder|wedge>","Error"); return end
+    local p = Instance.new("Part"); p.Shape=pt; p.Size=Vector3.new(4,4,4)
+    p.Position = LocalPlayer:GetMouse().Hit.Position + Vector3.new(0,5,0); p.Parent = Workspace
+    log("Spawned "..shape,"Success")
+end
+commands["kickme"] = function(args) LocalPlayer:Kick(#args>0 and table.concat(args," ") or "No reason") end
+commands["color"] = function(args)
+    if #args < 1 then log("Usage: color <bg><fg>","Error"); return end
+    local code = args[1]:upper(); if #code ~= 2 then log("Bad code","Error"); return end
+    local bg, fg = CMD_COLORS[code:sub(1,1)], CMD_COLORS[code:sub(2,2)]
+    if bg and fg then ConsoleFrame.BackgroundColor3=bg; CommandBox.TextColor3=fg; log("Color changed: "..code,"Success")
+    else log("Bad code","Error") end
+end
+commands["clear"] = function()
+    for _,c in ipairs(LogFrame:GetChildren()) do if c:IsA("TextLabel") then c:Destroy() end end
+    log("Log cleared","Info")
+end
+commands["code"] = function()
+    pcall(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/dimoonsh195/xcode/main/xcode.lua", true))() end)
+end
+commands["xcode"] = commands["code"]
+commands["getf3x"] = function()
+    pcall(function() local obj = game:GetObjects("rbxassetid://6695644299")[1]; if obj then loadstring(obj.Source)() end end)
+end
+commands["tool"] = commands["getf3x"]; commands["f3x"] = commands["getf3x"]
+commands["gun"] = giveGun; commands["m249"] = giveGun
+commands["dex"] = function()
+    pcall(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/luau/Dex/master/out.lua", true))() end)
+end
+
+local function duplicateHeldItem()
+    local char = LocalPlayer.Character
+    if not char then log("No character","Error"); return end
+    local tool = char:FindFirstChildOfClass("Tool")
+    if not tool then log("No tool in hand","Error"); return end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if not bp then log("No backpack","Error"); return end
+    local clone = tool:Clone()
+    clone.Name = tool.Name .. "_Copy"
+    clone:SetAttribute("XConsoleDuplicate", true)
+    clone.Enabled = true
+    for k, v in pairs(tool:GetAttributes()) do
+        if k ~= "XConsoleDuplicate" then pcall(function() clone:SetAttribute(k, v) end) end
+    end
+    pcall(function()
+        for _, tag in ipairs(CollectionService:GetTags(tool)) do
+            CollectionService:AddTag(clone, tag)
+        end
+    end)
+    for _, d in ipairs(clone:GetDescendants()) do
+        if d:IsA("BaseScript") then pcall(function() d.Enabled = true end) end
+    end
+    local handle = clone:FindFirstChild("Handle")
+    if handle and handle:IsA("BasePart") then
+        local charParts = {}
+        for _, p in ipairs(char:GetDescendants()) do
+            if p:IsA("BasePart") then charParts[p] = true end
+        end
+        for _, w in ipairs(handle:GetChildren()) do
+            if w:IsA("JointInstance") then
+                if (w.Part0 and charParts[w.Part0]) or (w.Part1 and charParts[w.Part1]) then
+                    pcall(function() w:Destroy() end)
+                end
+            end
+        end
+        handle.Anchored = false; handle.CanCollide = false
+    end
+    clone.Parent = bp
+    log("Duplicated: "..tool.Name.." (client-side copy)","Success")
+end
+commands["duplicateitem"] = duplicateHeldItem
+commands["ditem"] = duplicateHeldItem
+
+local function deleteDuplicates()
+    local n = 0
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then
+        for _, t in ipairs(bp:GetChildren()) do
+            if t:IsA("Tool") and t:GetAttribute("XConsoleDuplicate") then t:Destroy(); n += 1 end
+        end
+    end
+    local char = LocalPlayer.Character
+    if char then
+        for _, t in ipairs(char:GetChildren()) do
+            if t:IsA("Tool") and t:GetAttribute("XConsoleDuplicate") then t:Destroy(); n += 1 end
+        end
+    end
+    log("Deleted duplicated items: "..n, "Success")
+end
+commands["deleteduplicate"] = deleteDuplicates
+commands["dduplicate"] = deleteDuplicates
+commands["dd"] = deleteDuplicates
+
+local function forceDroppable()
+    if not STATES.enableDrop then return end
+    local bp = LocalPlayer:FindFirstChild("Backpack")
+    if bp then
+        for _, t in ipairs(bp:GetChildren()) do
+            if t:IsA("Tool") and not t.CanBeDropped then t.CanBeDropped = true end
+        end
+    end
+    local char = LocalPlayer.Character
+    if char then
+        for _, t in ipairs(char:GetChildren()) do
+            if t:IsA("Tool") and not t.CanBeDropped then t.CanBeDropped = true end
+        end
+    end
+end
+local function toggleEnableDrop(on)
+    STATES.enableDrop = on
+    if STATES.dropConn then STATES.dropConn:Disconnect(); STATES.dropConn = nil end
+    if on then
+        STATES.dropConn = RunService.Heartbeat:Connect(forceDroppable)
+        log("Dropping of all items enabled","Success")
+    else log("Dropping of all items disabled","Info") end
+end
+commands["enabledrop"] = function() toggleEnableDrop(true) end
+commands["edrop"] = commands["enabledrop"]
+commands["disabledrop"] = function() toggleEnableDrop(false) end
+
+local function setSpeed(val)
+    local _, hum = getChar()
+    if not hum then log("No character","Error"); return end
+    hum.WalkSpeed = val
+    log("WalkSpeed set to "..tostring(val),"Success")
+end
+
+commands["speed"] = function(args)
+    local v = tonumber(args[1]); if not v then log("Usage: speed <value>","Error"); return end
+    setSpeed(v)
+end
+commands["speedhack"] = commands["speed"]
+
+commands["defaultspeed"] = function()
+    if not speedCaptured or not originalWalkSpeed then captureOriginalSpeed() end
+    if not originalWalkSpeed then
+        log("Original speed unknown, using 16","Info"); setSpeed(16)
+    else
+        setSpeed(originalWalkSpeed)
+        log(string.format("Speed reset to original (%.1f)", originalWalkSpeed),"Success")
+    end
+end
+commands["dspeed"] = commands["defaultspeed"]
+
+local function toggleEnableJump(on)
+    STATES.enableJump = on
+    if STATES.jumpConn then STATES.jumpConn:Disconnect(); STATES.jumpConn = nil end
+    if STATES.jumpRequestConn then STATES.jumpRequestConn:Disconnect(); STATES.jumpRequestConn = nil end
+    if on then
+        local _, hum = getChar()
+        if hum and not STATES.jumpBackup then
+            STATES.jumpBackup = { JumpPower = hum.JumpPower, JumpHeight = hum.JumpHeight, UseJumpPower = hum.UseJumpPower }
+        end
+        STATES.jumpConn = RunService.Heartbeat:Connect(function()
+            local _, h = getChar()
+            if h then
+                if not STATES.jumpBackup then
+                    STATES.jumpBackup = { JumpPower = h.JumpPower, JumpHeight = h.JumpHeight, UseJumpPower = h.UseJumpPower }
+                end
+                pcall(function()
+                    if h.UseJumpPower then
+                        if h.JumpPower < 50 then h.JumpPower = 50 end
+                    else
+                        if h.JumpHeight < 7.2 then h.JumpHeight = 7.2 end
+                    end
+                    if h.JumpPower <= 0 and h.JumpHeight <= 0 then
+                        h.UseJumpPower = true; h.JumpPower = 50
+                    end
+                end)
+            end
+        end)
+        STATES.jumpRequestConn = UIS.JumpRequest:Connect(function()
+            local char, h = getChar()
+            if not char or not h then return end
+            pcall(function() h:ChangeState(Enum.HumanoidStateType.Jumping) end)
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp and h.FloorMaterial ~= Enum.Material.Air then
+                hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z)
+            end
+        end)
+        log("Jump enabled","Success")
+    else
+        if STATES.jumpBackup then
+            local _, h = getChar()
+            if h then
+                pcall(function()
+                    h.JumpPower = STATES.jumpBackup.JumpPower
+                    h.JumpHeight = STATES.jumpBackup.JumpHeight
+                    h.UseJumpPower = STATES.jumpBackup.UseJumpPower
+                end)
+            end
+            STATES.jumpBackup = nil
+        end
+        log("Jump disabled","Info")
+    end
+end
+commands["ejump"] = function() toggleEnableJump(true) end
+commands["djump"] = function() toggleEnableJump(false) end
+
+local function toggleEnableSit(on)
+    STATES.enableSit = on
+    if STATES.sitInputConn then STATES.sitInputConn:Disconnect(); STATES.sitInputConn = nil end
+    if on then
+        STATES.sitInputConn = UIS.InputBegan:Connect(function(input, gp)
+            if input.KeyCode == Enum.KeyCode.X then
+                if UIS:GetFocusedTextBox() then return end
+                local _, h = getChar()
+                if h then pcall(function() h.Sit = not h.Sit end); log("Sit toggled: "..tostring(h.Sit), "Info") end
+            end
+        end)
+        log("Sit enabled (press X)","Success")
+    else
+        local _, h = getChar()
+        if h then pcall(function() h.Sit = false end) end
+        log("Sit disabled","Info")
+    end
+end
+commands["esit"] = function() toggleEnableSit(true) end
+commands["dsit"] = function() toggleEnableSit(false) end
+
+local function toggleEnableZoom(on)
+    STATES.enableZoom = on
+    if STATES.zoomConn then STATES.zoomConn:Disconnect(); STATES.zoomConn = nil end
+    if on then
+        if not STATES.zoomBackup then
+            STATES.zoomBackup = {
+                CameraMaxZoomDistance = LocalPlayer.CameraMaxZoomDistance,
+                CameraMinZoomDistance = LocalPlayer.CameraMinZoomDistance,
+            }
+        end
+        STATES.zoomConn = RunService.RenderStepped:Connect(function()
+            pcall(function()
+                LocalPlayer.CameraMaxZoomDistance = 128
+                LocalPlayer.CameraMinZoomDistance = 0.5
+                local cam = Workspace.CurrentCamera
+                if cam.CameraType == Enum.CameraType.LockFirstPerson then
+                    cam.CameraType = Enum.CameraType.Custom
+                end
+            end)
+        end)
+        log("Zoom enabled","Success")
+    else
+        if STATES.zoomBackup then
+            pcall(function()
+                LocalPlayer.CameraMaxZoomDistance = STATES.zoomBackup.CameraMaxZoomDistance
+                LocalPlayer.CameraMinZoomDistance = STATES.zoomBackup.CameraMinZoomDistance
+            end)
+            STATES.zoomBackup = nil
+        end
+        log("Zoom disabled","Info")
+    end
+end
+commands["ezoom"] = function() toggleEnableZoom(true) end
+commands["dzoom"] = function() toggleEnableZoom(false) end
+
+local function tpToPlayer(args)
+    if #args < 1 then
+        log("Online players:","Info")
+        for _,p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer then log("  "..p.Name,"Default") end end
+        return
+    end
+    local q = table.concat(args," "):lower(); local target
+    for _,p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and (p.Name:lower()==q or p.DisplayName:lower()==q) then target=p; break end
+    end
+    if not target then for _,p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and (p.Name:lower():find(q,1,true) or p.DisplayName:lower():find(q,1,true)) then target=p; break end
+    end end
+    if not target then log("Player not found","Error"); return end
+    local char = target.Character; local thrp = char and char:FindFirstChild("HumanoidRootPart")
+    local _,_,myhrp = getChar()
+    if thrp and myhrp then myhrp.CFrame = thrp.CFrame * CFrame.new(0,2,3); log("Teleported to "..target.Name,"Success") end
+end
+commands["tp"] = tpToPlayer; commands["to"] = tpToPlayer; commands["goto"] = tpToPlayer
+
+local function setConsoleHidden(hidden)
+    consoleHidden = hidden
+    if currentDevice == "Phone" then
+        ConsoleFrame.Visible = false
+        PhoneIconBtn.Visible = hidden
+    else
+        ConsoleFrame.Visible = not hidden
+        PhoneIconBtn.Visible = false
+    end
+end
+
+HideBtn.MouseButton1Click:Connect(function() setConsoleHidden(true) end)
+
+UIS.InputBegan:Connect(function(input, gp)
+    if input.KeyCode == Enum.KeyCode.RightControl then
+        setConsoleHidden(not consoleHidden)
+    end
+end)
+
+CommandBox.FocusLost:Connect(function(enterPressed)
+    if not enterPressed then return end
+    local text = CommandBox.Text; if text == "" then return end
+    CommandBox.Text = ""
+    if #commandHistory == 0 or commandHistory[#commandHistory] ~= text then
+        table.insert(commandHistory, text)
+        if #commandHistory > CONFIG.MaxHistory then table.remove(commandHistory, 1) end
+    end
+    historyIndex = #commandHistory + 1
+    local args = {}; for w in text:gmatch("%S+") do table.insert(args, w) end
+    if #args == 0 then return end
+    local cmdName = args[1]:lower(); table.remove(args, 1)
+    log("> "..text,"Echo")
+    runEvent("onExecute")
+    local f = commands[cmdName]
+    if f then
+        local ok, e = pcall(f, args)
+        if not ok then log("Error: "..tostring(e),"Error") end
+    else executeLua(text) end
+end)
+
+CommandBox.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.Up then
+        if #commandHistory > 0 then historyIndex = math.max(1, historyIndex-1); CommandBox.Text = commandHistory[historyIndex] end
+    elseif input.KeyCode == Enum.KeyCode.Down then
+        if #commandHistory > 0 then
+            historyIndex = math.min(#commandHistory+1, historyIndex+1)
+            CommandBox.Text = historyIndex <= #commandHistory and commandHistory[historyIndex] or ""
+        end
+    end
+end)
+
+local resizing, startSize, startMouse = false, nil, nil
+ResizeHandle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        resizing=true; startSize=ConsoleFrame.AbsoluteSize; startMouse=input.Position
+    end
+end)
+UIS.InputChanged:Connect(function(input)
+    if resizing and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local d = input.Position - startMouse
+        ConsoleFrame.Size = UDim2.new(0, math.max(300, startSize.X+d.X), 0, math.max(150, startSize.Y+d.Y))
+    end
+end)
+UIS.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then resizing = false end
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    if logConnection then logConnection:Disconnect(); logConnection = nil end
+    ScreenGui:Destroy()
+end)
 
 -- ===================== СТАРТОВАЯ АНИМАЦИЯ =====================
 local LoadingCard = Instance.new("Frame")
