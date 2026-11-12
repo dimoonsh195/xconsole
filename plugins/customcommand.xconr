@@ -1,0 +1,9 @@
+local api = ...
+api.log("CustomCommand v1.0 loaded. Open Workshop > Plugins to manage commands.", "Success")
+
+return {
+    version = "1.0",
+    onUnload = function(a)
+        api.log("CustomCommand unloaded. Its commands are now inactive (settings kept).", "Info")
+    end
+}
