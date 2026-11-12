@@ -165,34 +165,33 @@ Header.Size = UDim2.new(1,0,0,30); Header.BackgroundColor3 = THEMES.default.head
 Header.BackgroundTransparency = 0; Header.BorderSizePixel = 0; Header.ZIndex = 2; Header.Parent = ConsoleFrame
 local headerCorner = Instance.new("UICorner", Header); headerCorner.CornerRadius = UDim.new(0,6)
 
-local Title = Instance.new("TextLabel")
+-- Title, ExtraIcon и т.д. теперь TextButton с прозрачным фоном
+local Title = Instance.new("TextButton")
 Title.Size = UDim2.new(0,26,0,26); Title.Position = UDim2.new(0,4,0,2)
-Title.BackgroundTransparency = 1
+Title.BackgroundTransparency = 1; Title.Text = ""
 Title.Image = getIcon(54479712)
 Title.ScaleType = Enum.ScaleType.Fit
 Title.ZIndex = 3; Title.Parent = Header
 
-ExtraIcon = Instance.new("TextLabel")
+ExtraIcon = Instance.new("TextButton")
 ExtraIcon.Size = UDim2.new(0,24,0,24); ExtraIcon.Position = UDim2.new(1,-136,0,3)
-ExtraIcon.BackgroundTransparency = 1
+ExtraIcon.BackgroundTransparency = 1; ExtraIcon.Text = ""
 ExtraIcon.Image = getIcon(2484276650)
 ExtraIcon.ScaleType = Enum.ScaleType.Fit
 ExtraIcon.ZIndex = 3; ExtraIcon.Parent = Header
 
 SettingsBtn = Instance.new("TextButton")
 SettingsBtn.Size = UDim2.new(0,24,0,24); SettingsBtn.Position = UDim2.new(1,-84,0,3)
-SettingsBtn.BackgroundTransparency = 1
+SettingsBtn.BackgroundTransparency = 1; SettingsBtn.Text = ""
 SettingsBtn.Image = getIcon(9405931596)
 SettingsBtn.ScaleType = Enum.ScaleType.Fit
-SettingsBtn.Text = ""
 SettingsBtn.ZIndex = 3; SettingsBtn.Parent = Header
 
 WorkshopBtn = Instance.new("TextButton")
 WorkshopBtn.Size = UDim2.new(0,24,0,24); WorkshopBtn.Position = UDim2.new(1,-110,0,3)
-WorkshopBtn.BackgroundTransparency = 1
+WorkshopBtn.BackgroundTransparency = 1; WorkshopBtn.Text = ""
 WorkshopBtn.Image = getIcon(11395780614)
 WorkshopBtn.ScaleType = Enum.ScaleType.Fit
-WorkshopBtn.Text = ""
 WorkshopBtn.ZIndex = 3; WorkshopBtn.Parent = Header
 
 HideBtn = Instance.new("TextButton")
@@ -209,10 +208,9 @@ Instance.new("UICorner", HideDash).CornerRadius = UDim.new(1,0)
 
 CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0,24,0,24); CloseBtn.Position = UDim2.new(1,-28,0,3)
-CloseBtn.BackgroundTransparency = 1
+CloseBtn.BackgroundTransparency = 1; CloseBtn.Text = ""
 CloseBtn.Image = getIcon(111716979356360)
 CloseBtn.ScaleType = Enum.ScaleType.Fit
-CloseBtn.Text = ""
 CloseBtn.ZIndex = 3; CloseBtn.Parent = Header
 
 PhoneIconBtn = Instance.new("ImageButton")
@@ -509,19 +507,18 @@ local function addSettingRow(widget)
     SettingsScroll.CanvasSize = UDim2.new(0,0,0, settingsLayout.AbsoluteContentSize.Y + 20)
 end
 
-SettingsTitle = Instance.new("ImageLabel")
+SettingsTitle = Instance.new("TextButton")
 SettingsTitle.Size = UDim2.new(0,26,0,26); SettingsTitle.Position = UDim2.new(0,8,0,7)
-SettingsTitle.BackgroundTransparency = 1
+SettingsTitle.BackgroundTransparency = 1; SettingsTitle.Text = ""
 SettingsTitle.Image = getIcon(9405931596)
 SettingsTitle.ScaleType = Enum.ScaleType.Fit
 SettingsTitle.ZIndex = 12; SettingsTitle.Parent = SettingsFrame
 
 BackBtn = Instance.new("TextButton")
 BackBtn.Size = UDim2.new(0,40,0,24); BackBtn.Position = UDim2.new(1,-52,0,8)
-BackBtn.BackgroundTransparency = 1
+BackBtn.BackgroundTransparency = 1; BackBtn.Text = ""
 BackBtn.Image = getIcon(8674072445)
 BackBtn.ScaleType = Enum.ScaleType.Fit
-BackBtn.Text = ""
 BackBtn.ZIndex = 12; BackBtn.Parent = SettingsFrame
 
 local function openSettings()
@@ -562,10 +559,9 @@ WorkshopTitle.ZIndex = 16; WorkshopTitle.Parent = WorkshopFrame
 
 WorkshopBackBtn = Instance.new("TextButton")
 WorkshopBackBtn.Size = UDim2.new(0,40,0,24); WorkshopBackBtn.Position = UDim2.new(1,-52,0,5)
-WorkshopBackBtn.BackgroundTransparency = 1
+WorkshopBackBtn.BackgroundTransparency = 1; WorkshopBackBtn.Text = ""
 WorkshopBackBtn.Image = getIcon(8674072445)
 WorkshopBackBtn.ScaleType = Enum.ScaleType.Fit
-WorkshopBackBtn.Text = ""
 WorkshopBackBtn.ZIndex = 16; WorkshopBackBtn.Parent = WorkshopFrame
 
 local WorkshopTabBar = Instance.new("Frame")
@@ -624,7 +620,8 @@ local function refreshWorkshop()
         item.ZIndex = 17; item.Parent = WorkshopScroll
         Instance.new("UICorner", item).CornerRadius = UDim.new(0,6)
 
-        local img = Instance.new("TextLabel")
+        -- ИСПОЛЬЗУЕМ TextButton ВМЕСТО TextLabel
+        local img = Instance.new("TextButton")
         img.Size = UDim2.new(0,60,0,60); img.Position = UDim2.new(0,10,0,10)
         img.BackgroundColor3 = Color3.fromRGB(30,30,30); img.BorderSizePixel = 0
         img.Image = getIcon(p.imageId)
@@ -775,7 +772,8 @@ refreshPluginsTab = function()
             refreshPluginsTab()
         end)
 
-        local img = Instance.new("TextLabel")
+        -- ИСПОЛЬЗУЕМ TextButton ВМЕСТО TextLabel
+        local img = Instance.new("TextButton")
         img.Size = UDim2.new(0,50,0,50); img.Position = UDim2.new(0,10,0,10)
         img.BackgroundColor3 = Color3.fromRGB(30,30,30); img.BorderSizePixel = 0
         if info then img.Image = getIcon(info.imageId) end
@@ -2776,7 +2774,7 @@ task.spawn(function()
     setProgress(0.55, "preloading assets...")
     local assets = {}
     for _, d in ipairs(ScreenGui:GetDescendants()) do
-        if (d:IsA("ImageLabel") or d:IsA("ImageButton")) and d.Image ~= "" and d.Image ~= nil then
+        if (d:IsA("ImageLabel") or d:IsA("ImageButton") or d:IsA("TextButton")) and d.Image ~= "" and d.Image ~= nil then
             table.insert(assets, d.Image)
         end
     end
