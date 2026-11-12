@@ -55,8 +55,9 @@ local pluginCommands = {}
 local loadedPlugins = {}     
 local pluginEventHooks = {}  
 local backupPlugins = {}     
-local customCommands = {}    -- NEW: custom commands created via CustomCommand
+local customCommands = {}    
 local PLUGIN_EXT = ".xconr"
+local useFallbackText = false
 
 local THEMES = {
     default = { background=Color3.fromRGB(15,15,15), header=Color3.fromRGB(25,25,25), input=Color3.fromRGB(30,30,30),
@@ -164,32 +165,34 @@ Header.Size = UDim2.new(1,0,0,30); Header.BackgroundColor3 = THEMES.default.head
 Header.BackgroundTransparency = 0; Header.BorderSizePixel = 0; Header.ZIndex = 2; Header.Parent = ConsoleFrame
 local headerCorner = Instance.new("UICorner", Header); headerCorner.CornerRadius = UDim.new(0,6)
 
-local Title = Instance.new("ImageLabel")
+local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(0,26,0,26); Title.Position = UDim2.new(0,4,0,2)
 Title.BackgroundTransparency = 1
 Title.Image = getIcon(54479712)
 Title.ScaleType = Enum.ScaleType.Fit
 Title.ZIndex = 3; Title.Parent = Header
 
-ExtraIcon = Instance.new("ImageLabel")
+ExtraIcon = Instance.new("TextLabel")
 ExtraIcon.Size = UDim2.new(0,24,0,24); ExtraIcon.Position = UDim2.new(1,-136,0,3)
 ExtraIcon.BackgroundTransparency = 1
 ExtraIcon.Image = getIcon(2484276650)
 ExtraIcon.ScaleType = Enum.ScaleType.Fit
 ExtraIcon.ZIndex = 3; ExtraIcon.Parent = Header
 
-SettingsBtn = Instance.new("ImageButton")
+SettingsBtn = Instance.new("TextButton")
 SettingsBtn.Size = UDim2.new(0,24,0,24); SettingsBtn.Position = UDim2.new(1,-84,0,3)
 SettingsBtn.BackgroundTransparency = 1
 SettingsBtn.Image = getIcon(9405931596)
 SettingsBtn.ScaleType = Enum.ScaleType.Fit
+SettingsBtn.Text = ""
 SettingsBtn.ZIndex = 3; SettingsBtn.Parent = Header
 
-WorkshopBtn = Instance.new("ImageButton")
+WorkshopBtn = Instance.new("TextButton")
 WorkshopBtn.Size = UDim2.new(0,24,0,24); WorkshopBtn.Position = UDim2.new(1,-110,0,3)
 WorkshopBtn.BackgroundTransparency = 1
 WorkshopBtn.Image = getIcon(11395780614)
 WorkshopBtn.ScaleType = Enum.ScaleType.Fit
+WorkshopBtn.Text = ""
 WorkshopBtn.ZIndex = 3; WorkshopBtn.Parent = Header
 
 HideBtn = Instance.new("TextButton")
@@ -204,11 +207,12 @@ HideDash.BackgroundColor3 = Color3.fromRGB(255,255,255)
 HideDash.BorderSizePixel = 0; HideDash.ZIndex = 4; HideDash.Parent = HideBtn
 Instance.new("UICorner", HideDash).CornerRadius = UDim.new(1,0)
 
-local CloseBtn = Instance.new("ImageButton")
+CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0,24,0,24); CloseBtn.Position = UDim2.new(1,-28,0,3)
 CloseBtn.BackgroundTransparency = 1
 CloseBtn.Image = getIcon(111716979356360)
 CloseBtn.ScaleType = Enum.ScaleType.Fit
+CloseBtn.Text = ""
 CloseBtn.ZIndex = 3; CloseBtn.Parent = Header
 
 PhoneIconBtn = Instance.new("ImageButton")
@@ -336,6 +340,7 @@ logConnection = LogService.MessageOut:Connect(function(message, messageType)
 end)
 
 local function executeLua(code)
+    if type(code) ~= "string" or code:match("^%s*$") then return end
     local fn, err = loadstring(code)
     if not fn then log("Lua compile error: " .. tostring(err), "Error"); return end
     local ok, e = pcall(fn)
@@ -345,6 +350,51 @@ end
 local function getChar()
     local char = LocalPlayer.Character; if not char then return end
     return char, char:FindFirstChildOfClass("Humanoid"), char:FindFirstChild("HumanoidRootPart")
+end
+
+-- === FALLBACK SYSTEM ===
+local function applyFallback()
+    local t = THEMES[currentTheme] or THEMES.default
+    local function setBtn(btn, img, txt)
+        if not btn then return end
+        if useFallbackText then
+            btn.Image = ""
+            btn.Text = txt
+            btn.TextColor3 = Color3.fromRGB(255,255,255)
+            btn.BackgroundColor3 = t.input
+            btn.BackgroundTransparency = 0.5
+            btn.Font = Enum.Font.Code
+            btn.TextSize = 14
+        else
+            btn.Image = img
+            btn.Text = ""
+            btn.BackgroundTransparency = 1
+        end
+    end
+    
+    -- Header
+    if Title then
+        if useFallbackText then Title.Image = ""; Title.Text = ">_"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = Enum.Font.Code; Title.TextSize = 16
+        else Title.Image = getIcon(54479712); Title.Text = "" end
+    end
+    if ExtraIcon then
+        if useFallbackText then ExtraIcon.Image = ""; ExtraIcon.Text = "S"; ExtraIcon.TextColor3 = Color3.new(1,1,1); ExtraIcon.Font = Enum.Font.Code; ExtraIcon.TextSize = 14
+        else ExtraIcon.Image = getIcon(2484276650); ExtraIcon.Text = "" end
+    end
+    setBtn(SettingsBtn, getIcon(9405931596), "S")
+    setBtn(WorkshopBtn, getIcon(11395780614), "W")
+    setBtn(CloseBtn, getIcon(111716979356360), "x")
+    setBtn(BackBtn, getIcon(8674072445), "<")
+    setBtn(WorkshopBackBtn, getIcon(8674072445), "<")
+    setBtn(pcBtn, getIcon(12684119292), "PC")
+    setBtn(phoneBtn, getIcon(134410350720078), "PHONE")
+    
+    -- Filters
+    setBtn(filterPrintBtn, getIcon(15000633149), "P")
+    setBtn(filterWarnBtn, getIcon(18797417835), "W")
+    setBtn(filterErrorBtn, getIcon(8511577150), "E")
+    setBtn(filterSuccessBtn, getIcon(108191615793694), "S")
+    setBtn(filterEchoBtn, getIcon(124871982298256), "E")
 end
 
 applyThemeToSettings = function(t)
@@ -379,6 +429,7 @@ applyThemeToSettings = function(t)
             end
         end
     end
+    applyFallback()
 end
 
 local function applyTheme(name)
@@ -465,11 +516,12 @@ SettingsTitle.Image = getIcon(9405931596)
 SettingsTitle.ScaleType = Enum.ScaleType.Fit
 SettingsTitle.ZIndex = 12; SettingsTitle.Parent = SettingsFrame
 
-BackBtn = Instance.new("ImageButton")
+BackBtn = Instance.new("TextButton")
 BackBtn.Size = UDim2.new(0,40,0,24); BackBtn.Position = UDim2.new(1,-52,0,8)
 BackBtn.BackgroundTransparency = 1
 BackBtn.Image = getIcon(8674072445)
 BackBtn.ScaleType = Enum.ScaleType.Fit
+BackBtn.Text = ""
 BackBtn.ZIndex = 12; BackBtn.Parent = SettingsFrame
 
 local function openSettings()
@@ -508,14 +560,14 @@ WorkshopTitle.TextColor3 = THEMES.default.text; WorkshopTitle.Font = CONFIG.Font
 WorkshopTitle.TextSize = 18; WorkshopTitle.TextXAlignment = Enum.TextXAlignment.Left
 WorkshopTitle.ZIndex = 16; WorkshopTitle.Parent = WorkshopFrame
 
-local WorkshopBackBtn = Instance.new("ImageButton")
+WorkshopBackBtn = Instance.new("TextButton")
 WorkshopBackBtn.Size = UDim2.new(0,40,0,24); WorkshopBackBtn.Position = UDim2.new(1,-52,0,5)
 WorkshopBackBtn.BackgroundTransparency = 1
 WorkshopBackBtn.Image = getIcon(8674072445)
 WorkshopBackBtn.ScaleType = Enum.ScaleType.Fit
+WorkshopBackBtn.Text = ""
 WorkshopBackBtn.ZIndex = 16; WorkshopBackBtn.Parent = WorkshopFrame
 
--- ============ TAB BAR ============
 local WorkshopTabBar = Instance.new("Frame")
 WorkshopTabBar.Size = UDim2.new(1,-20,0,24); WorkshopTabBar.Position = UDim2.new(0,10,0,35)
 WorkshopTabBar.BackgroundTransparency = 1; WorkshopTabBar.ZIndex = 16
@@ -539,7 +591,6 @@ WorkshopTabPlugins.BorderSizePixel = 0; WorkshopTabPlugins.ZIndex = 17
 WorkshopTabPlugins.Parent = WorkshopTabBar
 Instance.new("UICorner", WorkshopTabPlugins).CornerRadius = UDim.new(0,4)
 
--- ============ MAIN SCROLL ============
 local WorkshopScroll = Instance.new("ScrollingFrame")
 WorkshopScroll.Size = UDim2.new(1,-20,1,-65); WorkshopScroll.Position = UDim2.new(0,10,0,62)
 WorkshopScroll.BackgroundTransparency = 1; WorkshopScroll.BorderSizePixel = 0
@@ -549,7 +600,6 @@ WorkshopScroll.ZIndex = 16; WorkshopScroll.Parent = WorkshopFrame
 local WorkshopListLayout = Instance.new("UIListLayout")
 WorkshopListLayout.SortOrder = Enum.SortOrder.LayoutOrder; WorkshopListLayout.Padding = UDim.new(0,5); WorkshopListLayout.Parent = WorkshopScroll
 
--- ============ PLUGINS SCROLL ============
 local WorkshopPluginsScroll = Instance.new("ScrollingFrame")
 WorkshopPluginsScroll.Size = UDim2.new(1,-20,1,-65); WorkshopPluginsScroll.Position = UDim2.new(0,10,0,62)
 WorkshopPluginsScroll.BackgroundTransparency = 1; WorkshopPluginsScroll.BorderSizePixel = 0
@@ -560,10 +610,8 @@ WorkshopPluginsScroll.Parent = WorkshopFrame
 local WorkshopPluginsLayout = Instance.new("UIListLayout")
 WorkshopPluginsLayout.SortOrder = Enum.SortOrder.LayoutOrder; WorkshopPluginsLayout.Padding = UDim.new(0,5); WorkshopPluginsLayout.Parent = WorkshopPluginsScroll
 
--- Forward declare refreshPluginsTab (used by Start button in Main)
 local refreshPluginsTab
 
--- ============ MAIN TAB RENDER ============
 local function refreshWorkshop()
     for _, child in ipairs(WorkshopScroll:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
@@ -576,12 +624,21 @@ local function refreshWorkshop()
         item.ZIndex = 17; item.Parent = WorkshopScroll
         Instance.new("UICorner", item).CornerRadius = UDim.new(0,6)
 
-        local img = Instance.new("ImageLabel")
+        local img = Instance.new("TextLabel")
         img.Size = UDim2.new(0,60,0,60); img.Position = UDim2.new(0,10,0,10)
         img.BackgroundColor3 = Color3.fromRGB(30,30,30); img.BorderSizePixel = 0
         img.Image = getIcon(p.imageId)
+        img.Text = ""
         img.ZIndex = 18; img.Parent = item
         Instance.new("UICorner", img).CornerRadius = UDim.new(0,4)
+        
+        if useFallbackText then
+            img.Image = ""
+            img.Text = "error"
+            img.TextColor3 = Color3.fromRGB(255,100,100)
+            img.Font = Enum.Font.Code
+            img.TextSize = 12
+        end
 
         local nameLbl = Instance.new("TextLabel")
         nameLbl.Size = UDim2.new(1,-150,0,20); nameLbl.Position = UDim2.new(0,80,0,10)
@@ -600,19 +657,27 @@ local function refreshWorkshop()
         descLbl.TextSize = 12; descLbl.TextWrapped = true; descLbl.TextXAlignment = Enum.TextXAlignment.Left
         descLbl.ZIndex = 18; descLbl.Parent = item
 
-        local dlBtn = Instance.new("ImageButton")
+        local dlBtn = Instance.new("TextButton")
         dlBtn.Size = UDim2.new(0,24,0,24); dlBtn.Position = UDim2.new(1,-60,0,10)
         dlBtn.BackgroundTransparency = 1; dlBtn.Image = getIcon(6953990751)
+        dlBtn.Text = ""
         dlBtn.ScaleType = Enum.ScaleType.Fit; dlBtn.ZIndex = 18; dlBtn.Parent = item
+        if useFallbackText then 
+            dlBtn.Image = ""; dlBtn.Text = "D"; dlBtn.BackgroundTransparency = 0.5; dlBtn.BackgroundColor3 = THEMES.default.input 
+        end
 
-        local stBtn = Instance.new("ImageButton")
+        local stBtn = Instance.new("TextButton")
         stBtn.Size = UDim2.new(0,24,0,24); stBtn.Position = UDim2.new(1,-30,0,10)
         stBtn.BackgroundTransparency = 1; stBtn.Image = getIcon(8517323802)
+        stBtn.Text = ""
         stBtn.ScaleType = Enum.ScaleType.Fit; stBtn.ZIndex = 18; stBtn.Parent = item
+        if useFallbackText then 
+            stBtn.Image = ""; stBtn.Text = "S"; stBtn.BackgroundTransparency = 0.5; stBtn.BackgroundColor3 = THEMES.default.input 
+        end
 
         dlBtn.MouseButton1Click:Connect(function()
             if not isfolder("workspace") then makefolder("workspace") end
-            dlBtn.Image = getIcon(12690727261)
+            if not useFallbackText then dlBtn.Image = getIcon(12690727261) end
             log("Downloading " .. p.name .. "...", "Info")
             local success, err = pcall(function()
                 local source = game:HttpGet(p.downloadUrl)
@@ -622,15 +687,13 @@ local function refreshWorkshop()
                 log("Downloaded: " .. p.name, "Success")
             else
                 log("Download failed: " .. tostring(err), "Error")
-                dlBtn.Image = getIcon(6953990751)
+                if not useFallbackText then dlBtn.Image = getIcon(6953990751) end
             end
         end)
 
-        -- MODIFIED: Start now types the command "plugin load <name>" with echo
         stBtn.MouseButton1Click:Connect(function()
             local path = "workspace/" .. p.name .. ".xconr"
             if isfile and isfile(path) then
-                -- Simulate typing/executing the command with echo
                 local cmdStr = "plugin load " .. p.name
                 log("> " .. cmdStr, "Echo")
                 runEvent("onExecute")
@@ -644,22 +707,22 @@ local function refreshWorkshop()
                 end
             else
                 log("Plugin not downloaded! Click download first.", "Error")
-                stBtn.Image = getIcon(17687447067)
-                task.wait(1)
-                stBtn.Image = getIcon(8517323802)
+                if not useFallbackText then
+                    stBtn.Image = getIcon(17687447067)
+                    task.wait(1)
+                    stBtn.Image = getIcon(8517323802)
+                end
             end
         end)
     end
     WorkshopScroll.CanvasSize = UDim2.new(0,0,0, WorkshopListLayout.AbsoluteContentSize.Y + 10)
 end
 
--- ============ PLUGINS TAB RENDER ============
 refreshPluginsTab = function()
     for _, child in ipairs(WorkshopPluginsScroll:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
     end
 
-    -- Get list of downloaded plugins
     local downloaded = {}
     if listfiles then
         local ok, files = pcall(listfiles, "workspace")
@@ -673,17 +736,6 @@ refreshPluginsTab = function()
         end
     end
 
-    if #downloaded == 0 then
-        local emptyLbl = Instance.new("TextLabel")
-        emptyLbl.Size = UDim2.new(1,0,0,40); emptyLbl.BackgroundTransparency = 1
-        emptyLbl.Text = "No plugins downloaded yet."
-        emptyLbl.TextColor3 = Color3.fromRGB(150,150,150)
-        emptyLbl.Font = Enum.Font.Code; emptyLbl.TextSize = 14
-        emptyLbl.ZIndex = 17; emptyLbl.Parent = WorkshopPluginsScroll
-        WorkshopPluginsScroll.CanvasSize = UDim2.new(0,0,0, 50)
-        return
-    end
-
     for _, name in ipairs(downloaded) do
         local info
         for _, p in ipairs(WORKSHOP_PLUGINS) do
@@ -693,47 +745,22 @@ refreshPluginsTab = function()
         local isCC = (name == "CustomCommand")
 
         local item = Instance.new("Frame")
-        item.Size = UDim2.new(1,-10,0,80)
+        item.Size = UDim2.new(1,-10,0,70)
         item.BackgroundColor3 = THEMES.default.input
         item.BackgroundTransparency = 0.5
         item.BorderSizePixel = 0
         item.ZIndex = 17; item.Parent = WorkshopPluginsScroll
         Instance.new("UICorner", item).CornerRadius = UDim.new(0,6)
-
-        local img = Instance.new("ImageLabel")
-        img.Size = UDim2.new(0,60,0,60); img.Position = UDim2.new(0,10,0,10)
-        img.BackgroundColor3 = Color3.fromRGB(30,30,30); img.BorderSizePixel = 0
-        if info then img.Image = getIcon(info.imageId) end
-        img.ZIndex = 18; img.Parent = item
-        Instance.new("UICorner", img).CornerRadius = UDim.new(0,4)
-
-        local nameLbl = Instance.new("TextLabel")
-        nameLbl.Size = UDim2.new(1,-240,0,20); nameLbl.Position = UDim2.new(0,80,0,10)
-        nameLbl.BackgroundTransparency = 1; nameLbl.Text = name
-        nameLbl.TextColor3 = THEMES.default.text; nameLbl.Font = Enum.Font.Code
-        nameLbl.TextSize = 16; nameLbl.TextXAlignment = Enum.TextXAlignment.Left
-        nameLbl.ZIndex = 18; nameLbl.Parent = item
-
-        local statusLbl = Instance.new("TextLabel")
-        statusLbl.Size = UDim2.new(1,-240,0,20); statusLbl.Position = UDim2.new(0,80,0,32)
-        statusLbl.BackgroundTransparency = 1
-        statusLbl.Text = isLoaded and "Status: Loaded" or "Status: Not loaded"
-        statusLbl.TextColor3 = isLoaded and Color3.fromRGB(100,255,100) or Color3.fromRGB(255,200,100)
-        statusLbl.Font = Enum.Font.Code; statusLbl.TextSize = 12
-        statusLbl.TextXAlignment = Enum.TextXAlignment.Left
-        statusLbl.ZIndex = 18; statusLbl.Parent = item
-
-        -- Load/Unload button (text button for clarity)
-        local toggleBtn = Instance.new("TextButton")
-        toggleBtn.Size = UDim2.new(0,70,0,22); toggleBtn.Position = UDim2.new(1,-160,0,10)
-        toggleBtn.BackgroundColor3 = isLoaded and Color3.fromRGB(180,80,80) or THEMES.default.accent
-        toggleBtn.TextColor3 = isLoaded and Color3.fromRGB(255,255,255) or Color3.fromRGB(0,0,0)
-        toggleBtn.Text = isLoaded and "Unload" or "Load"
-        toggleBtn.Font = Enum.Font.Code; toggleBtn.TextSize = 12
-        toggleBtn.BorderSizePixel = 0; toggleBtn.ZIndex = 18; toggleBtn.Parent = item
-        Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0,4)
-
-        toggleBtn.MouseButton1Click:Connect(function()
+        
+        -- Make whole item clickable for Load/Unload
+        local clickArea = Instance.new("TextButton")
+        clickArea.Size = UDim2.new(1,0,1,0)
+        clickArea.BackgroundTransparency = 1
+        clickArea.Text = ""
+        clickArea.ZIndex = 18
+        clickArea.Parent = item
+        
+        clickArea.MouseButton1Click:Connect(function()
             if isLoaded then
                 log("> plugin unload " .. name, "Echo")
                 runEvent("onExecute")
@@ -748,59 +775,65 @@ refreshPluginsTab = function()
             refreshPluginsTab()
         end)
 
-        -- Delete button
-        local delBtn = Instance.new("TextButton")
-        delBtn.Size = UDim2.new(0,60,0,22); delBtn.Position = UDim2.new(1,-85,0,10)
-        delBtn.BackgroundColor3 = Color3.fromRGB(120,40,40)
-        delBtn.TextColor3 = Color3.fromRGB(255,220,220)
-        delBtn.Text = "Delete"; delBtn.Font = Enum.Font.Code; delBtn.TextSize = 12
-        delBtn.BorderSizePixel = 0; delBtn.ZIndex = 18; delBtn.Parent = item
-        Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0,4)
+        local img = Instance.new("TextLabel")
+        img.Size = UDim2.new(0,50,0,50); img.Position = UDim2.new(0,10,0,10)
+        img.BackgroundColor3 = Color3.fromRGB(30,30,30); img.BorderSizePixel = 0
+        if info then img.Image = getIcon(info.imageId) end
+        img.Text = ""
+        img.ZIndex = 19; img.Parent = item
+        Instance.new("UICorner", img).CornerRadius = UDim.new(0,4)
+        
+        if useFallbackText then
+            img.Image = ""
+            img.Text = "error"
+            img.TextColor3 = Color3.fromRGB(255,100,100)
+            img.Font = Enum.Font.Code
+            img.TextSize = 12
+        end
 
-        delBtn.MouseButton1Click:Connect(function()
-            if isLoaded then
-                log("> plugin unload " .. name, "Echo")
-                local f = commands["plugin"]
-                if f then pcall(f, {"unload", name}) end
-            end
-            local path = "workspace/" .. name .. PLUGIN_EXT
-            local okDel = false
-            if delfile then okDel = pcall(delfile, path)
-            elseif writefile then okDel = pcall(writefile, path, "") end
-            if okDel then log("Deleted plugin: " .. name, "Success")
-            else log("Failed to delete: " .. name, "Error") end
-            refreshPluginsTab()
-        end)
+        local nameLbl = Instance.new("TextLabel")
+        nameLbl.Size = UDim2.new(1,-180,0,20); nameLbl.Position = UDim2.new(0,70,0,25)
+        nameLbl.BackgroundTransparency = 1; nameLbl.Text = name
+        nameLbl.TextColor3 = THEMES.default.text; nameLbl.Font = Enum.Font.Code
+        nameLbl.TextSize = 16; nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+        nameLbl.ZIndex = 19; nameLbl.Parent = item
 
-        -- Settings button for CustomCommand
         if isCC then
             local settingsBtn = Instance.new("TextButton")
-            settingsBtn.Size = UDim2.new(0,80,0,22); settingsBtn.Position = UDim2.new(1,-250,0,10)
-            settingsBtn.BackgroundColor3 = THEMES.default.accent
-            settingsBtn.TextColor3 = Color3.fromRGB(0,0,0)
-            settingsBtn.Text = "Settings"; settingsBtn.Font = Enum.Font.Code
-            settingsBtn.TextSize = 12; settingsBtn.BorderSizePixel = 0
-            settingsBtn.ZIndex = 18; settingsBtn.Parent = item
-            Instance.new("UICorner", settingsBtn).CornerRadius = UDim.new(0,4)
+            settingsBtn.Size = UDim2.new(0,24,0,24); settingsBtn.Position = UDim2.new(1,-40,0,23)
+            settingsBtn.BackgroundTransparency = 1
+            settingsBtn.Image = getIcon(6953992694)
+            settingsBtn.Text = ""
+            settingsBtn.ScaleType = Enum.ScaleType.Fit
+            settingsBtn.ZIndex = 20; settingsBtn.Parent = item
+            
+            if useFallbackText then
+                settingsBtn.Image = ""
+                settingsBtn.Text = "S"
+                settingsBtn.BackgroundTransparency = 0.5
+                settingsBtn.BackgroundColor3 = THEMES.default.input
+                settingsBtn.TextColor3 = Color3.new(1,1,1)
+                settingsBtn.Font = Enum.Font.Code
+            end
 
             settingsBtn.MouseButton1Click:Connect(function()
                 local existing = item:FindFirstChild("CCSettings")
                 if existing then
                     existing:Destroy()
-                    item.Size = UDim2.new(1,-10,0,80)
+                    item.Size = UDim2.new(1,-10,0,70)
                     return
                 end
 
-                item.Size = UDim2.new(1,-10,0,190)
+                item.Size = UDim2.new(1,-10,0,200)
 
                 local panel = Instance.new("Frame")
                 panel.Name = "CCSettings"
-                panel.Size = UDim2.new(1,-20,0,100)
-                panel.Position = UDim2.new(0,10,0,80)
+                panel.Size = UDim2.new(1,-20,0,120)
+                panel.Position = UDim2.new(0,10,0,70)
                 panel.BackgroundColor3 = Color3.fromRGB(20,20,20)
                 panel.BackgroundTransparency = 0.25
                 panel.BorderSizePixel = 0
-                panel.ZIndex = 19; panel.Parent = item
+                panel.ZIndex = 21; panel.Parent = item
                 Instance.new("UICorner", panel).CornerRadius = UDim.new(0,4)
 
                 local lbl1 = Instance.new("TextLabel")
@@ -808,7 +841,7 @@ refreshPluginsTab = function()
                 lbl1.BackgroundTransparency = 1; lbl1.Text = "New command:"
                 lbl1.TextColor3 = THEMES.default.text; lbl1.Font = Enum.Font.Code
                 lbl1.TextSize = 12; lbl1.TextXAlignment = Enum.TextXAlignment.Left
-                lbl1.ZIndex = 20; lbl1.Parent = panel
+                lbl1.ZIndex = 22; lbl1.Parent = panel
 
                 local box1 = Instance.new("TextBox")
                 box1.Size = UDim2.new(1,-20,0,22); box1.Position = UDim2.new(0,10,0,23)
@@ -817,7 +850,7 @@ refreshPluginsTab = function()
                 box1.Font = Enum.Font.Code; box1.TextSize = 12
                 box1.Text = ""; box1.PlaceholderText = "command name"
                 box1.ClearTextOnFocus = false
-                box1.ZIndex = 20; box1.Parent = panel
+                box1.ZIndex = 22; box1.Parent = panel
                 Instance.new("UICorner", box1).CornerRadius = UDim.new(0,3)
 
                 local lbl2 = Instance.new("TextLabel")
@@ -825,7 +858,7 @@ refreshPluginsTab = function()
                 lbl2.BackgroundTransparency = 1; lbl2.Text = "Executed command:"
                 lbl2.TextColor3 = THEMES.default.text; lbl2.Font = Enum.Font.Code
                 lbl2.TextSize = 12; lbl2.TextXAlignment = Enum.TextXAlignment.Left
-                lbl2.ZIndex = 20; lbl2.Parent = panel
+                lbl2.ZIndex = 22; lbl2.Parent = panel
 
                 local box2 = Instance.new("TextBox")
                 box2.Size = UDim2.new(1,-100,0,22); box2.Position = UDim2.new(0,10,0,68)
@@ -834,7 +867,7 @@ refreshPluginsTab = function()
                 box2.Font = Enum.Font.Code; box2.TextSize = 12
                 box2.Text = ""; box2.PlaceholderText = "lua code or command"
                 box2.ClearTextOnFocus = false
-                box2.ZIndex = 20; box2.Parent = panel
+                box2.ZIndex = 22; box2.Parent = panel
                 Instance.new("UICorner", box2).CornerRadius = UDim.new(0,3)
 
                 local createBtn = Instance.new("TextButton")
@@ -843,7 +876,7 @@ refreshPluginsTab = function()
                 createBtn.TextColor3 = Color3.fromRGB(0,0,0)
                 createBtn.Text = "Create"; createBtn.Font = Enum.Font.Code
                 createBtn.TextSize = 12; createBtn.BorderSizePixel = 0
-                createBtn.ZIndex = 20; createBtn.Parent = panel
+                createBtn.ZIndex = 22; createBtn.Parent = panel
                 Instance.new("UICorner", createBtn).CornerRadius = UDim.new(0,3)
 
                 createBtn.MouseButton1Click:Connect(function()
@@ -856,13 +889,13 @@ refreshPluginsTab = function()
                         log("Command already exists: " .. cmdName, "Error"); return
                     end
                     customCommands[cmdName] = cmdCode
-                    if loadedPlugins["CustomCommand"] then
-                        commands[cmdName] = function(args)
-                            local ok, e = pcall(executeLua, cmdCode)
-                            if not ok then log("CustomCommand error: " .. tostring(e), "Error") end
-                        end
-                        pluginCommands[cmdName] = "CustomCommand"
+                    -- ВАЖНО: Регистрируем команду сразу, чтобы она работала моментально
+                    commands[cmdName] = function(args)
+                        local ok, e = pcall(executeLua, cmdCode)
+                        if not ok then log("CustomCommand error: " .. tostring(e), "Error") end
                     end
+                    pluginCommands[cmdName] = "CustomCommand"
+                    
                     log("Custom command created: " .. cmdName, "Success")
                     if saveConfig then pcall(saveConfig) end
                     box1.Text = ""; box2.Text = ""
@@ -874,7 +907,6 @@ refreshPluginsTab = function()
     WorkshopPluginsScroll.CanvasSize = UDim2.new(0,0,0, WorkshopPluginsLayout.AbsoluteContentSize.Y + 10)
 end
 
--- ============ TAB SWITCH ============
 local function switchWorkshopTab(tab)
     if tab == "main" then
         WorkshopScroll.Visible = true
@@ -970,10 +1002,11 @@ local function updateDeviceVisuals()
 end
 
 local function makeDeviceBtn(imgId, x, name)
-    local btn = Instance.new("ImageButton")
+    local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0, 40, 0, 40); btn.Position = UDim2.new(0, x, 0, 22)
     btn.BackgroundTransparency = 1
     btn.Image = getIcon(imgId); btn.ScaleType = Enum.ScaleType.Fit
+    btn.Text = ""
     btn.ZIndex = 12; btn.Parent = deviceRow
 
     btn.MouseButton1Click:Connect(function()
@@ -1000,10 +1033,11 @@ filterRow.Size = UDim2.new(1,-20,0,95); filterRow.BackgroundTransparency = 1; fi
 local filterLabel = makeLabel(filterRow, "Console Filter", 0, 18)
 
 local function makeFilterBtn(imgId, x, toggleName)
-    local btn = Instance.new("ImageButton")
+    local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0, 34, 0, 34); btn.Position = UDim2.new(0, x, 0, 36)
     btn.BackgroundTransparency = 1
     btn.Image = getIcon(imgId); btn.ScaleType = Enum.ScaleType.Fit
+    btn.Text = ""
     btn.ZIndex = 12; btn.Parent = filterRow
 
     if toggleName == "print" then btn.ImageColor3 = showPrint and Color3.new(1,1,1) or Color3.fromRGB(100,100,100)
@@ -1076,7 +1110,7 @@ saveConfig = function()
             events=STATES.events, premium=premiumEnabled, customBg=customBgId,
             showPrint=showPrint, showWarn=showWarn, showError=showError, showSuccess=showSuccess, showEcho=showEcho,
             plugins=pluginList, pluginBackups=backupPlugins,
-            customCommands=customCommands,  -- NEW
+            customCommands=customCommands,
         }))
     end)
     if not ok then log("Config operation failed: "..tostring(err), "Error") end
@@ -1108,7 +1142,6 @@ local function applyConfig(cfg)
     if cfg.showSuccess ~= nil then showSuccess = cfg.showSuccess; filterSuccessBtn.ImageColor3 = showSuccess and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
     if cfg.showEcho ~= nil then showEcho = cfg.showEcho; filterEchoBtn.ImageColor3 = showEcho and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
 
-    -- Load custom commands from config
     if type(cfg.customCommands) == "table" then
         customCommands = {}
         for k, v in pairs(cfg.customCommands) do
@@ -1390,7 +1423,6 @@ local function runEvent(name)
     pcall(executeLua, code)
 end
 
--- ===================== ЗАПОМИНАНИЕ СКОРОСТИ =====================
 local function captureOriginalSpeed()
     local _, hum = getChar()
     if hum and not speedCaptured then
@@ -1400,7 +1432,6 @@ local function captureOriginalSpeed()
     end
 end
 
--- ===================== VELOCITY =====================
 local function setVelocityActive(active)
     if active then
         if STATES.velocityActive then return end
@@ -1443,7 +1474,6 @@ local function setVelocityActive(active)
     end
 end
 
--- ===================== КОМАНДЫ =====================
 local function resolveKey(name)
     name = name:upper()
     local ok, kc = pcall(function() return Enum.KeyCode[name] end)
@@ -1520,7 +1550,7 @@ commands["help"] = function()
     log("  fb/unfb, nofog, tppos x y z, ws, jp, copypos", "Default")
     log("  serverinfo/info, vr, serverhop/shop, joinplayer", "Default")
     log("  creatorid/creator, tools/untools, equipalltools/unequipalltools", "Default")
-    log("  code/xcode, getf3x, gun/m249, dex, tp <name>", "Default")
+    log("  code/xcode, getf3x, gun, dex, tp <name>", "Default")
     log("  duplicateitem/ditem, destroy/destroytarget", "Default")
     log("  speed/speedhack <n>, defaultspeed/dspeed", "Default")
     log("  enabledrop/edrop, disabledrop", "Default")
@@ -1529,6 +1559,7 @@ commands["help"] = function()
     log("  velocity (BIND ONLY for PC; toggle command for Phone)", "Default")
     log("  plugins | plugin <load|unload|reload|list|info> <name>", "Default")
     log("  backup <load [name|all]|list|clear>", "Default")
+    log("  asset <load|unload|reload>", "Default")
 end
 commands["settings"] = function() openSettings() end
 commands["workshop"] = function() openWorkshop() end
@@ -1538,6 +1569,40 @@ commands["unload"] = function()
     ScreenGui:Destroy()
 end
 commands["exit"] = commands["unload"]
+
+commands["asset"] = function(args)
+    local sub = (args[1] or ""):lower()
+    if sub == "load" then
+        useFallbackText = false
+        applyFallback()
+        log("Assets loaded", "Success")
+    elseif sub == "unload" then
+        useFallbackText = true
+        applyFallback()
+        log("Assets unloaded (fallback text enabled)", "Success")
+    elseif sub == "reload" then
+        useFallbackText = false
+        applyFallback()
+        local assets = {}
+        for _, d in ipairs(ScreenGui:GetDescendants()) do
+            if (d:IsA("ImageLabel") or d:IsA("ImageButton")) and d.Image ~= "" and d.Image ~= nil then
+                table.insert(assets, d.Image)
+            end
+        end
+        if #assets > 0 then
+            local ok = pcall(function() ContentProvider:PreloadAsync(assets) end)
+            if not ok then
+                useFallbackText = true
+                applyFallback()
+                log("Asset reload failed, using fallback", "Error")
+            else
+                log("Assets reloaded", "Success")
+            end
+        end
+    else
+        log("Usage: asset <load|unload|reload>", "Error")
+    end
+end
 
 commands["plugins"] = function() listPlugins() end
 commands["plugin"] = function(args)
@@ -2278,7 +2343,7 @@ commands["getf3x"] = function()
     pcall(function() local obj = game:GetObjects("rbxassetid://6695644299")[1]; if obj then loadstring(obj.Source)() end end)
 end
 commands["tool"] = commands["getf3x"]; commands["f3x"] = commands["getf3x"]
-commands["gun"] = giveGun; commands["m249"] = giveGun
+commands["gun"] = giveGun
 commands["dex"] = function()
     pcall(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/luau/Dex/master/out.lua", true))() end)
 end
@@ -2541,9 +2606,26 @@ end
 
 HideBtn.MouseButton1Click:Connect(function() setConsoleHidden(true) end)
 
+-- === ИСТОРИЯ КОМАНД (СТРЕЛКИ ВВЕРХ/ВНИЗ) ===
 UIS.InputBegan:Connect(function(input, gp)
     if input.KeyCode == Enum.KeyCode.RightControl then
         setConsoleHidden(not consoleHidden)
+    end
+    
+    if UIS:GetFocusedTextBox() == CommandBox then
+        if input.KeyCode == Enum.KeyCode.Up then
+            if #commandHistory > 0 then
+                historyIndex = math.max(1, historyIndex - 1)
+                CommandBox.Text = commandHistory[historyIndex]
+                CommandBox.CursorPosition = #CommandBox.Text + 1
+            end
+        elseif input.KeyCode == Enum.KeyCode.Down then
+            if #commandHistory > 0 then
+                historyIndex = math.min(#commandHistory + 1, historyIndex + 1)
+                CommandBox.Text = historyIndex <= #commandHistory and commandHistory[historyIndex] or ""
+                CommandBox.CursorPosition = #CommandBox.Text + 1
+            end
+        end
     end
 end)
 
@@ -2566,17 +2648,6 @@ CommandBox.FocusLost:Connect(function(enterPressed)
         local ok, e = pcall(f, args)
         if not ok then log("Error: "..tostring(e),"Error") end
     else executeLua(text) end
-end)
-
-CommandBox.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.Up then
-        if #commandHistory > 0 then historyIndex = math.max(1, historyIndex-1); CommandBox.Text = commandHistory[historyIndex] end
-    elseif input.KeyCode == Enum.KeyCode.Down then
-        if #commandHistory > 0 then
-            historyIndex = math.min(#commandHistory+1, historyIndex+1)
-            CommandBox.Text = historyIndex <= #commandHistory and commandHistory[historyIndex] or ""
-        end
-    end
 end)
 
 local resizing, startSize, startMouse = false, nil, nil
@@ -2645,7 +2716,7 @@ local loadVersion = Instance.new("TextLabel")
 loadVersion.Size = UDim2.new(1, 0, 0, 18)
 loadVersion.Position = UDim2.new(0, 0, 0, 86)
 loadVersion.BackgroundTransparency = 1
-loadVersion.Text = "v 2.7.2"
+loadVersion.Text = "v 2.8.0"
 loadVersion.Font = Enum.Font.Code
 loadVersion.TextSize = 13
 loadVersion.TextColor3 = Color3.fromRGB(120, 120, 120)
@@ -2712,7 +2783,11 @@ task.spawn(function()
     if #assets > 0 then
         local done = false
         task.spawn(function()
-            pcall(function() ContentProvider:PreloadAsync(assets) end)
+            local success = pcall(function() ContentProvider:PreloadAsync(assets) end)
+            if not success then
+                useFallbackText = true
+                applyFallback()
+            end
             done = true
         end)
         local t2 = tick()
