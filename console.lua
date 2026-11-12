@@ -17,7 +17,7 @@ local WORKSHOP_PLUGINS = {
     {
         name = "LegacyConsole",
         author = "dimoonsh",
-        isVerified = true, -- Если true, добавится галочка (Verified)
+        isVerified = true,
         desc = "Creates a legacy style console GUI.",
         imageId = "18794851856",
         downloadUrl = "https://raw.githubusercontent.com/dimoonsh195/xconsole/refs/heads/main/plugins/legacyconsole.xconr"
@@ -563,6 +563,7 @@ local function refreshWorkshop()
 
         dlBtn.MouseButton1Click:Connect(function()
             if not isfolder("workspace") then makefolder("workspace") end
+            dlBtn.Image = getIcon(12690727261) -- Меняем иконку на галочку скачивания
             log("Downloading " .. p.name .. "...", "Info")
             local success, err = pcall(function()
                 local source = game:HttpGet(p.downloadUrl)
@@ -572,15 +573,28 @@ local function refreshWorkshop()
                 log("Downloaded: " .. p.name, "Success")
             else
                 log("Download failed: " .. tostring(err), "Error")
+                dlBtn.Image = getIcon(6953990751) -- Если ошибка, вернуть иконку скачивания
             end
         end)
 
         stBtn.MouseButton1Click:Connect(function()
             local path = "workspace/" .. p.name .. ".xconr"
             if isfile and isfile(path) then
-                loadPlugin(p.name)
+                stBtn.Image = getIcon(17687447067) -- Иконка загрузки
+                log("Starting " .. p.name .. "...", "Info")
+                local ok, res = pcall(function() return loadPlugin(p.name) end)
+                if ok and res ~= false then
+                    stBtn.Image = getIcon(12690727261) -- Галочка успешно
+                    task.wait(1)
+                    stBtn.Image = getIcon(8517323802) -- Возврат к стандарту
+                else
+                    stBtn.Image = getIcon(8517323802) -- Возврат к стандарту при ошибке
+                end
             else
                 log("Plugin not downloaded! Click download first.", "Error")
+                stBtn.Image = getIcon(17687447067) -- Показываем загрузку (или ошибку)
+                task.wait(1)
+                stBtn.Image = getIcon(8517323802)
             end
         end)
     end
@@ -1022,6 +1036,17 @@ local function unloadPlugin(pluginName, skipBackup)
     return true
 end
 
+local function listPlugins()
+    log("Loaded plugins:", "Info")
+    local any = false
+    for name, data in pairs(loadedPlugins) do
+        any = true
+        local v = (data.meta and data.meta.version) or "?"
+        log("  " .. name .. " v" .. tostring(v), "Default")
+    end
+    if not any then log("  (none)", "Info") end
+end
+
 -- ===================== КОМАНДЫ =====================
 local function resolveKey(name)
     name = name:upper()
@@ -1186,7 +1211,6 @@ commands["backup"] = function(args)
     if saveConfig then pcall(saveConfig) end
 end
 
--- Скрытые команды (без изменений)
 commands["theme"] = function(args)
     local name = args[1]
     if not name then log("Usage: theme <default|winter|halloween|secret|win10|custom>", "Error"); return end
