@@ -563,7 +563,7 @@ local function refreshWorkshop()
 
         dlBtn.MouseButton1Click:Connect(function()
             if not isfolder("workspace") then makefolder("workspace") end
-            dlBtn.Image = getIcon(12690727261) -- Меняем иконку на галочку скачивания
+            dlBtn.Image = getIcon(12690727261) -- Меняем иконку на галочку
             log("Downloading " .. p.name .. "...", "Info")
             local success, err = pcall(function()
                 local source = game:HttpGet(p.downloadUrl)
@@ -573,7 +573,7 @@ local function refreshWorkshop()
                 log("Downloaded: " .. p.name, "Success")
             else
                 log("Download failed: " .. tostring(err), "Error")
-                dlBtn.Image = getIcon(6953990751) -- Если ошибка, вернуть иконку скачивания
+                dlBtn.Image = getIcon(6953990751)
             end
         end)
 
@@ -584,15 +584,15 @@ local function refreshWorkshop()
                 log("Starting " .. p.name .. "...", "Info")
                 local ok, res = pcall(function() return loadPlugin(p.name) end)
                 if ok and res ~= false then
-                    stBtn.Image = getIcon(12690727261) -- Галочка успешно
+                    stBtn.Image = getIcon(12690727261) -- Галочка
                     task.wait(1)
-                    stBtn.Image = getIcon(8517323802) -- Возврат к стандарту
+                    stBtn.Image = getIcon(8517323802) -- Возврат
                 else
-                    stBtn.Image = getIcon(8517323802) -- Возврат к стандарту при ошибке
+                    stBtn.Image = getIcon(8517323802)
                 end
             else
                 log("Plugin not downloaded! Click download first.", "Error")
-                stBtn.Image = getIcon(17687447067) -- Показываем загрузку (или ошибку)
+                stBtn.Image = getIcon(17687447067)
                 task.wait(1)
                 stBtn.Image = getIcon(8517323802)
             end
@@ -1045,6 +1045,82 @@ local function listPlugins()
         log("  " .. name .. " v" .. tostring(v), "Default")
     end
     if not any then log("  (none)", "Info") end
+end
+
+-- ВОТ ТА САМАЯ ФУНКЦИЯ, КОТОРУЮ Я СЛУЧАЙНО УДАЛИЛ
+local function runEvent(name)
+    if pluginEventHooks[name] then
+        for _, fn in ipairs(pluginEventHooks[name]) do
+            pcall(fn, name)
+        end
+    end
+    local code = STATES.events[name]
+    if not code or code == "" then return end
+    local args = {}
+    for w in code:gmatch("%S+") do table.insert(args, w) end
+    if #args > 0 then
+        local cmdName = args[1]:lower(); table.remove(args, 1)
+        local f = commands[cmdName]
+        if f then
+            local ok, e = pcall(f, args)
+            if not ok then log("Event "..name.." error: "..tostring(e), "Error") end
+            return
+        end
+    end
+    pcall(executeLua, code)
+end
+
+-- ===================== ЗАПОМИНАНИЕ СКОРОСТИ =====================
+local function captureOriginalSpeed()
+    local _, hum = getChar()
+    if hum and not speedCaptured then
+        originalWalkSpeed = hum.WalkSpeed
+        speedCaptured = true
+        log(string.format("Original WalkSpeed captured: %.1f", originalWalkSpeed), "Info", true)
+    end
+end
+
+-- ===================== VELOCITY =====================
+local function setVelocityActive(active)
+    if active then
+        if STATES.velocityActive then return end
+        local char, hum = getChar()
+        if not char or not hum then log("No character", "Error"); return end
+        STATES.velocityActive = true
+        STATES.velocitySpeedBackup = hum.WalkSpeed
+        hum.WalkSpeed = 1
+        STATES.velocityCollideBackup = {}
+        for _, p in ipairs(char:GetDescendants()) do
+            if p:IsA("BasePart") then
+                STATES.velocityCollideBackup[p] = p.CanCollide
+                p.CanCollide = false
+            end
+        end
+        if STATES.velocityConn then STATES.velocityConn:Disconnect() end
+        STATES.velocityConn = RunService.Stepped:Connect(function()
+            local c, h = getChar()
+            if not c or not h then return end
+            h.WalkSpeed = 1
+            for _, p in ipairs(c:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = false end
+            end
+        end)
+        log("velocity: on", "Success")
+    else
+        if not STATES.velocityActive then return end
+        STATES.velocityActive = false
+        if STATES.velocityConn then STATES.velocityConn:Disconnect(); STATES.velocityConn = nil end
+        local char, hum = getChar()
+        if hum and STATES.velocitySpeedBackup then hum.WalkSpeed = STATES.velocitySpeedBackup end
+        STATES.velocitySpeedBackup = nil
+        if char and STATES.velocityCollideBackup then
+            for p, state in pairs(STATES.velocityCollideBackup) do
+                if p and p.Parent then pcall(function() p.CanCollide = state end) end
+            end
+            STATES.velocityCollideBackup = nil
+        end
+        log("velocity: off", "Info")
+    end
 end
 
 -- ===================== КОМАНДЫ =====================
@@ -2330,10 +2406,15 @@ task.spawn(function()
 end)
 
 task.defer(function()
-    task.wait(0.1)
-    if isfile then pcall(loadConfig) end
-    task.wait(0.5)
-    captureOriginalSpeed()
+    local success, err = pcall(function()
+        task.wait(0.1)
+        if isfile then loadConfig() end
+        task.wait(0.5)
+        captureOriginalSpeed()
+    end)
+    if not success then
+        log("Startup error: "..tostring(err), "Error", true)
+    end
     task.wait(1)
     log("=== XCONSOLE READY ===", "Success", true)
 end)
