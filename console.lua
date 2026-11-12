@@ -12,12 +12,24 @@ local CollectionService = game:GetService("CollectionService")
 local ContentProvider = game:GetService("ContentProvider")
 local LocalPlayer = Players.LocalPlayer
 
--- ============ FORWARD DECLS ============
+-- ============ НАСТРОЙКИ ВОРКШОПА ============
+local WORKSHOP_PLUGINS = {
+    {
+        name = "LegacyConsole",
+        author = "dimoonsh",
+        isVerified = true, -- Если true, добавится галочка (Verified)
+        desc = "Creates a legacy style console GUI.",
+        imageId = "18794851856",
+        downloadUrl = "https://raw.githubusercontent.com/dimoonsh195/xconsole/refs/heads/main/plugins/legacyconsole.xconr"
+    }
+}
+-- ===========================================
+
 local SaveBtn, LoadBtn, eventsTitleLabel, eventBoxes, eventLabels
 local SettingsFrame, SettingsScroll, SettingsTitle, BackBtn
 local themeButtons, themeLabel, secretBtn, win10Btn
 local bgRow, bgBox, bgApplyBtn, bgLabel
-local HideBtn, ExtraIcon, SettingsBtn, PhoneIconBtn
+local HideBtn, ExtraIcon, SettingsBtn, PhoneIconBtn, WorkshopBtn
 local filterPrintBtn, filterWarnBtn, filterErrorBtn, filterSuccessBtn, filterEchoBtn
 local pcBtn, phoneBtn
 local premiumEnabled = false
@@ -31,15 +43,12 @@ local WIN10_THEME_ID = "13932338252"
 eventBoxes = {}; eventLabels = {}
 themeButtons = {}
 
--- ============ PLUGIN STATE ============
 local pluginCommands = {}    
 local loadedPlugins = {}     
 local pluginEventHooks = {}  
 local backupPlugins = {}     
-local PLUGIN_FOLDER = ""     
 local PLUGIN_EXT = ".xconr"
 
--- ===================== ТЕМЫ =====================
 local THEMES = {
     default = { background=Color3.fromRGB(15,15,15), header=Color3.fromRGB(25,25,25), input=Color3.fromRGB(30,30,30),
                 log=Color3.fromRGB(10,10,10), accent=Color3.fromRGB(255,255,255), text=Color3.fromRGB(255,255,255),
@@ -80,7 +89,6 @@ local COLORS = {
     Default=Color3.fromRGB(255,255,255), Output=Color3.fromRGB(200,200,255),
 }
 
--- ===================== СОСТОЯНИЕ =====================
 local commandHistory, historyIndex = {}, 0
 local logConnection = nil
 local binds, bindConns = {}, {}
@@ -118,7 +126,6 @@ for _, name in ipairs({"SimpleConsole","XcodeGui","MainMenu"}) do
     if guiParent:FindFirstChild(name) then guiParent[name]:Destroy() end
 end
 
--- ===================== UI =====================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SimpleConsole"; ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true; ScreenGui.DisplayOrder = 5000; ScreenGui.Parent = guiParent
@@ -148,7 +155,6 @@ Header.Size = UDim2.new(1,0,0,30); Header.BackgroundColor3 = THEMES.default.head
 Header.BackgroundTransparency = 0; Header.BorderSizePixel = 0; Header.ZIndex = 2; Header.Parent = ConsoleFrame
 local headerCorner = Instance.new("UICorner", Header); headerCorner.CornerRadius = UDim.new(0,6)
 
--- Логотип
 local Title = Instance.new("ImageLabel")
 Title.Size = UDim2.new(0,26,0,26); Title.Position = UDim2.new(0,4,0,2)
 Title.BackgroundTransparency = 1
@@ -156,15 +162,13 @@ Title.Image = getIcon(54479712)
 Title.ScaleType = Enum.ScaleType.Fit
 Title.ZIndex = 3; Title.Parent = Header
 
--- ExtraIcon
 ExtraIcon = Instance.new("ImageLabel")
-ExtraIcon.Size = UDim2.new(0,24,0,24); ExtraIcon.Position = UDim2.new(1,-110,0,3)
+ExtraIcon.Size = UDim2.new(0,24,0,24); ExtraIcon.Position = UDim2.new(1,-136,0,3)
 ExtraIcon.BackgroundTransparency = 1
 ExtraIcon.Image = getIcon(2484276650)
 ExtraIcon.ScaleType = Enum.ScaleType.Fit
 ExtraIcon.ZIndex = 3; ExtraIcon.Parent = Header
 
--- Кнопка настроек
 SettingsBtn = Instance.new("ImageButton")
 SettingsBtn.Size = UDim2.new(0,24,0,24); SettingsBtn.Position = UDim2.new(1,-84,0,3)
 SettingsBtn.BackgroundTransparency = 1
@@ -172,7 +176,13 @@ SettingsBtn.Image = getIcon(9405931596)
 SettingsBtn.ScaleType = Enum.ScaleType.Fit
 SettingsBtn.ZIndex = 3; SettingsBtn.Parent = Header
 
--- Кнопка скрытия
+WorkshopBtn = Instance.new("ImageButton")
+WorkshopBtn.Size = UDim2.new(0,24,0,24); WorkshopBtn.Position = UDim2.new(1,-110,0,3)
+WorkshopBtn.BackgroundTransparency = 1
+WorkshopBtn.Image = getIcon(11395780614)
+WorkshopBtn.ScaleType = Enum.ScaleType.Fit
+WorkshopBtn.ZIndex = 3; WorkshopBtn.Parent = Header
+
 HideBtn = Instance.new("TextButton")
 HideBtn.Size = UDim2.new(0,28,0,28); HideBtn.Position = UDim2.new(1,-58,0,1)
 HideBtn.BackgroundTransparency = 1
@@ -185,7 +195,6 @@ HideDash.BackgroundColor3 = Color3.fromRGB(255,255,255)
 HideDash.BorderSizePixel = 0; HideDash.ZIndex = 4; HideDash.Parent = HideBtn
 Instance.new("UICorner", HideDash).CornerRadius = UDim.new(1,0)
 
--- Кнопка закрытия
 local CloseBtn = Instance.new("ImageButton")
 CloseBtn.Size = UDim2.new(0,24,0,24); CloseBtn.Position = UDim2.new(1,-28,0,3)
 CloseBtn.BackgroundTransparency = 1
@@ -193,7 +202,6 @@ CloseBtn.Image = getIcon(111716979356360)
 CloseBtn.ScaleType = Enum.ScaleType.Fit
 CloseBtn.ZIndex = 3; CloseBtn.Parent = Header
 
--- Иконка телефона
 PhoneIconBtn = Instance.new("ImageButton")
 PhoneIconBtn.Size = UDim2.new(0, 40, 0, 40)
 PhoneIconBtn.Position = UDim2.new(0, 20, 0, 20)
@@ -210,14 +218,12 @@ PhoneIconBtn.MouseButton1Click:Connect(function()
     PhoneIconBtn.Visible = false
 end)
 
--- ===== ФОН ЛОГА (отдельный объект, НЕ родитель текста) =====
 local LogBg = Instance.new("Frame")
 LogBg.Size = UDim2.new(1,-10,1,-75); LogBg.Position = UDim2.new(0,5,0,35)
 LogBg.BackgroundColor3 = THEMES.default.log; LogBg.BackgroundTransparency = 0
 LogBg.BorderSizePixel = 0; LogBg.ZIndex = 1; LogBg.Parent = ConsoleFrame
 Instance.new("UICorner", LogBg).CornerRadius = UDim.new(0,4)
 
--- ===== САМ ЛОГ (полностью прозрачный ScrollingFrame, только текст) =====
 local LogFrame = Instance.new("ScrollingFrame")
 LogFrame.Size = UDim2.new(1,-10,1,-75); LogFrame.Position = UDim2.new(0,5,0,35)
 LogFrame.BackgroundTransparency = 1
@@ -251,7 +257,6 @@ ResizeHandle.TextSize = 12; ResizeHandle.BorderSizePixel = 0; ResizeHandle.ZInde
 ResizeHandle.Parent = ConsoleFrame
 Instance.new("UICorner", ResizeHandle).CornerRadius = UDim.new(0,4)
 
--- ===================== ЛОГ =====================
 local function log(text, colorType, force)
     if not force then
         local pass = true
@@ -321,7 +326,6 @@ logConnection = LogService.MessageOut:Connect(function(message, messageType)
     end)
 end)
 
--- ===================== LUA EXEC =====================
 local function executeLua(code)
     local fn, err = loadstring(code)
     if not fn then log("Lua compile error: " .. tostring(err), "Error"); return end
@@ -334,7 +338,6 @@ local function getChar()
     return char, char:FindFirstChildOfClass("Humanoid"), char:FindFirstChild("HumanoidRootPart")
 end
 
--- ===================== ТЕМА =====================
 applyThemeToSettings = function(t)
     if not SettingsFrame then return end
     for _, obj in ipairs(SettingsFrame:GetDescendants()) do
@@ -356,6 +359,17 @@ applyThemeToSettings = function(t)
     end
     SettingsFrame.BackgroundColor3 = t.background
     SettingsFrame.BackgroundTransparency = 0
+    
+    if WorkshopFrame then
+        WorkshopFrame.BackgroundColor3 = t.background
+        for _, obj in ipairs(WorkshopFrame:GetDescendants()) do
+            if obj:IsA("Frame") or obj:IsA("ScrollingFrame") then
+                if obj.BackgroundColor3 ~= Color3.fromRGB(255,255,255) then
+                   obj.BackgroundColor3 = t.input
+                end
+            end
+        end
+    end
 end
 
 local function applyTheme(name)
@@ -396,7 +410,6 @@ local function applyTheme(name)
     applyThemeToSettings(t)
 end
 
--- ===================== НАСТРОЙКИ =====================
 SettingsFrame = Instance.new("Frame")
 SettingsFrame.Size = UDim2.new(1,0,1,0); SettingsFrame.Position = UDim2.new(0,0,0,0)
 SettingsFrame.BackgroundColor3 = THEMES.default.background
@@ -454,7 +467,7 @@ local function openSettings()
     SettingsFrame.Visible = true; SettingsFrame.BackgroundTransparency = 1
     SettingsFrame.Position = UDim2.new(0,0,0,20)
     HideBtn.Visible = false; CloseBtn.Visible = false
-    ExtraIcon.Visible = false; SettingsBtn.Visible = false
+    ExtraIcon.Visible = false; SettingsBtn.Visible = false; WorkshopBtn.Visible = false
     TweenService:Create(SettingsFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad), {
         BackgroundTransparency = 0, Position = UDim2.new(0,0,0,0),
     }):Play()
@@ -466,10 +479,128 @@ local function closeSettings()
     tw:Play(); tw.Completed:Once(function()
         SettingsFrame.Visible = false
         HideBtn.Visible = true; CloseBtn.Visible = true
-        ExtraIcon.Visible = true; SettingsBtn.Visible = true
+        ExtraIcon.Visible = true; SettingsBtn.Visible = true; WorkshopBtn.Visible = true
     end)
 end
 BackBtn.MouseButton1Click:Connect(closeSettings)
+
+-- ===================== WORKSHOP UI =====================
+local WorkshopFrame = Instance.new("Frame")
+WorkshopFrame.Size = UDim2.new(1,0,1,0); WorkshopFrame.Position = UDim2.new(0,0,0,0)
+WorkshopFrame.BackgroundColor3 = THEMES.default.background
+WorkshopFrame.BackgroundTransparency = 0; WorkshopFrame.BorderSizePixel = 0
+WorkshopFrame.Visible = false; WorkshopFrame.ZIndex = 15; WorkshopFrame.Parent = ConsoleFrame
+Instance.new("UICorner", WorkshopFrame).CornerRadius = UDim.new(0,6)
+
+local WorkshopTitle = Instance.new("TextLabel")
+WorkshopTitle.Size = UDim2.new(1,-100,0,30); WorkshopTitle.Position = UDim2.new(0,10,0,5)
+WorkshopTitle.BackgroundTransparency = 1; WorkshopTitle.Text = "WORKSHOP"
+WorkshopTitle.TextColor3 = THEMES.default.text; WorkshopTitle.Font = CONFIG.Font
+WorkshopTitle.TextSize = 18; WorkshopTitle.TextXAlignment = Enum.TextXAlignment.Left
+WorkshopTitle.ZIndex = 16; WorkshopTitle.Parent = WorkshopFrame
+
+local WorkshopBackBtn = Instance.new("ImageButton")
+WorkshopBackBtn.Size = UDim2.new(0,40,0,24); WorkshopBackBtn.Position = UDim2.new(1,-52,0,5)
+WorkshopBackBtn.BackgroundTransparency = 1
+WorkshopBackBtn.Image = getIcon(8674072445)
+WorkshopBackBtn.ScaleType = Enum.ScaleType.Fit
+WorkshopBackBtn.ZIndex = 16; WorkshopBackBtn.Parent = WorkshopFrame
+
+local WorkshopScroll = Instance.new("ScrollingFrame")
+WorkshopScroll.Size = UDim2.new(1,-20,1,-40); WorkshopScroll.Position = UDim2.new(0,10,0,35)
+WorkshopScroll.BackgroundTransparency = 1; WorkshopScroll.BorderSizePixel = 0
+WorkshopScroll.ScrollBarThickness = 4; WorkshopScroll.CanvasSize = UDim2.new(0,0,0,0)
+WorkshopScroll.ZIndex = 16; WorkshopScroll.Parent = WorkshopFrame
+
+local WorkshopListLayout = Instance.new("UIListLayout")
+WorkshopListLayout.SortOrder = Enum.SortOrder.LayoutOrder; WorkshopListLayout.Padding = UDim.new(0,5); WorkshopListLayout.Parent = WorkshopScroll
+
+local function refreshWorkshop()
+    for _, child in ipairs(WorkshopScroll:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+
+    for _, p in ipairs(WORKSHOP_PLUGINS) do
+        local item = Instance.new("Frame")
+        item.Size = UDim2.new(1,-10,0,80); item.BackgroundColor3 = THEMES.default.input
+        item.BackgroundTransparency = 0.5; item.BorderSizePixel = 0
+        item.ZIndex = 17; item.Parent = WorkshopScroll
+        Instance.new("UICorner", item).CornerRadius = UDim.new(0,6)
+
+        local img = Instance.new("ImageLabel")
+        img.Size = UDim2.new(0,60,0,60); img.Position = UDim2.new(0,10,0,10)
+        img.BackgroundColor3 = Color3.fromRGB(30,30,30); img.BorderSizePixel = 0
+        img.Image = getIcon(p.imageId)
+        img.ZIndex = 18; img.Parent = item
+        Instance.new("UICorner", img).CornerRadius = UDim.new(0,4)
+
+        local nameLbl = Instance.new("TextLabel")
+        nameLbl.Size = UDim2.new(1,-150,0,20); nameLbl.Position = UDim2.new(0,80,0,10)
+        nameLbl.BackgroundTransparency = 1; nameLbl.Text = p.name
+        nameLbl.TextColor3 = THEMES.default.text; nameLbl.Font = Enum.Font.Code
+        nameLbl.TextSize = 16; nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+        nameLbl.ZIndex = 18; nameLbl.Parent = item
+
+        local authorText = p.author
+        if p.isVerified then authorText = authorText .. " (Verified) ✓" end
+
+        local descLbl = Instance.new("TextLabel")
+        descLbl.Size = UDim2.new(1,-150,0,40); descLbl.Position = UDim2.new(0,80,0,30)
+        descLbl.BackgroundTransparency = 1; descLbl.Text = p.desc .. " | by " .. authorText
+        descLbl.TextColor3 = Color3.fromRGB(180,180,180); descLbl.Font = Enum.Font.Code
+        descLbl.TextSize = 12; descLbl.TextWrapped = true; descLbl.TextXAlignment = Enum.TextXAlignment.Left
+        descLbl.ZIndex = 18; descLbl.Parent = item
+
+        local dlBtn = Instance.new("ImageButton")
+        dlBtn.Size = UDim2.new(0,24,0,24); dlBtn.Position = UDim2.new(1,-60,0,10)
+        dlBtn.BackgroundTransparency = 1; dlBtn.Image = getIcon(6953990751)
+        dlBtn.ScaleType = Enum.ScaleType.Fit; dlBtn.ZIndex = 18; dlBtn.Parent = item
+
+        local stBtn = Instance.new("ImageButton")
+        stBtn.Size = UDim2.new(0,24,0,24); stBtn.Position = UDim2.new(1,-30,0,10)
+        stBtn.BackgroundTransparency = 1; stBtn.Image = getIcon(8517323802)
+        stBtn.ScaleType = Enum.ScaleType.Fit; stBtn.ZIndex = 18; stBtn.Parent = item
+
+        dlBtn.MouseButton1Click:Connect(function()
+            if not isfolder("workspace") then makefolder("workspace") end
+            log("Downloading " .. p.name .. "...", "Info")
+            local success, err = pcall(function()
+                local source = game:HttpGet(p.downloadUrl)
+                writefile("workspace/" .. p.name .. ".xconr", source)
+            end)
+            if success then
+                log("Downloaded: " .. p.name, "Success")
+            else
+                log("Download failed: " .. tostring(err), "Error")
+            end
+        end)
+
+        stBtn.MouseButton1Click:Connect(function()
+            local path = "workspace/" .. p.name .. ".xconr"
+            if isfile and isfile(path) then
+                loadPlugin(p.name)
+            else
+                log("Plugin not downloaded! Click download first.", "Error")
+            end
+        end)
+    end
+    WorkshopScroll.CanvasSize = UDim2.new(0,0,0, WorkshopListLayout.AbsoluteContentSize.Y + 10)
+end
+
+WorkshopBackBtn.MouseButton1Click:Connect(function()
+    WorkshopFrame.Visible = false
+    HideBtn.Visible = true; CloseBtn.Visible = true
+    ExtraIcon.Visible = true; SettingsBtn.Visible = true; WorkshopBtn.Visible = true
+end)
+
+local function openWorkshop()
+    WorkshopFrame.Visible = true
+    HideBtn.Visible = false; CloseBtn.Visible = false
+    ExtraIcon.Visible = false; SettingsBtn.Visible = false; WorkshopBtn.Visible = false
+    refreshWorkshop()
+end
+
+WorkshopBtn.MouseButton1Click:Connect(openWorkshop)
 
 -- ТЕМЫ
 local themeRow = Instance.new("Frame")
@@ -827,7 +958,7 @@ local function loadPlugin(pluginName)
         return false
     end
 
-    local path = pluginName .. PLUGIN_EXT
+    local path = "workspace/" .. pluginName .. PLUGIN_EXT
     if not (isfile and isfile(path)) then
         log("Plugin file not found: " .. path, "Error")
         return false
@@ -889,182 +1020,6 @@ local function unloadPlugin(pluginName, skipBackup)
     end
     log("Plugin unloaded: " .. pluginName, "Info")
     return true
-end
-
-local function listPlugins()
-    log("Loaded plugins:", "Info")
-    local any = false
-    for name, data in pairs(loadedPlugins) do
-        any = true
-        local v = (data.meta and data.meta.version) or "?"
-        log("  " .. name .. " v" .. tostring(v), "Default")
-    end
-    if not any then log("  (none)", "Info") end
-end
-
--- ---- UI строка Manage Plugins ----
-local pluginRow = Instance.new("Frame")
-pluginRow.Size = UDim2.new(1,-20,0,170); pluginRow.BackgroundTransparency = 1; pluginRow.ZIndex = 11
-local pluginLabel = makeLabel(pluginRow, "Manage Plugins", 0, 18)
-
-local pluginBox = Instance.new("TextBox")
-pluginBox.Size = UDim2.new(0,200,0,26); pluginBox.Position = UDim2.new(0,0,0,22)
-pluginBox.BackgroundColor3 = THEMES.default.input; pluginBox.TextColor3 = THEMES.default.text
-pluginBox.Font = CONFIG.Font; pluginBox.TextSize = 13; pluginBox.Text = ""
-pluginBox.PlaceholderText = "plugin name (no .xconr)"
-pluginBox.ClearTextOnFocus = false; pluginBox.ZIndex = 12; pluginBox.Parent = pluginRow
-Instance.new("UICorner", pluginBox).CornerRadius = UDim.new(0,4)
-
-makeButton(pluginRow, "Load",   210, 22, 50, 26, function()
-    if pluginBox.Text == "" then log("Enter plugin name", "Error"); return end
-    loadPlugin(pluginBox.Text); if saveConfig then pcall(saveConfig) end
-end)
-makeButton(pluginRow, "Unload", 265, 22, 60, 26, function()
-    if pluginBox.Text == "" then log("Enter plugin name", "Error"); return end
-    unloadPlugin(pluginBox.Text); if saveConfig then pcall(saveConfig) end
-end)
-makeButton(pluginRow, "List",   330, 22, 50, 26, function() listPlugins() end)
-makeButton(pluginRow, "Reload", 385, 22, 60, 26, function()
-    if pluginBox.Text == "" then log("Enter plugin name", "Error"); return end
-    unloadPlugin(pluginBox.Text, true); loadPlugin(pluginBox.Text)
-end)
-
-makeButton(pluginRow, "SaveB",   0, 52, 80, 26, function()
-    if pluginBox.Text == "" then log("Enter plugin name", "Error"); return end
-    table.insert(backupPlugins, pluginBox.Text)
-    log("Saved to backup: " .. pluginBox.Text, "Success")
-    if saveConfig then pcall(saveConfig) end
-end)
-makeButton(pluginRow, "LoadB",  85, 52, 80, 26, function()
-    if #backupPlugins == 0 then log("No saved plugins", "Error"); return end
-    local list = {}
-    for _, n in ipairs(backupPlugins) do table.insert(list, n) end
-    backupPlugins = {}
-    for _, n in ipairs(list) do loadPlugin(n) end
-end)
-
-local pluginHint = makeLabel(pluginRow, "Folder: workspace (root)", 85, 16)
-pluginHint.TextSize = 11; pluginHint.TextColor3 = Color3.fromRGB(150,150,150)
-local pluginHint2 = makeLabel(pluginRow, "Example: legacyconsole" .. PLUGIN_EXT, 105, 16)
-pluginHint2.TextSize = 11; pluginHint2.TextColor3 = Color3.fromRGB(150,150,150)
-local pluginHint3 = makeLabel(pluginRow, "Reload = Unload → Load. Unloaded plugins go to backup list, restore with `backup load`.", 125, 16)
-pluginHint3.TextSize = 11; pluginHint3.TextColor3 = Color3.fromRGB(150,150,150)
-local pluginHint4 = makeLabel(pluginRow, "Backup: `backup list` / `backup load [name|all]` / `backup clear`", 145, 16)
-pluginHint4.TextSize = 11; pluginHint4.TextColor3 = Color3.fromRGB(150,150,150)
-
-addSettingRow(pluginRow)
-
-local function runEvent(name)
-    if pluginEventHooks[name] then
-        for _, fn in ipairs(pluginEventHooks[name]) do
-            pcall(fn, name)
-        end
-    end
-    local code = STATES.events[name]
-    if not code or code == "" then return end
-    local args = {}
-    for w in code:gmatch("%S+") do table.insert(args, w) end
-    if #args > 0 then
-        local cmdName = args[1]:lower(); table.remove(args, 1)
-        local f = commands[cmdName]
-        if f then
-            local ok, e = pcall(f, args)
-            if not ok then log("Event "..name.." error: "..tostring(e), "Error") end
-            return
-        end
-    end
-    pcall(executeLua, code)
-end
-
--- ===================== ЗАПОМИНАНИЕ СКОРОСТИ =====================
-local function captureOriginalSpeed()
-    local _, hum = getChar()
-    if hum and not speedCaptured then
-        originalWalkSpeed = hum.WalkSpeed
-        speedCaptured = true
-        log(string.format("Original WalkSpeed captured: %.1f", originalWalkSpeed), "Info", true)
-    end
-end
-
-local function watchCharacter(char)
-    local hum = char:WaitForChild("Humanoid", 5)
-    if hum then
-        if not speedCaptured then
-            originalWalkSpeed = hum.WalkSpeed; speedCaptured = true
-            log(string.format("Original WalkSpeed captured: %.1f", originalWalkSpeed), "Info", true)
-        end
-        local lastHealth = hum.Health
-        hum.Died:Connect(function() runEvent("onDied") end)
-        hum.HealthChanged:Connect(function(newH)
-            if newH < lastHealth then runEvent("onDamage") end
-            lastHealth = newH
-        end)
-    end
-    char.ChildAdded:Connect(function(child)
-        if child:IsA("Tool") and child:GetAttribute("XConsoleDuplicate") then
-            log("Duplicated item taken in hand: "..child.Name, "Info")
-        end
-    end)
-    runEvent("onSpawn")
-end
-if LocalPlayer.Character then watchCharacter(LocalPlayer.Character) end
-LocalPlayer.CharacterAdded:Connect(watchCharacter)
-Players.PlayerAdded:Connect(function() runEvent("onJoin") end)
-Players.PlayerRemoving:Connect(function() runEvent("onLeave") end)
-
-local function trackKilled(plr)
-    if plr == LocalPlayer then return end
-    local function bind(char)
-        local hum = char:WaitForChild("Humanoid", 5)
-        if hum then hum.Died:Connect(function() runEvent("onKilled") end) end
-    end
-    plr.CharacterAdded:Connect(bind)
-    if plr.Character then bind(plr.Character) end
-end
-for _, p in ipairs(Players:GetPlayers()) do trackKilled(p) end
-Players.PlayerAdded:Connect(trackKilled)
-
--- ===================== VELOCITY =====================
-local function setVelocityActive(active)
-    if active then
-        if STATES.velocityActive then return end
-        local char, hum = getChar()
-        if not char or not hum then log("No character", "Error"); return end
-        STATES.velocityActive = true
-        STATES.velocitySpeedBackup = hum.WalkSpeed
-        hum.WalkSpeed = 1
-        STATES.velocityCollideBackup = {}
-        for _, p in ipairs(char:GetDescendants()) do
-            if p:IsA("BasePart") then
-                STATES.velocityCollideBackup[p] = p.CanCollide
-                p.CanCollide = false
-            end
-        end
-        if STATES.velocityConn then STATES.velocityConn:Disconnect() end
-        STATES.velocityConn = RunService.Stepped:Connect(function()
-            local c, h = getChar()
-            if not c or not h then return end
-            h.WalkSpeed = 1
-            for _, p in ipairs(c:GetDescendants()) do
-                if p:IsA("BasePart") then p.CanCollide = false end
-            end
-        end)
-        log("velocity: on", "Success")
-    else
-        if not STATES.velocityActive then return end
-        STATES.velocityActive = false
-        if STATES.velocityConn then STATES.velocityConn:Disconnect(); STATES.velocityConn = nil end
-        local char, hum = getChar()
-        if hum and STATES.velocitySpeedBackup then hum.WalkSpeed = STATES.velocitySpeedBackup end
-        STATES.velocitySpeedBackup = nil
-        if char and STATES.velocityCollideBackup then
-            for p, state in pairs(STATES.velocityCollideBackup) do
-                if p and p.Parent then pcall(function() p.CanCollide = state end) end
-            end
-            STATES.velocityCollideBackup = nil
-        end
-        log("velocity: off", "Info")
-    end
 end
 
 -- ===================== КОМАНДЫ =====================
@@ -1155,6 +1110,7 @@ commands["help"] = function()
     log("  backup <load [name|all]|list|clear>", "Default")
 end
 commands["settings"] = function() openSettings() end
+commands["workshop"] = function() openWorkshop() end
 commands["unload"] = function()
     log("Console unloaded", "Success")
     if logConnection then logConnection:Disconnect(); logConnection = nil end
@@ -1168,7 +1124,26 @@ commands["plugin"] = function(args)
     if sub == "reload" and args[2] then unloadPlugin(args[2], true); loadPlugin(args[2])
     elseif sub == "load" and args[2] then loadPlugin(args[2])
     elseif sub == "unload" and args[2] then unloadPlugin(args[2])
-    elseif sub == "list" or sub == "" then listPlugins()
+    elseif sub == "list" or sub == "" then
+        log("Files in workspace (.xconr):", "Info")
+        if listfiles then
+            local ok, files = pcall(listfiles, "workspace")
+            if ok and files then
+                local found = false
+                for _, file in ipairs(files) do
+                    if file:match("%.xconr$") then
+                        local filename = file:match("[^/\\]+$")
+                        log("  " .. filename, "Default")
+                        found = true
+                    end
+                end
+                if not found then log("  (none)", "Info") end
+            else
+                log("  Error reading workspace folder", "Error")
+            end
+        else
+            log("  listfiles is not supported in this executor", "Error")
+        end
     else log("Usage: plugin <list|load|unload|reload> <name>", "Error") end
     if saveConfig then pcall(saveConfig) end
 end
@@ -1211,7 +1186,7 @@ commands["backup"] = function(args)
     if saveConfig then pcall(saveConfig) end
 end
 
--- Скрытые команды
+-- Скрытые команды (без изменений)
 commands["theme"] = function(args)
     local name = args[1]
     if not name then log("Usage: theme <default|winter|halloween|secret|win10|custom>", "Error"); return end
@@ -1297,9 +1272,6 @@ commands["premium"] = function(args)
     else log("Usage: premium <0|1>", "Error") end
 end
 
--- ===================== НЕДОСТАЮЩИЕ РЕАЛИЗАЦИИ =====================
-
--- палитра для команды color
 CMD_COLORS = CMD_COLORS or {
     R=Color3.fromRGB(255,0,0),    G=Color3.fromRGB(0,255,0),
     B=Color3.fromRGB(0,0,255),    Y=Color3.fromRGB(255,255,0),
@@ -1309,7 +1281,6 @@ CMD_COLORS = CMD_COLORS or {
     A=Color3.fromRGB(128,128,128),S=Color3.fromRGB(200,200,200),
 }
 
--- ---------- FLY ----------
 local flyBV, flyBG
 function toggleFly(on)
     if on == STATES.flying then return end
@@ -1346,7 +1317,6 @@ function toggleFly(on)
     end
 end
 
--- ---------- NOCLIP ----------
 function toggleNoclip(on)
     STATES.noclip = on
     if STATES.noclipConn then STATES.noclipConn:Disconnect(); STATES.noclipConn = nil end
@@ -1368,7 +1338,6 @@ function toggleNoclip(on)
     end
 end
 
--- ---------- ESP ----------
 local espHighlights = {}
 function toggleESP(on)
     STATES.esp = on
@@ -1402,7 +1371,6 @@ function toggleESP(on)
     end
 end
 
--- ---------- SWIM ----------
 function toggleSwim(on)
     STATES.swim = on
     if STATES.swimConn then STATES.swimConn:Disconnect(); STATES.swimConn = nil end
@@ -1418,7 +1386,6 @@ function toggleSwim(on)
     end
 end
 
--- ---------- FLING ----------
 function toggleFling(on)
     STATES.fling = on
     if STATES.flingConn then STATES.flingConn:Disconnect(); STATES.flingConn = nil end
@@ -1441,7 +1408,6 @@ function toggleFling(on)
     end
 end
 
--- ---------- INFINITE JUMP ----------
 function toggleInfJump(on)
     STATES.infjump = on
     if STATES.infjumpConn then STATES.infjumpConn:Disconnect(); STATES.infjumpConn = nil end
@@ -1457,7 +1423,6 @@ function toggleInfJump(on)
     end
 end
 
--- ---------- SPASM ----------
 function toggleSpasm(on)
     STATES.spasm = on
     if STATES.spasmConn then STATES.spasmConn:Disconnect(); STATES.spasmConn = nil end
@@ -1476,7 +1441,6 @@ function toggleSpasm(on)
     end
 end
 
--- ---------- FULLBRIGHT ----------
 function toggleFullbright(on)
     if on then
         if not STATES.fbBackup then
@@ -1510,7 +1474,6 @@ function toggleFullbright(on)
     end
 end
 
--- ---------- NOFOG ----------
 function toggleNofog(on)
     if on then
         if not STATES.fogBackup then
@@ -1529,7 +1492,6 @@ function toggleNofog(on)
     end
 end
 
--- ---------- GUN ----------
 function giveGun()
     local char = LocalPlayer.Character
     if not char then log("No character","Error"); return end
@@ -2348,7 +2310,6 @@ task.defer(function()
     if isfile then pcall(loadConfig) end
     task.wait(0.5)
     captureOriginalSpeed()
-    -- ПРОВЕРКА: если через 1 сек после старта не появилось сообщение — принудительно
     task.wait(1)
     log("=== XCONSOLE READY ===", "Success", true)
 end)
