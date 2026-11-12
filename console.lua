@@ -56,7 +56,7 @@ local pluginEventHooks = {}
 local backupPlugins = {}     
 local customCommands = {}    
 local PLUGIN_EXT = ".xconr"
-local useFallbackText = false -- По умолчанию False (используются картинки)
+local useFallbackText = false
 
 local THEMES = {
     default = { background=Color3.fromRGB(15,15,15), header=Color3.fromRGB(25,25,25), input=Color3.fromRGB(30,30,30),
@@ -164,30 +164,30 @@ Header.Size = UDim2.new(1,0,0,30); Header.BackgroundColor3 = THEMES.default.head
 Header.BackgroundTransparency = 0; Header.BorderSizePixel = 0; Header.ZIndex = 2; Header.Parent = ConsoleFrame
 local headerCorner = Instance.new("UICorner", Header); headerCorner.CornerRadius = UDim.new(0,6)
 
-local Title = Instance.new("TextButton")
+local Title = Instance.new("ImageButton")
 Title.Size = UDim2.new(0,26,0,26); Title.Position = UDim2.new(0,4,0,2)
-Title.BackgroundTransparency = 1; Title.Text = ""
+Title.BackgroundTransparency = 1
 Title.Image = getIcon(54479712)
 Title.ScaleType = Enum.ScaleType.Fit
 Title.ZIndex = 3; Title.Parent = Header
 
-ExtraIcon = Instance.new("TextButton")
+ExtraIcon = Instance.new("ImageButton")
 ExtraIcon.Size = UDim2.new(0,24,0,24); ExtraIcon.Position = UDim2.new(1,-136,0,3)
-ExtraIcon.BackgroundTransparency = 1; ExtraIcon.Text = ""
+ExtraIcon.BackgroundTransparency = 1
 ExtraIcon.Image = getIcon(2484276650)
 ExtraIcon.ScaleType = Enum.ScaleType.Fit
 ExtraIcon.ZIndex = 3; ExtraIcon.Parent = Header
 
-SettingsBtn = Instance.new("TextButton")
+SettingsBtn = Instance.new("ImageButton")
 SettingsBtn.Size = UDim2.new(0,24,0,24); SettingsBtn.Position = UDim2.new(1,-84,0,3)
-SettingsBtn.BackgroundTransparency = 1; SettingsBtn.Text = ""
+SettingsBtn.BackgroundTransparency = 1
 SettingsBtn.Image = getIcon(9405931596)
 SettingsBtn.ScaleType = Enum.ScaleType.Fit
 SettingsBtn.ZIndex = 3; SettingsBtn.Parent = Header
 
-WorkshopBtn = Instance.new("TextButton")
+WorkshopBtn = Instance.new("ImageButton")
 WorkshopBtn.Size = UDim2.new(0,24,0,24); WorkshopBtn.Position = UDim2.new(1,-110,0,3)
-WorkshopBtn.BackgroundTransparency = 1; WorkshopBtn.Text = ""
+WorkshopBtn.BackgroundTransparency = 1
 WorkshopBtn.Image = getIcon(11395780614)
 WorkshopBtn.ScaleType = Enum.ScaleType.Fit
 WorkshopBtn.ZIndex = 3; WorkshopBtn.Parent = Header
@@ -204,9 +204,9 @@ HideDash.BackgroundColor3 = Color3.fromRGB(255,255,255)
 HideDash.BorderSizePixel = 0; HideDash.ZIndex = 4; HideDash.Parent = HideBtn
 Instance.new("UICorner", HideDash).CornerRadius = UDim.new(1,0)
 
-CloseBtn = Instance.new("TextButton")
+CloseBtn = Instance.new("ImageButton")
 CloseBtn.Size = UDim2.new(0,24,0,24); CloseBtn.Position = UDim2.new(1,-28,0,3)
-CloseBtn.BackgroundTransparency = 1; CloseBtn.Text = ""
+CloseBtn.BackgroundTransparency = 1
 CloseBtn.Image = getIcon(111716979356360)
 CloseBtn.ScaleType = Enum.ScaleType.Fit
 CloseBtn.ZIndex = 3; CloseBtn.Parent = Header
@@ -351,47 +351,50 @@ end
 -- === FALLBACK SYSTEM ===
 local function applyFallback()
     local t = THEMES[currentTheme] or THEMES.default
-    local function setBtn(btn, img, txt)
+    local function setBtn(btn, imgId, txt)
         if not btn then return end
+        local txtLbl = btn:FindFirstChild("FallbackText")
         if useFallbackText then
             btn.Image = ""
-            btn.Text = txt
-            btn.TextColor3 = Color3.fromRGB(255,255,255)
+            if not txtLbl then
+                txtLbl = Instance.new("TextLabel")
+                txtLbl.Name = "FallbackText"
+                txtLbl.Size = UDim2.new(1,0,1,0)
+                txtLbl.BackgroundTransparency = 1
+                txtLbl.TextColor3 = Color3.fromRGB(255,255,255)
+                txtLbl.Font = Enum.Font.Code
+                txtLbl.TextSize = 14
+                txtLbl.ZIndex = btn.ZIndex + 1
+                txtLbl.Parent = btn
+            end
+            txtLbl.Text = txt
             btn.BackgroundColor3 = t.input
             btn.BackgroundTransparency = 0.5
-            btn.Font = Enum.Font.Code
-            btn.TextSize = 14
         else
-            btn.Image = img
-            btn.Text = ""
+            btn.Image = getIcon(imgId)
+            if txtLbl then txtLbl.Text = "" end
             btn.BackgroundTransparency = 1
         end
     end
-    
+
     -- Header
-    if Title then
-        if useFallbackText then Title.Image = ""; Title.Text = ">_"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = Enum.Font.Code; Title.TextSize = 16; Title.BackgroundTransparency = 0.5
-        else Title.Image = getIcon(54479712); Title.Text = ""; Title.BackgroundTransparency = 1 end
-    end
-    if ExtraIcon then
-        if useFallbackText then ExtraIcon.Image = ""; ExtraIcon.Text = "S"; ExtraIcon.TextColor3 = Color3.new(1,1,1); ExtraIcon.Font = Enum.Font.Code; ExtraIcon.TextSize = 14; ExtraIcon.BackgroundTransparency = 0.5
-        else ExtraIcon.Image = getIcon(2484276650); ExtraIcon.Text = ""; ExtraIcon.BackgroundTransparency = 1 end
-    end
-    setBtn(SettingsBtn, getIcon(9405931596), "S")
-    setBtn(WorkshopBtn, getIcon(11395780614), "W")
-    setBtn(CloseBtn, getIcon(111716979356360), "x")
-    setBtn(BackBtn, getIcon(8674072445), "<")
-    setBtn(WorkshopBackBtn, getIcon(8674072445), "<")
-    setBtn(SettingsTitle, getIcon(9405931596), "S")
-    setBtn(pcBtn, getIcon(12684119292), "PC")
-    setBtn(phoneBtn, getIcon(134410350720078), "PHONE")
-    
+    setBtn(Title, 54479712, ">_")
+    setBtn(ExtraIcon, 2484276650, "S")
+    setBtn(SettingsBtn, 9405931596, "S")
+    setBtn(WorkshopBtn, 11395780614, "W")
+    setBtn(CloseBtn, 111716979356360, "x")
+    setBtn(BackBtn, 8674072445, "<")
+    setBtn(WorkshopBackBtn, 8674072445, "<")
+    setBtn(SettingsTitle, 9405931596, "S")
+    setBtn(pcBtn, 12684119292, "PC")
+    setBtn(phoneBtn, 134410350720078, "PHONE")
+
     -- Filters
-    setBtn(filterPrintBtn, getIcon(15000633149), "P")
-    setBtn(filterWarnBtn, getIcon(18797417835), "W")
-    setBtn(filterErrorBtn, getIcon(8511577150), "E")
-    setBtn(filterSuccessBtn, getIcon(108191615793694), "S")
-    setBtn(filterEchoBtn, getIcon(124871982298256), "E")
+    setBtn(filterPrintBtn, 15000633149, "P")
+    setBtn(filterWarnBtn, 18797417835, "W")
+    setBtn(filterErrorBtn, 8511577150, "E")
+    setBtn(filterSuccessBtn, 108191615793694, "S")
+    setBtn(filterEchoBtn, 124871982298256, "E")
 end
 
 applyThemeToSettings = function(t)
@@ -506,16 +509,16 @@ local function addSettingRow(widget)
     SettingsScroll.CanvasSize = UDim2.new(0,0,0, settingsLayout.AbsoluteContentSize.Y + 20)
 end
 
-SettingsTitle = Instance.new("TextButton")
+SettingsTitle = Instance.new("ImageButton")
 SettingsTitle.Size = UDim2.new(0,26,0,26); SettingsTitle.Position = UDim2.new(0,8,0,7)
-SettingsTitle.BackgroundTransparency = 1; SettingsTitle.Text = ""
+SettingsTitle.BackgroundTransparency = 1
 SettingsTitle.Image = getIcon(9405931596)
 SettingsTitle.ScaleType = Enum.ScaleType.Fit
 SettingsTitle.ZIndex = 12; SettingsTitle.Parent = SettingsFrame
 
-BackBtn = Instance.new("TextButton")
+BackBtn = Instance.new("ImageButton")
 BackBtn.Size = UDim2.new(0,40,0,24); BackBtn.Position = UDim2.new(1,-52,0,8)
-BackBtn.BackgroundTransparency = 1; BackBtn.Text = ""
+BackBtn.BackgroundTransparency = 1
 BackBtn.Image = getIcon(8674072445)
 BackBtn.ScaleType = Enum.ScaleType.Fit
 BackBtn.ZIndex = 12; BackBtn.Parent = SettingsFrame
@@ -556,9 +559,9 @@ WorkshopTitle.TextColor3 = THEMES.default.text; WorkshopTitle.Font = CONFIG.Font
 WorkshopTitle.TextSize = 18; WorkshopTitle.TextXAlignment = Enum.TextXAlignment.Left
 WorkshopTitle.ZIndex = 16; WorkshopTitle.Parent = WorkshopFrame
 
-WorkshopBackBtn = Instance.new("TextButton")
+WorkshopBackBtn = Instance.new("ImageButton")
 WorkshopBackBtn.Size = UDim2.new(0,40,0,24); WorkshopBackBtn.Position = UDim2.new(1,-52,0,5)
-WorkshopBackBtn.BackgroundTransparency = 1; WorkshopBackBtn.Text = ""
+WorkshopBackBtn.BackgroundTransparency = 1
 WorkshopBackBtn.Image = getIcon(8674072445)
 WorkshopBackBtn.ScaleType = Enum.ScaleType.Fit
 WorkshopBackBtn.ZIndex = 16; WorkshopBackBtn.Parent = WorkshopFrame
@@ -619,20 +622,21 @@ local function refreshWorkshop()
         item.ZIndex = 17; item.Parent = WorkshopScroll
         Instance.new("UICorner", item).CornerRadius = UDim.new(0,6)
 
-        -- ВАЖНО: TextButton для поддержки и Image, и Text
-        local img = Instance.new("TextButton")
+        local img = Instance.new("ImageButton")
         img.Size = UDim2.new(0,60,0,60); img.Position = UDim2.new(0,10,0,10)
         img.BackgroundColor3 = Color3.fromRGB(30,30,30); img.BorderSizePixel = 0
-        img.Text = ""
         img.ZIndex = 18; img.Parent = item
         Instance.new("UICorner", img).CornerRadius = UDim.new(0,4)
-        
+
+        local imgLbl = Instance.new("TextLabel")
+        imgLbl.Name = "FallbackText"
+        imgLbl.Size = UDim2.new(1,0,1,0); imgLbl.BackgroundTransparency = 1
+        imgLbl.Text = ""; imgLbl.TextColor3 = Color3.fromRGB(255,100,100)
+        imgLbl.Font = Enum.Font.Code; imgLbl.TextSize = 12; imgLbl.ZIndex = 19; imgLbl.Parent = img
+
         if useFallbackText then
             img.Image = ""
-            img.Text = "error"
-            img.TextColor3 = Color3.fromRGB(255,100,100)
-            img.Font = Enum.Font.Code
-            img.TextSize = 12
+            imgLbl.Text = "error"
         else
             img.Image = getIcon(p.imageId)
         end
@@ -654,22 +658,40 @@ local function refreshWorkshop()
         descLbl.TextSize = 12; descLbl.TextWrapped = true; descLbl.TextXAlignment = Enum.TextXAlignment.Left
         descLbl.ZIndex = 18; descLbl.Parent = item
 
-        local dlBtn = Instance.new("TextButton")
+        local dlBtn = Instance.new("ImageButton")
         dlBtn.Size = UDim2.new(0,24,0,24); dlBtn.Position = UDim2.new(1,-60,0,10)
-        dlBtn.BackgroundTransparency = 1; dlBtn.Text = ""
+        dlBtn.BackgroundTransparency = 1
         dlBtn.ScaleType = Enum.ScaleType.Fit; dlBtn.ZIndex = 18; dlBtn.Parent = item
+        
+        local dlLbl = Instance.new("TextLabel")
+        dlLbl.Name = "FallbackText"
+        dlLbl.Size = UDim2.new(1,0,1,0); dlLbl.BackgroundTransparency = 1
+        dlLbl.Text = ""; dlLbl.TextColor3 = Color3.new(1,1,1); dlLbl.Font = Enum.Font.Code; dlLbl.TextSize = 12
+        dlLbl.ZIndex = 19; dlLbl.Parent = dlBtn
+
         if useFallbackText then 
-            dlBtn.Image = ""; dlBtn.Text = "D"; dlBtn.BackgroundTransparency = 0.5; dlBtn.BackgroundColor3 = THEMES.default.input 
+            dlBtn.Image = ""
+            dlLbl.Text = "D"
+            dlBtn.BackgroundTransparency = 0.5; dlBtn.BackgroundColor3 = THEMES.default.input 
         else
             dlBtn.Image = getIcon(6953990751)
         end
 
-        local stBtn = Instance.new("TextButton")
+        local stBtn = Instance.new("ImageButton")
         stBtn.Size = UDim2.new(0,24,0,24); stBtn.Position = UDim2.new(1,-30,0,10)
-        stBtn.BackgroundTransparency = 1; stBtn.Text = ""
+        stBtn.BackgroundTransparency = 1
         stBtn.ScaleType = Enum.ScaleType.Fit; stBtn.ZIndex = 18; stBtn.Parent = item
+
+        local stLbl = Instance.new("TextLabel")
+        stLbl.Name = "FallbackText"
+        stLbl.Size = UDim2.new(1,0,1,0); stLbl.BackgroundTransparency = 1
+        stLbl.Text = ""; stLbl.TextColor3 = Color3.new(1,1,1); stLbl.Font = Enum.Font.Code; stLbl.TextSize = 12
+        stLbl.ZIndex = 19; stLbl.Parent = stBtn
+
         if useFallbackText then 
-            stBtn.Image = ""; stBtn.Text = "S"; stBtn.BackgroundTransparency = 0.5; stBtn.BackgroundColor3 = THEMES.default.input 
+            stBtn.Image = ""
+            stLbl.Text = "S"
+            stBtn.BackgroundTransparency = 0.5; stBtn.BackgroundColor3 = THEMES.default.input 
         else
             stBtn.Image = getIcon(8517323802)
         end
@@ -773,19 +795,21 @@ refreshPluginsTab = function()
             refreshPluginsTab()
         end)
 
-        local img = Instance.new("TextButton")
+        local img = Instance.new("ImageButton")
         img.Size = UDim2.new(0,50,0,50); img.Position = UDim2.new(0,10,0,10)
         img.BackgroundColor3 = Color3.fromRGB(30,30,30); img.BorderSizePixel = 0
-        img.Text = ""
         img.ZIndex = 19; img.Parent = item
         Instance.new("UICorner", img).CornerRadius = UDim.new(0,4)
+
+        local imgLbl = Instance.new("TextLabel")
+        imgLbl.Name = "FallbackText"
+        imgLbl.Size = UDim2.new(1,0,1,0); imgLbl.BackgroundTransparency = 1
+        imgLbl.Text = ""; imgLbl.TextColor3 = Color3.fromRGB(255,100,100)
+        imgLbl.Font = Enum.Font.Code; imgLbl.TextSize = 12; imgLbl.ZIndex = 20; imgLbl.Parent = img
         
         if useFallbackText then
             img.Image = ""
-            img.Text = "error"
-            img.TextColor3 = Color3.fromRGB(255,100,100)
-            img.Font = Enum.Font.Code
-            img.TextSize = 12
+            imgLbl.Text = "error"
         else
             if info then img.Image = getIcon(info.imageId) end
         end
@@ -798,20 +822,23 @@ refreshPluginsTab = function()
         nameLbl.ZIndex = 19; nameLbl.Parent = item
 
         if isCC then
-            local settingsBtn = Instance.new("TextButton")
+            local settingsBtn = Instance.new("ImageButton")
             settingsBtn.Size = UDim2.new(0,24,0,24); settingsBtn.Position = UDim2.new(1,-40,0,23)
             settingsBtn.BackgroundTransparency = 1
-            settingsBtn.Text = ""
             settingsBtn.ScaleType = Enum.ScaleType.Fit
             settingsBtn.ZIndex = 20; settingsBtn.Parent = item
+
+            local settingsLbl = Instance.new("TextLabel")
+            settingsLbl.Name = "FallbackText"
+            settingsLbl.Size = UDim2.new(1,0,1,0); settingsLbl.BackgroundTransparency = 1
+            settingsLbl.Text = ""; settingsLbl.TextColor3 = Color3.new(1,1,1); settingsLbl.Font = Enum.Font.Code; settingsLbl.TextSize = 12
+            settingsLbl.ZIndex = 21; settingsLbl.Parent = settingsBtn
             
             if useFallbackText then
                 settingsBtn.Image = ""
-                settingsBtn.Text = "S"
+                settingsLbl.Text = "S"
                 settingsBtn.BackgroundTransparency = 0.5
                 settingsBtn.BackgroundColor3 = THEMES.default.input
-                settingsBtn.TextColor3 = Color3.new(1,1,1)
-                settingsBtn.Font = Enum.Font.Code
             else
                 settingsBtn.Image = getIcon(6953992694)
             end
@@ -1001,11 +1028,10 @@ local function updateDeviceVisuals()
 end
 
 local function makeDeviceBtn(imgId, x, name)
-    local btn = Instance.new("TextButton")
+    local btn = Instance.new("ImageButton")
     btn.Size = UDim2.new(0, 40, 0, 40); btn.Position = UDim2.new(0, x, 0, 22)
     btn.BackgroundTransparency = 1
     btn.Image = getIcon(imgId); btn.ScaleType = Enum.ScaleType.Fit
-    btn.Text = ""
     btn.ZIndex = 12; btn.Parent = deviceRow
 
     btn.MouseButton1Click:Connect(function()
@@ -1032,11 +1058,10 @@ filterRow.Size = UDim2.new(1,-20,0,95); filterRow.BackgroundTransparency = 1; fi
 local filterLabel = makeLabel(filterRow, "Console Filter", 0, 18)
 
 local function makeFilterBtn(imgId, x, toggleName)
-    local btn = Instance.new("TextButton")
+    local btn = Instance.new("ImageButton")
     btn.Size = UDim2.new(0, 34, 0, 34); btn.Position = UDim2.new(0, x, 0, 36)
     btn.BackgroundTransparency = 1
     btn.Image = getIcon(imgId); btn.ScaleType = Enum.ScaleType.Fit
-    btn.Text = ""
     btn.ZIndex = 12; btn.Parent = filterRow
 
     if toggleName == "print" then btn.ImageColor3 = showPrint and Color3.new(1,1,1) or Color3.fromRGB(100,100,100)
@@ -2752,7 +2777,6 @@ task.spawn(function()
         task.wait(0.05)
     end
 
-    -- ОТКЛЮЧЕНА ПРЕДЗАГРУЗКА АССЕТОВ (ПО ПРОСЬБЕ)
     setProgress(0.55, "loading assets...")
     task.wait(0.4)
 
