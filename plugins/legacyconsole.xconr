@@ -1,0 +1,52 @@
+-- @name    legacyconsole
+-- @version 1.0.0
+-- @author  dimoonsh
+
+local api = ...
+local ui = api.ui
+if not ui then api.log("api.ui not available", "Error"); return end
+
+local consoleCorner = ui.consoleCorner
+local header        = ui.header
+local title         = ui.title
+local headerCorner  = ui.headerCorner
+
+local saved = {
+    consoleRadius   = consoleCorner and consoleCorner.CornerRadius,
+    headerRadius    = headerCorner  and headerCorner.CornerRadius,
+    titleVisible    = title and title.Visible,
+}
+
+if consoleCorner then consoleCorner.CornerRadius = UDim.new(0, 0) end
+if headerCorner  then headerCorner.CornerRadius  = UDim.new(0, 0) end
+
+local legacyTitle = nil
+if title then
+    title.Visible = false
+    legacyTitle = Instance.new("TextLabel")
+    legacyTitle.Name = "LegacyTitle"
+    legacyTitle.BackgroundTransparency = 1
+    legacyTitle.Text = "CONSOLE"
+    legacyTitle.Font = Enum.Font.Code
+    legacyTitle.TextSize = 18
+    legacyTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    legacyTitle.TextXAlignment = Enum.TextXAlignment.Left
+    legacyTitle.Size = UDim2.new(0, 120, 1, 0)
+    legacyTitle.Position = UDim2.new(0, 8, 0, 0)
+    legacyTitle.ZIndex = 3
+    legacyTitle.Parent = title.Parent
+end
+
+api.log("Legacy console enabled", "Success")
+
+return {
+    name = "LegacyConsole",
+    version = "1.0.0",
+    onUnload = function(a)
+        if consoleCorner and saved.consoleRadius then consoleCorner.CornerRadius = saved.consoleRadius end
+        if headerCorner and saved.headerRadius then headerCorner.CornerRadius = saved.headerRadius end
+        if legacyTitle then legacyTitle:Destroy() end
+        if title and saved.titleVisible ~= nil then title.Visible = saved.titleVisible end
+        a.log("legacy console disabled", "Info")
+    end,
+}
