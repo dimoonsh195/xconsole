@@ -9,7 +9,6 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Debris = game:GetService("Debris")
 local CollectionService = game:GetService("CollectionService")
-local ContentProvider = game:GetService("ContentProvider")
 local LocalPlayer = Players.LocalPlayer
 
 -- ============ НАСТРОЙКИ ВОРКШОПА ============
@@ -57,7 +56,7 @@ local pluginEventHooks = {}
 local backupPlugins = {}     
 local customCommands = {}    
 local PLUGIN_EXT = ".xconr"
-local useFallbackText = false
+local useFallbackText = false -- По умолчанию False (используются картинки)
 
 local THEMES = {
     default = { background=Color3.fromRGB(15,15,15), header=Color3.fromRGB(25,25,25), input=Color3.fromRGB(30,30,30),
@@ -165,7 +164,6 @@ Header.Size = UDim2.new(1,0,0,30); Header.BackgroundColor3 = THEMES.default.head
 Header.BackgroundTransparency = 0; Header.BorderSizePixel = 0; Header.ZIndex = 2; Header.Parent = ConsoleFrame
 local headerCorner = Instance.new("UICorner", Header); headerCorner.CornerRadius = UDim.new(0,6)
 
--- Title, ExtraIcon и т.д. теперь TextButton с прозрачным фоном
 local Title = Instance.new("TextButton")
 Title.Size = UDim2.new(0,26,0,26); Title.Position = UDim2.new(0,4,0,2)
 Title.BackgroundTransparency = 1; Title.Text = ""
@@ -372,18 +370,19 @@ local function applyFallback()
     
     -- Header
     if Title then
-        if useFallbackText then Title.Image = ""; Title.Text = ">_"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = Enum.Font.Code; Title.TextSize = 16
-        else Title.Image = getIcon(54479712); Title.Text = "" end
+        if useFallbackText then Title.Image = ""; Title.Text = ">_"; Title.TextColor3 = Color3.new(1,1,1); Title.Font = Enum.Font.Code; Title.TextSize = 16; Title.BackgroundTransparency = 0.5
+        else Title.Image = getIcon(54479712); Title.Text = ""; Title.BackgroundTransparency = 1 end
     end
     if ExtraIcon then
-        if useFallbackText then ExtraIcon.Image = ""; ExtraIcon.Text = "S"; ExtraIcon.TextColor3 = Color3.new(1,1,1); ExtraIcon.Font = Enum.Font.Code; ExtraIcon.TextSize = 14
-        else ExtraIcon.Image = getIcon(2484276650); ExtraIcon.Text = "" end
+        if useFallbackText then ExtraIcon.Image = ""; ExtraIcon.Text = "S"; ExtraIcon.TextColor3 = Color3.new(1,1,1); ExtraIcon.Font = Enum.Font.Code; ExtraIcon.TextSize = 14; ExtraIcon.BackgroundTransparency = 0.5
+        else ExtraIcon.Image = getIcon(2484276650); ExtraIcon.Text = ""; ExtraIcon.BackgroundTransparency = 1 end
     end
     setBtn(SettingsBtn, getIcon(9405931596), "S")
     setBtn(WorkshopBtn, getIcon(11395780614), "W")
     setBtn(CloseBtn, getIcon(111716979356360), "x")
     setBtn(BackBtn, getIcon(8674072445), "<")
     setBtn(WorkshopBackBtn, getIcon(8674072445), "<")
+    setBtn(SettingsTitle, getIcon(9405931596), "S")
     setBtn(pcBtn, getIcon(12684119292), "PC")
     setBtn(phoneBtn, getIcon(134410350720078), "PHONE")
     
@@ -620,11 +619,10 @@ local function refreshWorkshop()
         item.ZIndex = 17; item.Parent = WorkshopScroll
         Instance.new("UICorner", item).CornerRadius = UDim.new(0,6)
 
-        -- ИСПОЛЬЗУЕМ TextButton ВМЕСТО TextLabel
+        -- ВАЖНО: TextButton для поддержки и Image, и Text
         local img = Instance.new("TextButton")
         img.Size = UDim2.new(0,60,0,60); img.Position = UDim2.new(0,10,0,10)
         img.BackgroundColor3 = Color3.fromRGB(30,30,30); img.BorderSizePixel = 0
-        img.Image = getIcon(p.imageId)
         img.Text = ""
         img.ZIndex = 18; img.Parent = item
         Instance.new("UICorner", img).CornerRadius = UDim.new(0,4)
@@ -635,6 +633,8 @@ local function refreshWorkshop()
             img.TextColor3 = Color3.fromRGB(255,100,100)
             img.Font = Enum.Font.Code
             img.TextSize = 12
+        else
+            img.Image = getIcon(p.imageId)
         end
 
         local nameLbl = Instance.new("TextLabel")
@@ -656,20 +656,22 @@ local function refreshWorkshop()
 
         local dlBtn = Instance.new("TextButton")
         dlBtn.Size = UDim2.new(0,24,0,24); dlBtn.Position = UDim2.new(1,-60,0,10)
-        dlBtn.BackgroundTransparency = 1; dlBtn.Image = getIcon(6953990751)
-        dlBtn.Text = ""
+        dlBtn.BackgroundTransparency = 1; dlBtn.Text = ""
         dlBtn.ScaleType = Enum.ScaleType.Fit; dlBtn.ZIndex = 18; dlBtn.Parent = item
         if useFallbackText then 
             dlBtn.Image = ""; dlBtn.Text = "D"; dlBtn.BackgroundTransparency = 0.5; dlBtn.BackgroundColor3 = THEMES.default.input 
+        else
+            dlBtn.Image = getIcon(6953990751)
         end
 
         local stBtn = Instance.new("TextButton")
         stBtn.Size = UDim2.new(0,24,0,24); stBtn.Position = UDim2.new(1,-30,0,10)
-        stBtn.BackgroundTransparency = 1; stBtn.Image = getIcon(8517323802)
-        stBtn.Text = ""
+        stBtn.BackgroundTransparency = 1; stBtn.Text = ""
         stBtn.ScaleType = Enum.ScaleType.Fit; stBtn.ZIndex = 18; stBtn.Parent = item
         if useFallbackText then 
             stBtn.Image = ""; stBtn.Text = "S"; stBtn.BackgroundTransparency = 0.5; stBtn.BackgroundColor3 = THEMES.default.input 
+        else
+            stBtn.Image = getIcon(8517323802)
         end
 
         dlBtn.MouseButton1Click:Connect(function()
@@ -749,7 +751,6 @@ refreshPluginsTab = function()
         item.ZIndex = 17; item.Parent = WorkshopPluginsScroll
         Instance.new("UICorner", item).CornerRadius = UDim.new(0,6)
         
-        -- Make whole item clickable for Load/Unload
         local clickArea = Instance.new("TextButton")
         clickArea.Size = UDim2.new(1,0,1,0)
         clickArea.BackgroundTransparency = 1
@@ -772,11 +773,9 @@ refreshPluginsTab = function()
             refreshPluginsTab()
         end)
 
-        -- ИСПОЛЬЗУЕМ TextButton ВМЕСТО TextLabel
         local img = Instance.new("TextButton")
         img.Size = UDim2.new(0,50,0,50); img.Position = UDim2.new(0,10,0,10)
         img.BackgroundColor3 = Color3.fromRGB(30,30,30); img.BorderSizePixel = 0
-        if info then img.Image = getIcon(info.imageId) end
         img.Text = ""
         img.ZIndex = 19; img.Parent = item
         Instance.new("UICorner", img).CornerRadius = UDim.new(0,4)
@@ -787,6 +786,8 @@ refreshPluginsTab = function()
             img.TextColor3 = Color3.fromRGB(255,100,100)
             img.Font = Enum.Font.Code
             img.TextSize = 12
+        else
+            if info then img.Image = getIcon(info.imageId) end
         end
 
         local nameLbl = Instance.new("TextLabel")
@@ -800,7 +801,6 @@ refreshPluginsTab = function()
             local settingsBtn = Instance.new("TextButton")
             settingsBtn.Size = UDim2.new(0,24,0,24); settingsBtn.Position = UDim2.new(1,-40,0,23)
             settingsBtn.BackgroundTransparency = 1
-            settingsBtn.Image = getIcon(6953992694)
             settingsBtn.Text = ""
             settingsBtn.ScaleType = Enum.ScaleType.Fit
             settingsBtn.ZIndex = 20; settingsBtn.Parent = item
@@ -812,6 +812,8 @@ refreshPluginsTab = function()
                 settingsBtn.BackgroundColor3 = THEMES.default.input
                 settingsBtn.TextColor3 = Color3.new(1,1,1)
                 settingsBtn.Font = Enum.Font.Code
+            else
+                settingsBtn.Image = getIcon(6953992694)
             end
 
             settingsBtn.MouseButton1Click:Connect(function()
@@ -887,7 +889,6 @@ refreshPluginsTab = function()
                         log("Command already exists: " .. cmdName, "Error"); return
                     end
                     customCommands[cmdName] = cmdCode
-                    -- ВАЖНО: Регистрируем команду сразу, чтобы она работала моментально
                     commands[cmdName] = function(args)
                         local ok, e = pcall(executeLua, cmdCode)
                         if not ok then log("CustomCommand error: " .. tostring(e), "Error") end
@@ -1333,7 +1334,6 @@ local function loadPlugin(pluginName)
     local meta = (type(result) == "table") and result or {}
     loadedPlugins[pluginName] = {meta = meta, api = api}
 
-    -- CustomCommand: register stored custom commands
     if pluginName == "CustomCommand" then
         for name, code in pairs(customCommands) do
             if not commands[name] then
@@ -1557,7 +1557,7 @@ commands["help"] = function()
     log("  velocity (BIND ONLY for PC; toggle command for Phone)", "Default")
     log("  plugins | plugin <load|unload|reload|list|info> <name>", "Default")
     log("  backup <load [name|all]|list|clear>", "Default")
-    log("  asset <load|unload|reload>", "Default")
+    log("  asset <image|default>", "Default")
 end
 commands["settings"] = function() openSettings() end
 commands["workshop"] = function() openWorkshop() end
@@ -1570,35 +1570,16 @@ commands["exit"] = commands["unload"]
 
 commands["asset"] = function(args)
     local sub = (args[1] or ""):lower()
-    if sub == "load" then
+    if sub == "image" then
         useFallbackText = false
         applyFallback()
-        log("Assets loaded", "Success")
-    elseif sub == "unload" then
+        log("Asset mode: image", "Success")
+    elseif sub == "default" then
         useFallbackText = true
         applyFallback()
-        log("Assets unloaded (fallback text enabled)", "Success")
-    elseif sub == "reload" then
-        useFallbackText = false
-        applyFallback()
-        local assets = {}
-        for _, d in ipairs(ScreenGui:GetDescendants()) do
-            if (d:IsA("ImageLabel") or d:IsA("ImageButton")) and d.Image ~= "" and d.Image ~= nil then
-                table.insert(assets, d.Image)
-            end
-        end
-        if #assets > 0 then
-            local ok = pcall(function() ContentProvider:PreloadAsync(assets) end)
-            if not ok then
-                useFallbackText = true
-                applyFallback()
-                log("Asset reload failed, using fallback", "Error")
-            else
-                log("Assets reloaded", "Success")
-            end
-        end
+        log("Asset mode: default", "Success")
     else
-        log("Usage: asset <load|unload|reload>", "Error")
+        log("Usage: asset <image|default>", "Error")
     end
 end
 
@@ -2714,7 +2695,7 @@ local loadVersion = Instance.new("TextLabel")
 loadVersion.Size = UDim2.new(1, 0, 0, 18)
 loadVersion.Position = UDim2.new(0, 0, 0, 86)
 loadVersion.BackgroundTransparency = 1
-loadVersion.Text = "v 2.8.0"
+loadVersion.Text = "v 2.8.2"
 loadVersion.Font = Enum.Font.Code
 loadVersion.TextSize = 13
 loadVersion.TextColor3 = Color3.fromRGB(120, 120, 120)
@@ -2771,26 +2752,9 @@ task.spawn(function()
         task.wait(0.05)
     end
 
-    setProgress(0.55, "preloading assets...")
-    local assets = {}
-    for _, d in ipairs(ScreenGui:GetDescendants()) do
-        if (d:IsA("ImageLabel") or d:IsA("ImageButton") or d:IsA("TextButton")) and d.Image ~= "" and d.Image ~= nil then
-            table.insert(assets, d.Image)
-        end
-    end
-    if #assets > 0 then
-        local done = false
-        task.spawn(function()
-            local success = pcall(function() ContentProvider:PreloadAsync(assets) end)
-            if not success then
-                useFallbackText = true
-                applyFallback()
-            end
-            done = true
-        end)
-        local t2 = tick()
-        while not done and tick() - t2 < 8 do task.wait(0.05) end
-    end
+    -- ОТКЛЮЧЕНА ПРЕДЗАГРУЗКА АССЕТОВ (ПО ПРОСЬБЕ)
+    setProgress(0.55, "loading assets...")
+    task.wait(0.4)
 
     setProgress(0.80, "finalizing...")
     if LocalPlayer.Character then
