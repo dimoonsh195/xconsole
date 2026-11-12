@@ -21,6 +21,14 @@ local WORKSHOP_PLUGINS = {
         desc = "Creates a legacy style console GUI.",
         imageId = "18794851856",
         downloadUrl = "https://raw.githubusercontent.com/dimoonsh195/xconsole/refs/heads/main/plugins/legacyconsole.xconr"
+    },
+    {
+        name = "CustomCommand",
+        author = "dimoonsh",
+        isVerified = true,
+        desc = "Create custom shortcuts to Lua code/commands.",
+        imageId = "6767454861",
+        downloadUrl = "https://raw.githubusercontent.com/dimoonsh195/xconsole/refs/heads/main/plugins/customcommand.xconr"
     }
 }
 -- ===========================================
@@ -47,6 +55,7 @@ local pluginCommands = {}
 local loadedPlugins = {}     
 local pluginEventHooks = {}  
 local backupPlugins = {}     
+local customCommands = {}    -- NEW: custom commands created via CustomCommand
 local PLUGIN_EXT = ".xconr"
 
 local THEMES = {
@@ -506,8 +515,33 @@ WorkshopBackBtn.Image = getIcon(8674072445)
 WorkshopBackBtn.ScaleType = Enum.ScaleType.Fit
 WorkshopBackBtn.ZIndex = 16; WorkshopBackBtn.Parent = WorkshopFrame
 
+-- ============ TAB BAR ============
+local WorkshopTabBar = Instance.new("Frame")
+WorkshopTabBar.Size = UDim2.new(1,-20,0,24); WorkshopTabBar.Position = UDim2.new(0,10,0,35)
+WorkshopTabBar.BackgroundTransparency = 1; WorkshopTabBar.ZIndex = 16
+WorkshopTabBar.Parent = WorkshopFrame
+
+local WorkshopTabMain = Instance.new("TextButton")
+WorkshopTabMain.Size = UDim2.new(0,90,0,24); WorkshopTabMain.Position = UDim2.new(0,0,0,0)
+WorkshopTabMain.BackgroundColor3 = THEMES.default.accent
+WorkshopTabMain.Text = "Main"; WorkshopTabMain.TextColor3 = Color3.fromRGB(0,0,0)
+WorkshopTabMain.Font = CONFIG.Font; WorkshopTabMain.TextSize = 13
+WorkshopTabMain.BorderSizePixel = 0; WorkshopTabMain.ZIndex = 17
+WorkshopTabMain.Parent = WorkshopTabBar
+Instance.new("UICorner", WorkshopTabMain).CornerRadius = UDim.new(0,4)
+
+local WorkshopTabPlugins = Instance.new("TextButton")
+WorkshopTabPlugins.Size = UDim2.new(0,90,0,24); WorkshopTabPlugins.Position = UDim2.new(0,95,0,0)
+WorkshopTabPlugins.BackgroundColor3 = THEMES.default.input
+WorkshopTabPlugins.Text = "Plugins"; WorkshopTabPlugins.TextColor3 = THEMES.default.text
+WorkshopTabPlugins.Font = CONFIG.Font; WorkshopTabPlugins.TextSize = 13
+WorkshopTabPlugins.BorderSizePixel = 0; WorkshopTabPlugins.ZIndex = 17
+WorkshopTabPlugins.Parent = WorkshopTabBar
+Instance.new("UICorner", WorkshopTabPlugins).CornerRadius = UDim.new(0,4)
+
+-- ============ MAIN SCROLL ============
 local WorkshopScroll = Instance.new("ScrollingFrame")
-WorkshopScroll.Size = UDim2.new(1,-20,1,-40); WorkshopScroll.Position = UDim2.new(0,10,0,35)
+WorkshopScroll.Size = UDim2.new(1,-20,1,-65); WorkshopScroll.Position = UDim2.new(0,10,0,62)
 WorkshopScroll.BackgroundTransparency = 1; WorkshopScroll.BorderSizePixel = 0
 WorkshopScroll.ScrollBarThickness = 4; WorkshopScroll.CanvasSize = UDim2.new(0,0,0,0)
 WorkshopScroll.ZIndex = 16; WorkshopScroll.Parent = WorkshopFrame
@@ -515,6 +549,21 @@ WorkshopScroll.ZIndex = 16; WorkshopScroll.Parent = WorkshopFrame
 local WorkshopListLayout = Instance.new("UIListLayout")
 WorkshopListLayout.SortOrder = Enum.SortOrder.LayoutOrder; WorkshopListLayout.Padding = UDim.new(0,5); WorkshopListLayout.Parent = WorkshopScroll
 
+-- ============ PLUGINS SCROLL ============
+local WorkshopPluginsScroll = Instance.new("ScrollingFrame")
+WorkshopPluginsScroll.Size = UDim2.new(1,-20,1,-65); WorkshopPluginsScroll.Position = UDim2.new(0,10,0,62)
+WorkshopPluginsScroll.BackgroundTransparency = 1; WorkshopPluginsScroll.BorderSizePixel = 0
+WorkshopPluginsScroll.ScrollBarThickness = 4; WorkshopPluginsScroll.CanvasSize = UDim2.new(0,0,0,0)
+WorkshopPluginsScroll.ZIndex = 16; WorkshopPluginsScroll.Visible = false
+WorkshopPluginsScroll.Parent = WorkshopFrame
+
+local WorkshopPluginsLayout = Instance.new("UIListLayout")
+WorkshopPluginsLayout.SortOrder = Enum.SortOrder.LayoutOrder; WorkshopPluginsLayout.Padding = UDim.new(0,5); WorkshopPluginsLayout.Parent = WorkshopPluginsScroll
+
+-- Forward declare refreshPluginsTab (used by Start button in Main)
+local refreshPluginsTab
+
+-- ============ MAIN TAB RENDER ============
 local function refreshWorkshop()
     for _, child in ipairs(WorkshopScroll:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
@@ -563,7 +612,7 @@ local function refreshWorkshop()
 
         dlBtn.MouseButton1Click:Connect(function()
             if not isfolder("workspace") then makefolder("workspace") end
-            dlBtn.Image = getIcon(12690727261) -- Меняем иконку на галочку
+            dlBtn.Image = getIcon(12690727261)
             log("Downloading " .. p.name .. "...", "Info")
             local success, err = pcall(function()
                 local source = game:HttpGet(p.downloadUrl)
@@ -577,18 +626,21 @@ local function refreshWorkshop()
             end
         end)
 
+        -- MODIFIED: Start now types the command "plugin load <name>" with echo
         stBtn.MouseButton1Click:Connect(function()
             local path = "workspace/" .. p.name .. ".xconr"
             if isfile and isfile(path) then
-                stBtn.Image = getIcon(17687447067) -- Иконка загрузки
-                log("Starting " .. p.name .. "...", "Info")
-                local ok, res = pcall(function() return loadPlugin(p.name) end)
-                if ok and res ~= false then
-                    stBtn.Image = getIcon(12690727261) -- Галочка
-                    task.wait(1)
-                    stBtn.Image = getIcon(8517323802) -- Возврат
-                else
-                    stBtn.Image = getIcon(8517323802)
+                -- Simulate typing/executing the command with echo
+                local cmdStr = "plugin load " .. p.name
+                log("> " .. cmdStr, "Echo")
+                runEvent("onExecute")
+                local f = commands["plugin"]
+                if f then
+                    local ok, e = pcall(f, {"load", p.name})
+                    if not ok then log("Error: "..tostring(e), "Error") end
+                end
+                if WorkshopPluginsScroll.Visible and refreshPluginsTab then
+                    refreshPluginsTab()
                 end
             else
                 log("Plugin not downloaded! Click download first.", "Error")
@@ -601,6 +653,250 @@ local function refreshWorkshop()
     WorkshopScroll.CanvasSize = UDim2.new(0,0,0, WorkshopListLayout.AbsoluteContentSize.Y + 10)
 end
 
+-- ============ PLUGINS TAB RENDER ============
+refreshPluginsTab = function()
+    for _, child in ipairs(WorkshopPluginsScroll:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+
+    -- Get list of downloaded plugins
+    local downloaded = {}
+    if listfiles then
+        local ok, files = pcall(listfiles, "workspace")
+        if ok and files then
+            for _, f in ipairs(files) do
+                if f:match("%.xconr$") then
+                    local nm = f:match("([^/\\]+)%.xconr$")
+                    if nm then table.insert(downloaded, nm) end
+                end
+            end
+        end
+    end
+
+    if #downloaded == 0 then
+        local emptyLbl = Instance.new("TextLabel")
+        emptyLbl.Size = UDim2.new(1,0,0,40); emptyLbl.BackgroundTransparency = 1
+        emptyLbl.Text = "No plugins downloaded yet."
+        emptyLbl.TextColor3 = Color3.fromRGB(150,150,150)
+        emptyLbl.Font = Enum.Font.Code; emptyLbl.TextSize = 14
+        emptyLbl.ZIndex = 17; emptyLbl.Parent = WorkshopPluginsScroll
+        WorkshopPluginsScroll.CanvasSize = UDim2.new(0,0,0, 50)
+        return
+    end
+
+    for _, name in ipairs(downloaded) do
+        local info
+        for _, p in ipairs(WORKSHOP_PLUGINS) do
+            if p.name == name then info = p; break end
+        end
+        local isLoaded = loadedPlugins[name] ~= nil
+        local isCC = (name == "CustomCommand")
+
+        local item = Instance.new("Frame")
+        item.Size = UDim2.new(1,-10,0,80)
+        item.BackgroundColor3 = THEMES.default.input
+        item.BackgroundTransparency = 0.5
+        item.BorderSizePixel = 0
+        item.ZIndex = 17; item.Parent = WorkshopPluginsScroll
+        Instance.new("UICorner", item).CornerRadius = UDim.new(0,6)
+
+        local img = Instance.new("ImageLabel")
+        img.Size = UDim2.new(0,60,0,60); img.Position = UDim2.new(0,10,0,10)
+        img.BackgroundColor3 = Color3.fromRGB(30,30,30); img.BorderSizePixel = 0
+        if info then img.Image = getIcon(info.imageId) end
+        img.ZIndex = 18; img.Parent = item
+        Instance.new("UICorner", img).CornerRadius = UDim.new(0,4)
+
+        local nameLbl = Instance.new("TextLabel")
+        nameLbl.Size = UDim2.new(1,-240,0,20); nameLbl.Position = UDim2.new(0,80,0,10)
+        nameLbl.BackgroundTransparency = 1; nameLbl.Text = name
+        nameLbl.TextColor3 = THEMES.default.text; nameLbl.Font = Enum.Font.Code
+        nameLbl.TextSize = 16; nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+        nameLbl.ZIndex = 18; nameLbl.Parent = item
+
+        local statusLbl = Instance.new("TextLabel")
+        statusLbl.Size = UDim2.new(1,-240,0,20); statusLbl.Position = UDim2.new(0,80,0,32)
+        statusLbl.BackgroundTransparency = 1
+        statusLbl.Text = isLoaded and "Status: Loaded" or "Status: Not loaded"
+        statusLbl.TextColor3 = isLoaded and Color3.fromRGB(100,255,100) or Color3.fromRGB(255,200,100)
+        statusLbl.Font = Enum.Font.Code; statusLbl.TextSize = 12
+        statusLbl.TextXAlignment = Enum.TextXAlignment.Left
+        statusLbl.ZIndex = 18; statusLbl.Parent = item
+
+        -- Load/Unload button (text button for clarity)
+        local toggleBtn = Instance.new("TextButton")
+        toggleBtn.Size = UDim2.new(0,70,0,22); toggleBtn.Position = UDim2.new(1,-160,0,10)
+        toggleBtn.BackgroundColor3 = isLoaded and Color3.fromRGB(180,80,80) or THEMES.default.accent
+        toggleBtn.TextColor3 = isLoaded and Color3.fromRGB(255,255,255) or Color3.fromRGB(0,0,0)
+        toggleBtn.Text = isLoaded and "Unload" or "Load"
+        toggleBtn.Font = Enum.Font.Code; toggleBtn.TextSize = 12
+        toggleBtn.BorderSizePixel = 0; toggleBtn.ZIndex = 18; toggleBtn.Parent = item
+        Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0,4)
+
+        toggleBtn.MouseButton1Click:Connect(function()
+            if isLoaded then
+                log("> plugin unload " .. name, "Echo")
+                runEvent("onExecute")
+                local f = commands["plugin"]
+                if f then pcall(f, {"unload", name}) end
+            else
+                log("> plugin load " .. name, "Echo")
+                runEvent("onExecute")
+                local f = commands["plugin"]
+                if f then pcall(f, {"load", name}) end
+            end
+            refreshPluginsTab()
+        end)
+
+        -- Delete button
+        local delBtn = Instance.new("TextButton")
+        delBtn.Size = UDim2.new(0,60,0,22); delBtn.Position = UDim2.new(1,-85,0,10)
+        delBtn.BackgroundColor3 = Color3.fromRGB(120,40,40)
+        delBtn.TextColor3 = Color3.fromRGB(255,220,220)
+        delBtn.Text = "Delete"; delBtn.Font = Enum.Font.Code; delBtn.TextSize = 12
+        delBtn.BorderSizePixel = 0; delBtn.ZIndex = 18; delBtn.Parent = item
+        Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0,4)
+
+        delBtn.MouseButton1Click:Connect(function()
+            if isLoaded then
+                log("> plugin unload " .. name, "Echo")
+                local f = commands["plugin"]
+                if f then pcall(f, {"unload", name}) end
+            end
+            local path = "workspace/" .. name .. PLUGIN_EXT
+            local okDel = false
+            if delfile then okDel = pcall(delfile, path)
+            elseif writefile then okDel = pcall(writefile, path, "") end
+            if okDel then log("Deleted plugin: " .. name, "Success")
+            else log("Failed to delete: " .. name, "Error") end
+            refreshPluginsTab()
+        end)
+
+        -- Settings button for CustomCommand
+        if isCC then
+            local settingsBtn = Instance.new("TextButton")
+            settingsBtn.Size = UDim2.new(0,80,0,22); settingsBtn.Position = UDim2.new(1,-250,0,10)
+            settingsBtn.BackgroundColor3 = THEMES.default.accent
+            settingsBtn.TextColor3 = Color3.fromRGB(0,0,0)
+            settingsBtn.Text = "Settings"; settingsBtn.Font = Enum.Font.Code
+            settingsBtn.TextSize = 12; settingsBtn.BorderSizePixel = 0
+            settingsBtn.ZIndex = 18; settingsBtn.Parent = item
+            Instance.new("UICorner", settingsBtn).CornerRadius = UDim.new(0,4)
+
+            settingsBtn.MouseButton1Click:Connect(function()
+                local existing = item:FindFirstChild("CCSettings")
+                if existing then
+                    existing:Destroy()
+                    item.Size = UDim2.new(1,-10,0,80)
+                    return
+                end
+
+                item.Size = UDim2.new(1,-10,0,190)
+
+                local panel = Instance.new("Frame")
+                panel.Name = "CCSettings"
+                panel.Size = UDim2.new(1,-20,0,100)
+                panel.Position = UDim2.new(0,10,0,80)
+                panel.BackgroundColor3 = Color3.fromRGB(20,20,20)
+                panel.BackgroundTransparency = 0.25
+                panel.BorderSizePixel = 0
+                panel.ZIndex = 19; panel.Parent = item
+                Instance.new("UICorner", panel).CornerRadius = UDim.new(0,4)
+
+                local lbl1 = Instance.new("TextLabel")
+                lbl1.Size = UDim2.new(1,-20,0,16); lbl1.Position = UDim2.new(0,10,0,5)
+                lbl1.BackgroundTransparency = 1; lbl1.Text = "New command:"
+                lbl1.TextColor3 = THEMES.default.text; lbl1.Font = Enum.Font.Code
+                lbl1.TextSize = 12; lbl1.TextXAlignment = Enum.TextXAlignment.Left
+                lbl1.ZIndex = 20; lbl1.Parent = panel
+
+                local box1 = Instance.new("TextBox")
+                box1.Size = UDim2.new(1,-20,0,22); box1.Position = UDim2.new(0,10,0,23)
+                box1.BackgroundColor3 = THEMES.default.input
+                box1.TextColor3 = THEMES.default.text
+                box1.Font = Enum.Font.Code; box1.TextSize = 12
+                box1.Text = ""; box1.PlaceholderText = "command name"
+                box1.ClearTextOnFocus = false
+                box1.ZIndex = 20; box1.Parent = panel
+                Instance.new("UICorner", box1).CornerRadius = UDim.new(0,3)
+
+                local lbl2 = Instance.new("TextLabel")
+                lbl2.Size = UDim2.new(1,-20,0,16); lbl2.Position = UDim2.new(0,10,0,50)
+                lbl2.BackgroundTransparency = 1; lbl2.Text = "Executed command:"
+                lbl2.TextColor3 = THEMES.default.text; lbl2.Font = Enum.Font.Code
+                lbl2.TextSize = 12; lbl2.TextXAlignment = Enum.TextXAlignment.Left
+                lbl2.ZIndex = 20; lbl2.Parent = panel
+
+                local box2 = Instance.new("TextBox")
+                box2.Size = UDim2.new(1,-100,0,22); box2.Position = UDim2.new(0,10,0,68)
+                box2.BackgroundColor3 = THEMES.default.input
+                box2.TextColor3 = THEMES.default.text
+                box2.Font = Enum.Font.Code; box2.TextSize = 12
+                box2.Text = ""; box2.PlaceholderText = "lua code or command"
+                box2.ClearTextOnFocus = false
+                box2.ZIndex = 20; box2.Parent = panel
+                Instance.new("UICorner", box2).CornerRadius = UDim.new(0,3)
+
+                local createBtn = Instance.new("TextButton")
+                createBtn.Size = UDim2.new(0,80,0,22); createBtn.Position = UDim2.new(1,-90,0,68)
+                createBtn.BackgroundColor3 = THEMES.default.accent
+                createBtn.TextColor3 = Color3.fromRGB(0,0,0)
+                createBtn.Text = "Create"; createBtn.Font = Enum.Font.Code
+                createBtn.TextSize = 12; createBtn.BorderSizePixel = 0
+                createBtn.ZIndex = 20; createBtn.Parent = panel
+                Instance.new("UICorner", createBtn).CornerRadius = UDim.new(0,3)
+
+                createBtn.MouseButton1Click:Connect(function()
+                    local cmdName = box1.Text:match("^%s*(.-)%s*$")
+                    local cmdCode = box2.Text:match("^%s*(.-)%s*$")
+                    if cmdName == "" or cmdCode == "" then
+                        log("Both fields are required", "Error"); return
+                    end
+                    if commands[cmdName] and pluginCommands[cmdName] ~= "CustomCommand" then
+                        log("Command already exists: " .. cmdName, "Error"); return
+                    end
+                    customCommands[cmdName] = cmdCode
+                    if loadedPlugins["CustomCommand"] then
+                        commands[cmdName] = function(args)
+                            local ok, e = pcall(executeLua, cmdCode)
+                            if not ok then log("CustomCommand error: " .. tostring(e), "Error") end
+                        end
+                        pluginCommands[cmdName] = "CustomCommand"
+                    end
+                    log("Custom command created: " .. cmdName, "Success")
+                    if saveConfig then pcall(saveConfig) end
+                    box1.Text = ""; box2.Text = ""
+                end)
+            end)
+        end
+    end
+
+    WorkshopPluginsScroll.CanvasSize = UDim2.new(0,0,0, WorkshopPluginsLayout.AbsoluteContentSize.Y + 10)
+end
+
+-- ============ TAB SWITCH ============
+local function switchWorkshopTab(tab)
+    if tab == "main" then
+        WorkshopScroll.Visible = true
+        WorkshopPluginsScroll.Visible = false
+        WorkshopTabMain.BackgroundColor3 = THEMES.default.accent
+        WorkshopTabMain.TextColor3 = Color3.fromRGB(0,0,0)
+        WorkshopTabPlugins.BackgroundColor3 = THEMES.default.input
+        WorkshopTabPlugins.TextColor3 = THEMES.default.text
+    else
+        WorkshopScroll.Visible = false
+        WorkshopPluginsScroll.Visible = true
+        WorkshopTabPlugins.BackgroundColor3 = THEMES.default.accent
+        WorkshopTabPlugins.TextColor3 = Color3.fromRGB(0,0,0)
+        WorkshopTabMain.BackgroundColor3 = THEMES.default.input
+        WorkshopTabMain.TextColor3 = THEMES.default.text
+        refreshPluginsTab()
+    end
+end
+
+WorkshopTabMain.MouseButton1Click:Connect(function() switchWorkshopTab("main") end)
+WorkshopTabPlugins.MouseButton1Click:Connect(function() switchWorkshopTab("plugins") end)
+
 WorkshopBackBtn.MouseButton1Click:Connect(function()
     WorkshopFrame.Visible = false
     HideBtn.Visible = true; CloseBtn.Visible = true
@@ -611,6 +907,7 @@ local function openWorkshop()
     WorkshopFrame.Visible = true
     HideBtn.Visible = false; CloseBtn.Visible = false
     ExtraIcon.Visible = false; SettingsBtn.Visible = false; WorkshopBtn.Visible = false
+    switchWorkshopTab("main")
     refreshWorkshop()
 end
 
@@ -779,6 +1076,7 @@ saveConfig = function()
             events=STATES.events, premium=premiumEnabled, customBg=customBgId,
             showPrint=showPrint, showWarn=showWarn, showError=showError, showSuccess=showSuccess, showEcho=showEcho,
             plugins=pluginList, pluginBackups=backupPlugins,
+            customCommands=customCommands,  -- NEW
         }))
     end)
     if not ok then log("Config operation failed: "..tostring(err), "Error") end
@@ -809,6 +1107,14 @@ local function applyConfig(cfg)
     if cfg.showError ~= nil then showError = cfg.showError; filterErrorBtn.ImageColor3 = showError and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
     if cfg.showSuccess ~= nil then showSuccess = cfg.showSuccess; filterSuccessBtn.ImageColor3 = showSuccess and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
     if cfg.showEcho ~= nil then showEcho = cfg.showEcho; filterEchoBtn.ImageColor3 = showEcho and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
+
+    -- Load custom commands from config
+    if type(cfg.customCommands) == "table" then
+        customCommands = {}
+        for k, v in pairs(cfg.customCommands) do
+            customCommands[k] = v
+        end
+    end
 
     if cfg.theme and THEMES[cfg.theme] then
         if (cfg.theme == SECRET or cfg.theme == "win10" or cfg.theme == "custom") and not premiumEnabled then
@@ -995,6 +1301,21 @@ local function loadPlugin(pluginName)
 
     local meta = (type(result) == "table") and result or {}
     loadedPlugins[pluginName] = {meta = meta, api = api}
+
+    -- CustomCommand: register stored custom commands
+    if pluginName == "CustomCommand" then
+        for name, code in pairs(customCommands) do
+            if not commands[name] then
+                local _code = code
+                commands[name] = function(args)
+                    local okC, eC = pcall(executeLua, _code)
+                    if not okC then log("CustomCommand error: " .. tostring(eC), "Error") end
+                end
+                pluginCommands[name] = "CustomCommand"
+            end
+        end
+    end
+
     for i = #backupPlugins, 1, -1 do
         if backupPlugins[i] == pluginName then table.remove(backupPlugins, i) end
     end
@@ -1047,7 +1368,6 @@ local function listPlugins()
     if not any then log("  (none)", "Info") end
 end
 
--- ВОТ ТА САМАЯ ФУНКЦИЯ, КОТОРУЮ Я СЛУЧАЙНО УДАЛИЛ
 local function runEvent(name)
     if pluginEventHooks[name] then
         for _, fn in ipairs(pluginEventHooks[name]) do
@@ -1207,7 +1527,7 @@ commands["help"] = function()
     log("  equipitems, deleteduplicate/dduplicate/dd", "Default")
     log("  ejump/djump, esit/dsit, ezoom/dzoom", "Default")
     log("  velocity (BIND ONLY for PC; toggle command for Phone)", "Default")
-    log("  plugins | plugin <load|unload|reload|list> <name>", "Default")
+    log("  plugins | plugin <load|unload|reload|list|info> <name>", "Default")
     log("  backup <load [name|all]|list|clear>", "Default")
 end
 commands["settings"] = function() openSettings() end
@@ -1225,6 +1545,29 @@ commands["plugin"] = function(args)
     if sub == "reload" and args[2] then unloadPlugin(args[2], true); loadPlugin(args[2])
     elseif sub == "load" and args[2] then loadPlugin(args[2])
     elseif sub == "unload" and args[2] then unloadPlugin(args[2])
+    elseif sub == "info" and args[2] then
+        local pname = args[2]
+        if pname == "CustomCommand" then
+            log("CustomCommand - created commands:", "Info")
+            local any = false
+            for name, code in pairs(customCommands) do
+                log("  " .. name .. " -> " .. code, "Default")
+                any = true
+            end
+            if not any then log("  (none)", "Info") end
+        else
+            local data = loadedPlugins[pname]
+            if data then
+                log("Plugin " .. pname .. " loaded" .. (data.meta.version and (" v"..tostring(data.meta.version)) or ""), "Info")
+            else
+                local path = "workspace/" .. pname .. PLUGIN_EXT
+                if isfile and isfile(path) then
+                    log("Plugin " .. pname .. " is downloaded but not loaded", "Info")
+                else
+                    log("Plugin not found: " .. pname, "Error")
+                end
+            end
+        end
     elseif sub == "list" or sub == "" then
         log("Files in workspace (.xconr):", "Info")
         if listfiles then
@@ -1245,7 +1588,7 @@ commands["plugin"] = function(args)
         else
             log("  listfiles is not supported in this executor", "Error")
         end
-    else log("Usage: plugin <list|load|unload|reload> <name>", "Error") end
+    else log("Usage: plugin <list|load|unload|reload|info> <name>", "Error") end
     if saveConfig then pcall(saveConfig) end
 end
 
@@ -2302,7 +2645,7 @@ local loadVersion = Instance.new("TextLabel")
 loadVersion.Size = UDim2.new(1, 0, 0, 18)
 loadVersion.Position = UDim2.new(0, 0, 0, 86)
 loadVersion.BackgroundTransparency = 1
-loadVersion.Text = "v 2.7.1"
+loadVersion.Text = "v 2.7.2"
 loadVersion.Font = Enum.Font.Code
 loadVersion.TextSize = 13
 loadVersion.TextColor3 = Color3.fromRGB(120, 120, 120)
