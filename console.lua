@@ -11,7 +11,7 @@ local Debris = game:GetService("Debris")
 local CollectionService = game:GetService("CollectionService")
 local LocalPlayer = Players.LocalPlayer
 
--- ============ НАСТРОЙКИ ВОРКШОПА ============
+-- ============ НАСТРОЙКИ ВОРКШОПА (Исправленные ссылки) ============
 local WORKSHOP_PLUGINS = {
     {
         name = "LegacyConsole",
@@ -19,7 +19,7 @@ local WORKSHOP_PLUGINS = {
         isVerified = true,
         desc = "Creates a legacy style console GUI.",
         imageId = "18794851856",
-        downloadUrl = "https://raw.githubusercontent.com/dimoonsh195/xconsole/refs/heads/main/plugins/legacyconsole.xconr"
+        downloadUrl = "https://raw.githubusercontent.com/dimoonsh195/xconsole/main/plugins/legacyconsole.xconr"
     },
     {
         name = "CustomCommand",
@@ -27,7 +27,7 @@ local WORKSHOP_PLUGINS = {
         isVerified = true,
         desc = "Create custom shortcuts to Lua code/commands.",
         imageId = "6767454861",
-        downloadUrl = "https://raw.githubusercontent.com/dimoonsh195/xconsole/refs/heads/main/plugins/customcommand.xconr"
+        downloadUrl = "https://raw.githubusercontent.com/dimoonsh195/xconsole/main/plugins/customcommand.xconr"
     }
 }
 -- ===========================================
@@ -702,6 +702,7 @@ local function refreshWorkshop()
             log("Downloading " .. p.name .. "...", "Info")
             local success, err = pcall(function()
                 local source = game:HttpGet(p.downloadUrl)
+                if source:find("404: Not Found") then error("File not found on GitHub (404)") end
                 writefile("workspace/" .. p.name .. ".xconr", source)
             end)
             if success then
@@ -1340,8 +1341,15 @@ local function loadPlugin(pluginName)
         log("Plugin file not found: " .. path, "Error")
         return false
     end
+    
     local ok, source = pcall(readfile, path)
     if not ok then log("Read error: " .. tostring(source), "Error"); return false end
+    
+    -- Проверка на то, что скачался не HTML
+    if source:find("<html") or source:find("404: Not Found") or source:find("<!DOCTYPE") then
+        log("Compile error: File is not valid Lua (corrupted download). Delete it and redownload.", "Error")
+        return false
+    end
 
     local chunk, err = loadstring(source, "=" .. pluginName)
     if not chunk then
@@ -1352,7 +1360,9 @@ local function loadPlugin(pluginName)
     local api = makePluginAPI(pluginName)
     local ok2, result = pcall(chunk, api)
     if not ok2 then
-        log("Runtime error in " .. pluginName .. ": " .. tostring(result), "Error")
+        local errStr = tostring(result)
+        if type(result) == "table" then errStr = result.message or result.error or "Unknown table error" end
+        log("Runtime error in " .. pluginName .. ": " .. tostring(errStr), "Error")
         return false
     end
 
