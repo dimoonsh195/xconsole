@@ -11,27 +11,149 @@ local Debris = game:GetService("Debris")
 local CollectionService = game:GetService("CollectionService")
 local LocalPlayer = Players.LocalPlayer
 
--- ============ НАСТРОЙКИ ВОРКШОПА (Исправленные ссылки) ============
+-- ============ GITHUB PATHS ============
+local GITHUB_BASE    = "https://raw.githubusercontent.com/dimoonsh195/xconsole/main/main/"
+local GITHUB_PLUGINS = GITHUB_BASE .. "plugins/"
+local GITHUB_LIBS    = GITHUB_BASE .. "libraries/"
+
+-- ============ WORKSHOP PLUGINS ============
 local WORKSHOP_PLUGINS = {
     {
-        name = "LegacyConsole",
-        author = "dimoonsh",
-        isVerified = true,
+        name = "LegacyConsole", author = "dimoonsh",
+        isVerified = true, isSystem = false,
         desc = "Creates a legacy style console GUI.",
         imageId = "18794851856",
-        downloadUrl = "https://raw.githubusercontent.com/dimoonsh195/xconsole/main/plugins/legacyconsole.xconr"
+        downloadUrl = GITHUB_PLUGINS .. "legacyconsole.xconr",
     },
     {
-        name = "CustomCommand",
-        author = "dimoonsh",
-        isVerified = true,
+        name = "CustomCommand", author = "dimoonsh",
+        isVerified = true, isSystem = false,
         desc = "Create custom shortcuts to Lua code/commands.",
         imageId = "6767454861",
-        downloadUrl = "https://raw.githubusercontent.com/dimoonsh195/xconsole/main/plugins/customcommand.xconr"
-    }
+        downloadUrl = GITHUB_PLUGINS .. "customcommand.xconr",
+    },
+    {
+        name = "Xcode", author = "dimoonsh",
+        isVerified = true, isSystem = true,
+        desc = "Write and run Lua code directly. Full Lua environment with console integration.",
+        imageId = "", downloadUrl = nil,
+    },
+    {
+        name = "ItemGiver", author = "dimoonsh",
+        isVerified = true, isSystem = false,
+        desc = "Toolbox-style item browser. Search, view, and give items (client-side).",
+        imageId = "",
+        downloadUrl = GITHUB_PLUGINS .. "itemgiver.xconr",
+    },
+    {
+        name = "MacroRecorder", author = "dimoonsh",
+        isVerified = true, isSystem = false,
+        desc = "Record commands with timestamps. Replay with original delays. Built-in timer.",
+        imageId = "",
+        downloadUrl = GITHUB_PLUGINS .. "macrorecorder.xconr",
+    },
+    {
+        name = "AutoExecutor", author = "dimoonsh",
+        isVerified = true, isSystem = false,
+        desc = "Trigger Lua code on conditions: HP, every N sec, position change, player join.",
+        imageId = "",
+        downloadUrl = GITHUB_PLUGINS .. "autoexecutor.xconr",
+    },
+    {
+        name = "PlayerTracker", author = "dimoonsh",
+        isVerified = true, isSystem = false,
+        desc = "Separate window with event feed: join, leave, death, damage, tool.",
+        imageId = "",
+        downloadUrl = GITHUB_PLUGINS .. "playertracker.xconr",
+    },
+    {
+        name = "KeybindManager", author = "dimoonsh",
+        isVerified = true, isSystem = false,
+        desc = "GUI for managing keybinds: add, remove, list.",
+        imageId = "",
+        downloadUrl = GITHUB_PLUGINS .. "keybindmanager.xconr",
+    },
 }
--- ===========================================
 
+-- ============ WORKSHOP LIBRARIES ============
+local WORKSHOP_LIBS = {
+    {
+        name = "Adaptive", author = "dimoonsh",
+        isVerified = true, isSystem = true,
+        desc = "Automatically adapts console to device screen. Phone scales UI, PC keeps default.",
+        imageId = "", downloadUrl = nil, libId = "adaptive",
+    },
+    {
+        name = "IconLoader", author = "dimoonsh",
+        isVerified = true, isSystem = true,
+        desc = "Loads all console icons via thumbnails API. Works on phone where rbxthumb:// fails.",
+        imageId = "", downloadUrl = nil, libId = "iconloader",
+    },
+    {
+        name = "Janitor", author = "howmanysmall",
+        isVerified = false, isSystem = false,
+        desc = "Cleans up connections, instances, callbacks on plugin unload. Prevents leaks.",
+        imageId = "",
+        downloadUrl = GITHUB_LIBS .. "janitor.xconr", libId = "janitor",
+    },
+    {
+        name = "Signal", author = "Roblox",
+        isVerified = true, isSystem = false,
+        desc = "Event class for plugin-to-plugin communication.",
+        imageId = "",
+        downloadUrl = GITHUB_LIBS .. "signal.xconr", libId = "signal",
+    },
+    {
+        name = "LineCleaner", author = "dimoonsh",
+        isVerified = true, isSystem = false,
+        desc = "Strips empty lines from pasted code before execution.",
+        imageId = "",
+        downloadUrl = GITHUB_LIBS .. "linecleaner.xconr", libId = "linecleaner",
+    },
+    {
+        name = "ObjectPool", author = "Roblox",
+        isVerified = false, isSystem = false,
+        desc = "Reuses objects instead of Instance.new/Destroy. Reduces GC pauses.",
+        imageId = "",
+        downloadUrl = GITHUB_LIBS .. "objectpool.xconr", libId = "objectpool",
+    },
+    {
+        name = "Memoize", author = "community",
+        isVerified = false, isSystem = false,
+        desc = "Caches function results for identical arguments.",
+        imageId = "",
+        downloadUrl = GITHUB_LIBS .. "memoize.xconr", libId = "memoize",
+    },
+    {
+        name = "LRUCache", author = "community",
+        isVerified = false, isSystem = false,
+        desc = "Limited-size cache with eviction. Controls memory.",
+        imageId = "",
+        downloadUrl = GITHUB_LIBS .. "lrucache.xconr", libId = "lrucache",
+    },
+    {
+        name = "ThreadPool", author = "community",
+        isVerified = false, isSystem = false,
+        desc = "Reuses coroutines. Only for hundreds of short tasks.",
+        imageId = "",
+        downloadUrl = GITHUB_LIBS .. "threadpool.xconr", libId = "threadpool",
+    },
+    {
+        name = "PyLua", author = "dimoonsh",
+        isVerified = true, isSystem = false,
+        desc = "Python-like syntax translator. Not real Python — supports print, if, for/range, def.",
+        imageId = "",
+        downloadUrl = GITHUB_LIBS .. "pylua.xconr", libId = "pylua",
+    },
+}
+
+-- ============ LIB LIST (для автозагрузки) ============
+local LIB_LIST = {
+    "janitor", "signal", "linecleaner", "objectpool",
+    "memoize", "lrucache", "threadpool", "pylua",
+}
+
+-- ============ FORWARD DECLS ============
 local SaveBtn, LoadBtn, eventsTitleLabel, eventBoxes, eventLabels
 local SettingsFrame, SettingsScroll, SettingsTitle, BackBtn
 local themeButtons, themeLabel, secretBtn, win10Btn
@@ -50,14 +172,34 @@ local WIN10_THEME_ID = "13932338252"
 eventBoxes = {}; eventLabels = {}
 themeButtons = {}
 
-local pluginCommands = {}    
-local loadedPlugins = {}     
-local pluginEventHooks = {}  
-local backupPlugins = {}     
-local customCommands = {}    
+-- ============ STATE ============
+local pluginCommands = {}
+local loadedPlugins = {}
+local pluginEventHooks = {}
+local backupPlugins = {}
+local customCommands = {}
 local PLUGIN_EXT = ".xconr"
 local useFallbackText = false
 
+local loadedLibs = {}
+local backupLibs = {}
+local pendingPluginSettings = {}
+local pendingLibSettings = {}
+local CUSTOM_PLUGINS_DIR = "workspace/xcon_custom/plugins"
+local CUSTOM_LIBS_DIR    = "workspace/xcon_custom/libs"
+
+-- ============ UTILS ============
+local function normName(name)
+    return tostring(name or ""):lower():gsub("%s+", "")
+end
+local function slugify(name)
+    return tostring(name):lower():gsub("[^%w_]+", "_"):sub(1, 32)
+end
+local function ensureDir(path)
+    if isfolder and not isfolder(path) then pcall(makefolder, path) end
+end
+
+-- ============ THEMES ============
 local THEMES = {
     default = { background=Color3.fromRGB(15,15,15), header=Color3.fromRGB(25,25,25), input=Color3.fromRGB(30,30,30),
                 log=Color3.fromRGB(10,10,10), accent=Color3.fromRGB(255,255,255), text=Color3.fromRGB(255,255,255),
@@ -135,6 +277,7 @@ for _, name in ipairs({"SimpleConsole","XcodeGui","MainMenu"}) do
     if guiParent:FindFirstChild(name) then guiParent[name]:Destroy() end
 end
 
+-- ============ UI BASE ============
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "SimpleConsole"; ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true; ScreenGui.DisplayOrder = 5000; ScreenGui.Parent = guiParent
@@ -266,6 +409,7 @@ ResizeHandle.TextSize = 12; ResizeHandle.BorderSizePixel = 0; ResizeHandle.ZInde
 ResizeHandle.Parent = ConsoleFrame
 Instance.new("UICorner", ResizeHandle).CornerRadius = UDim.new(0,4)
 
+-- ============ LOG ============
 local function log(text, colorType, force)
     if not force then
         local pass = true
@@ -348,7 +492,7 @@ local function getChar()
     return char, char:FindFirstChildOfClass("Humanoid"), char:FindFirstChild("HumanoidRootPart")
 end
 
--- === FALLBACK SYSTEM ===
+-- ============ FALLBACK ============
 local function applyFallback()
     local t = THEMES[currentTheme] or THEMES.default
     local function setBtn(btn, imgId, txt)
@@ -377,7 +521,6 @@ local function applyFallback()
         end
     end
 
-    -- Header
     setBtn(Title, 54479712, ">_")
     setBtn(ExtraIcon, 2484276650, "S")
     setBtn(SettingsBtn, 9405931596, "S")
@@ -389,7 +532,6 @@ local function applyFallback()
     setBtn(pcBtn, 12684119292, "PC")
     setBtn(phoneBtn, 134410350720078, "PHONE")
 
-    -- Filters
     setBtn(filterPrintBtn, 15000633149, "P")
     setBtn(filterWarnBtn, 18797417835, "W")
     setBtn(filterErrorBtn, 8511577150, "E")
@@ -397,6 +539,336 @@ local function applyFallback()
     setBtn(filterEchoBtn, 124871982298256, "E")
 end
 
+-- ============ LIBRARIES: BUILTIN ============
+local loadBuiltinLib = function(libId)
+    if libId == "iconloader" then
+        local cache = {}
+        local function fetchAll(callback)
+            local ICON_IDS = {
+                54479712, 2484276650, 9405931596, 11395780614, 111716979356360,
+                8674072445, 12684119292, 134410350720078, 15000633149, 18797417835,
+                8511577150, 108191615793694, 124871982298256, 6953990751, 8517323802, 6953992694,
+            }
+            local ids = {}
+            for _, id in ipairs(ICON_IDS) do table.insert(ids, tostring(id)) end
+            local url = "https://thumbnails.roblox.com/v1/assets?assetIds=" ..
+                table.concat(ids, ",") .. "&size=150x150&format=Png"
+            task.spawn(function()
+                local ok, res = pcall(game.HttpGet, game, url)
+                if not ok or not res then callback({}); return end
+                local ok2, data = pcall(function() return HttpService:JSONDecode(res) end)
+                if not ok2 or not data or not data.data then callback({}); return end
+                local map = {}
+                for i, entry in ipairs(data.data) do
+                    if entry.imageUrl then map[ids[i]] = entry.imageUrl end
+                end
+                callback(map)
+            end)
+        end
+        local function get(id)
+            return cache[tostring(id)]
+        end
+        local function applyTo(button, id, fallbackText)
+            if not button then return end
+            local url = get(id)
+            if url then
+                button.Image = url
+                local lbl = button:FindFirstChild("FallbackText")
+                if lbl then lbl.Text = "" end
+                button.BackgroundTransparency = 1
+            else
+                button.Image = ""
+                local lbl = button:FindFirstChild("FallbackText")
+                if not lbl then
+                    lbl = Instance.new("TextLabel")
+                    lbl.Name = "FallbackText"
+                    lbl.Size = UDim2.new(1,0,1,0)
+                    lbl.BackgroundTransparency = 1
+                    lbl.TextColor3 = Color3.fromRGB(255,255,255)
+                    lbl.Font = Enum.Font.Code
+                    lbl.TextSize = 14
+                    lbl.ZIndex = button.ZIndex + 1
+                    lbl.Parent = button
+                end
+                lbl.Text = fallbackText or "?"
+                button.BackgroundTransparency = 0.5
+            end
+        end
+        local function init()
+            fetchAll(function(map)
+                cache = map
+                useFallbackText = (#map == 0)
+                if useFallbackText then
+                    applyFallback()
+                end
+            end)
+        end
+        return { init = init, get = get, applyTo = applyTo }
+    end
+
+    if libId == "adaptive" then
+        local function init()
+            local isPhone = UIS.TouchEnabled and not UIS.KeyboardEnabled
+            if isPhone then
+                ConsoleFrame.Size = UDim2.new(1, -20, 1, -40)
+                ConsoleFrame.Position = UDim2.new(0, 10, 0, 30)
+            end
+            currentDevice = isPhone and "Phone" or "PC"
+        end
+        return { init = init }
+    end
+
+    return nil
+end
+
+-- ============ LIBRARIES: LOAD/UNLOAD ============
+local loadLibrary, unloadLibrary, listLibs
+
+loadLibrary = function(libId)
+    libId = tostring(libId or ""):gsub("%.xconr$", ""):match("^%s*(.-)%s*$")
+    if libId == "" then return false end
+
+    local norm = normName(libId)
+    for existing in pairs(loadedLibs) do
+        if normName(existing) == norm then
+            log("Library already loaded: " .. existing, "Error")
+            return false
+        end
+    end
+
+    -- System
+    local builtin = loadBuiltinLib(libId)
+    if builtin then
+        loadedLibs[libId] = { meta = { version = "1.0" }, api = builtin, settings = {} }
+        if pendingLibSettings[libId] then
+            for k, v in pairs(pendingLibSettings[libId]) do
+                loadedLibs[libId].settings[k] = v
+            end
+            pendingLibSettings[libId] = nil
+        end
+        if builtin.init then pcall(builtin.init) end
+        log("Library loaded: " .. libId .. " (builtin)", "Success", true)
+        return true
+    end
+
+    -- Custom / local
+    local source = nil
+    local customLua = CUSTOM_LIBS_DIR .. "/" .. slugify(libId) .. ".lua"
+    if isfile and isfile(customLua) then
+        local ok, raw = pcall(readfile, customLua)
+        if ok and raw then source = raw end
+    end
+
+    -- Local xcon_libs
+    if not source then
+        local path = "workspace/xcon_libs/" .. libId .. ".xconr"
+        if isfile and isfile(path) then
+            local ok, raw = pcall(readfile, path)
+            if ok and raw then source = raw end
+        end
+    end
+
+    -- GitHub
+    if not source then
+        local url = GITHUB_LIBS .. libId .. ".xconr"
+        local ok, raw = pcall(game.HttpGet, game, url, true)
+        if ok and raw and not raw:find("404: Not Found") and not raw:find("<!DOCTYPE") then
+            source = raw
+        end
+    end
+
+    if not source then
+        log("Library not found: " .. libId, "Error")
+        return false
+    end
+
+    local fn, err = loadstring(source, "=lib_" .. libId)
+    if not fn then
+        log("Library compile error: " .. libId .. " — " .. tostring(err), "Error")
+        return false
+    end
+
+    local ok2, lib = pcall(fn)
+    if not ok2 then
+        log("Library runtime error: " .. libId .. " — " .. tostring(lib), "Error")
+        return false
+    end
+
+    loadedLibs[libId] = {
+        meta = (type(lib) == "table" and lib) or { version = "1.0" },
+        api = lib,
+        settings = {},
+    }
+    if pendingLibSettings[libId] then
+        for k, v in pairs(pendingLibSettings[libId]) do
+            loadedLibs[libId].settings[k] = v
+        end
+        pendingLibSettings[libId] = nil
+    end
+    for i = #backupLibs, 1, -1 do
+        if backupLibs[i] == libId then table.remove(backupLibs, i) end
+    end
+    log("Library loaded: " .. libId, "Success")
+    return true
+end
+
+unloadLibrary = function(libId, skipBackup)
+    libId = tostring(libId or ""):gsub("%.xconr$", ""):match("^%s*(.-)%s*$")
+
+    for _, l in ipairs(WORKSHOP_LIBS) do
+        if l.libId == libId and l.isSystem then
+            log("System library cannot be unloaded: " .. l.name, "Error")
+            return false
+        end
+    end
+
+    local data = loadedLibs[libId]
+    if not data then log("Library not loaded: " .. libId, "Error"); return false end
+
+    if data.meta and type(data.meta.onUnload) == "function" then
+        pcall(data.meta.onUnload, data.api)
+    end
+    loadedLibs[libId] = nil
+
+    if not skipBackup then
+        local found = false
+        for _, n in ipairs(backupLibs) do
+            if n == libId then found = true; break end
+        end
+        if not found then table.insert(backupLibs, libId) end
+    end
+    log("Library unloaded: " .. libId, "Info")
+    return true
+end
+
+listLibs = function()
+    local lines = {}
+    for id, data in pairs(loadedLibs) do
+        local v = (data.meta and data.meta.version) or "?"
+        table.insert(lines, "  " .. id .. " v" .. tostring(v))
+    end
+    if #lines == 0 then return end
+    log("Loaded libraries:", "Info")
+    for _, line in ipairs(lines) do log(line, "Default") end
+end
+
+-- ============ AUTO-LOAD LIBRARIES ============
+local function autoLoadLibsFromGitHub()
+    for _, id in ipairs(LIB_LIST) do
+        task.spawn(function()
+            local url = GITHUB_LIBS .. id .. ".xconr"
+            local ok, src = pcall(game.HttpGet, game, url, true)
+            if not ok or not src then
+                log("Lib fetch failed: " .. id, "Error")
+                return
+            end
+            if src:find("404: Not Found") or src:find("<!DOCTYPE") then
+                log("Lib not found on GitHub: " .. id, "Error")
+                return
+            end
+            local fn, err = loadstring(src, "=lib_" .. id)
+            if not fn then
+                log("Lib compile error: " .. id .. " — " .. tostring(err), "Error")
+                return
+            end
+            local ok2, lib = pcall(fn)
+            if not ok2 then
+                log("Lib runtime error: " .. id .. " — " .. tostring(lib), "Error")
+                return
+            end
+            loadedLibs[id] = {
+                meta = (type(lib) == "table" and lib) or { version = "1.0" },
+                api = lib,
+                settings = {},
+            }
+            log("Library loaded: " .. id, "Success", true)
+        end)
+    end
+end
+
+-- ============ CUSTOM STUDIO ============
+local function readCustomList(dir, typ)
+    ensureDir(dir)
+    local out = {}
+    if not (listfiles and isfile) then return out end
+    local ok, files = pcall(listfiles, dir)
+    if not ok or not files then return out end
+    for _, f in ipairs(files) do
+        if f:match("%.json$") then
+            local ok2, raw = pcall(readfile, f)
+            if ok2 and raw then
+                local ok3, data = pcall(function() return HttpService:JSONDecode(raw) end)
+                if ok3 and data and data.name then
+                    data.isCustom = true; data.type = typ
+                    data._jsonPath = f; data._luaPath = f:gsub("%.json$", ".lua")
+                    table.insert(out, data)
+                end
+            end
+        end
+    end
+    return out
+end
+
+local function readCustomPlugins() return readCustomList(CUSTOM_PLUGINS_DIR, "plugin") end
+local function readCustomLibs()    return readCustomList(CUSTOM_LIBS_DIR, "lib") end
+
+local function saveCustomItem(typ, data, code, overwrite)
+    local dir = (typ == "plugin") and CUSTOM_PLUGINS_DIR or CUSTOM_LIBS_DIR
+    ensureDir(dir)
+    local slug = slugify(data.name)
+    if slug == "" then return false, "Empty name" end
+
+    for _, item in ipairs(readCustomList(dir, typ)) do
+        if normName(item.name) == normName(data.name) and not overwrite then
+            log("Custom " .. typ .. " with this name already exists: " .. item.name, "Error")
+            return false
+        end
+    end
+
+    if typ == "plugin" then
+        for _, p in ipairs(WORKSHOP_PLUGINS) do
+            if normName(p.name) == normName(data.name) then
+                log("A built-in plugin with this name already exists: " .. p.name, "Error")
+                return false
+            end
+        end
+    else
+        for _, l in ipairs(WORKSHOP_LIBS) do
+            if normName(l.name) == normName(data.name) then
+                log("A built-in library with this name already exists: " .. l.name, "Error")
+                return false
+            end
+        end
+    end
+
+    local jsonPath = dir .. "/" .. slug .. ".json"
+    local luaPath  = dir .. "/" .. slug .. ".lua"
+
+    data.isCustom = true
+    data.type = typ
+    if typ == "lib" then data.libId = slug end
+
+    local ok1 = pcall(writefile, jsonPath, HttpService:JSONEncode(data))
+    local ok2 = pcall(writefile, luaPath, code or "")
+
+    if ok1 and ok2 then
+        log("Custom " .. typ .. " saved: " .. data.name, "Success")
+        return true
+    end
+    log("Failed to save custom " .. typ, "Error")
+    return false
+end
+
+local function deleteCustomItem(typ, name)
+    local dir = (typ == "plugin") and CUSTOM_PLUGINS_DIR or CUSTOM_LIBS_DIR
+    local slug = slugify(name)
+    local jsonPath = dir .. "/" .. slug .. ".json"
+    local luaPath  = dir .. "/" .. slug .. ".lua"
+    if isfile and isfile(jsonPath) then pcall(delfile, jsonPath) end
+    if isfile and isfile(luaPath) then pcall(delfile, luaPath) end
+    log("Custom " .. typ .. " deleted: " .. name, "Info")
+end
+-- ============ THEME APPLY ============
 applyThemeToSettings = function(t)
     if not SettingsFrame then return end
     for _, obj in ipairs(SettingsFrame:GetDescendants()) do
@@ -418,7 +890,7 @@ applyThemeToSettings = function(t)
     end
     SettingsFrame.BackgroundColor3 = t.background
     SettingsFrame.BackgroundTransparency = 0
-    
+
     if WorkshopFrame then
         WorkshopFrame.BackgroundColor3 = t.background
         for _, obj in ipairs(WorkshopFrame:GetDescendants()) do
@@ -470,6 +942,7 @@ local function applyTheme(name)
     applyThemeToSettings(t)
 end
 
+-- ============ SETTINGS FRAME ============
 SettingsFrame = Instance.new("Frame")
 SettingsFrame.Size = UDim2.new(1,0,1,0); SettingsFrame.Position = UDim2.new(0,0,0,0)
 SettingsFrame.BackgroundColor3 = THEMES.default.background
@@ -544,7 +1017,7 @@ local function closeSettings()
 end
 BackBtn.MouseButton1Click:Connect(closeSettings)
 
--- ===================== WORKSHOP UI =====================
+-- ============ WORKSHOP UI ============
 local WorkshopFrame = Instance.new("Frame")
 WorkshopFrame.Size = UDim2.new(1,0,1,0); WorkshopFrame.Position = UDim2.new(0,0,0,0)
 WorkshopFrame.BackgroundColor3 = THEMES.default.background
@@ -589,6 +1062,15 @@ WorkshopTabPlugins.BorderSizePixel = 0; WorkshopTabPlugins.ZIndex = 17
 WorkshopTabPlugins.Parent = WorkshopTabBar
 Instance.new("UICorner", WorkshopTabPlugins).CornerRadius = UDim.new(0,4)
 
+local WorkshopTabLibs = Instance.new("TextButton")
+WorkshopTabLibs.Size = UDim2.new(0,90,0,24); WorkshopTabLibs.Position = UDim2.new(0,190,0,0)
+WorkshopTabLibs.BackgroundColor3 = THEMES.default.input
+WorkshopTabLibs.Text = "Libraries"; WorkshopTabLibs.TextColor3 = THEMES.default.text
+WorkshopTabLibs.Font = CONFIG.Font; WorkshopTabLibs.TextSize = 13
+WorkshopTabLibs.BorderSizePixel = 0; WorkshopTabLibs.ZIndex = 17
+WorkshopTabLibs.Parent = WorkshopTabBar
+Instance.new("UICorner", WorkshopTabLibs).CornerRadius = UDim.new(0,4)
+
 local WorkshopScroll = Instance.new("ScrollingFrame")
 WorkshopScroll.Size = UDim2.new(1,-20,1,-65); WorkshopScroll.Position = UDim2.new(0,10,0,62)
 WorkshopScroll.BackgroundTransparency = 1; WorkshopScroll.BorderSizePixel = 0
@@ -608,14 +1090,29 @@ WorkshopPluginsScroll.Parent = WorkshopFrame
 local WorkshopPluginsLayout = Instance.new("UIListLayout")
 WorkshopPluginsLayout.SortOrder = Enum.SortOrder.LayoutOrder; WorkshopPluginsLayout.Padding = UDim.new(0,5); WorkshopPluginsLayout.Parent = WorkshopPluginsScroll
 
-local refreshPluginsTab
+local WorkshopLibsScroll = Instance.new("ScrollingFrame")
+WorkshopLibsScroll.Size = UDim2.new(1,-20,1,-65); WorkshopLibsScroll.Position = UDim2.new(0,10,0,62)
+WorkshopLibsScroll.BackgroundTransparency = 1; WorkshopLibsScroll.BorderSizePixel = 0
+WorkshopLibsScroll.ScrollBarThickness = 4; WorkshopLibsScroll.CanvasSize = UDim2.new(0,0,0,0)
+WorkshopLibsScroll.ZIndex = 16; WorkshopLibsScroll.Visible = false
+WorkshopLibsScroll.Parent = WorkshopFrame
 
+local WorkshopLibsLayout = Instance.new("UIListLayout")
+WorkshopLibsLayout.SortOrder = Enum.SortOrder.LayoutOrder; WorkshopLibsLayout.Padding = UDim.new(0,5); WorkshopLibsLayout.Parent = WorkshopLibsScroll
+
+local refreshPluginsTab, refreshLibsTab
+
+-- ============ REFRESH WORKSHOP (MAIN) ============
 local function refreshWorkshop()
     for _, child in ipairs(WorkshopScroll:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
     end
 
-    for _, p in ipairs(WORKSHOP_PLUGINS) do
+    local allPlugins = {}
+    for _, p in ipairs(WORKSHOP_PLUGINS) do table.insert(allPlugins, p) end
+    for _, p in ipairs(readCustomPlugins()) do table.insert(allPlugins, p) end
+
+    for _, p in ipairs(allPlugins) do
         local item = Instance.new("Frame")
         item.Size = UDim2.new(1,-10,0,80); item.BackgroundColor3 = THEMES.default.input
         item.BackgroundTransparency = 0.5; item.BorderSizePixel = 0
@@ -636,7 +1133,7 @@ local function refreshWorkshop()
 
         if useFallbackText then
             img.Image = ""
-            imgLbl.Text = "error"
+            imgLbl.Text = (p.name or "?"):sub(1,2)
         else
             img.Image = getIcon(p.imageId)
         end
@@ -648,12 +1145,16 @@ local function refreshWorkshop()
         nameLbl.TextSize = 16; nameLbl.TextXAlignment = Enum.TextXAlignment.Left
         nameLbl.ZIndex = 18; nameLbl.Parent = item
 
+        local badges = {}
+        if p.isVerified then table.insert(badges, "Verified ✓") end
+        if p.isSystem then table.insert(badges, "System") end
+        if p.isCustom then table.insert(badges, "Custom") end
         local authorText = p.author
-        if p.isVerified then authorText = authorText .. " (Verified) ✓" end
+        if #badges > 0 then authorText = authorText .. " (" .. table.concat(badges, " • ") .. ")" end
 
         local descLbl = Instance.new("TextLabel")
         descLbl.Size = UDim2.new(1,-150,0,40); descLbl.Position = UDim2.new(0,80,0,30)
-        descLbl.BackgroundTransparency = 1; descLbl.Text = p.desc .. " | by " .. authorText
+        descLbl.BackgroundTransparency = 1; descLbl.Text = (p.desc or "") .. " | by " .. authorText
         descLbl.TextColor3 = Color3.fromRGB(180,180,180); descLbl.Font = Enum.Font.Code
         descLbl.TextSize = 12; descLbl.TextWrapped = true; descLbl.TextXAlignment = Enum.TextXAlignment.Left
         descLbl.ZIndex = 18; descLbl.Parent = item
@@ -662,17 +1163,17 @@ local function refreshWorkshop()
         dlBtn.Size = UDim2.new(0,24,0,24); dlBtn.Position = UDim2.new(1,-60,0,10)
         dlBtn.BackgroundTransparency = 1
         dlBtn.ScaleType = Enum.ScaleType.Fit; dlBtn.ZIndex = 18; dlBtn.Parent = item
-        
+
         local dlLbl = Instance.new("TextLabel")
         dlLbl.Name = "FallbackText"
         dlLbl.Size = UDim2.new(1,0,1,0); dlLbl.BackgroundTransparency = 1
         dlLbl.Text = ""; dlLbl.TextColor3 = Color3.new(1,1,1); dlLbl.Font = Enum.Font.Code; dlLbl.TextSize = 12
         dlLbl.ZIndex = 19; dlLbl.Parent = dlBtn
 
-        if useFallbackText then 
+        if useFallbackText then
             dlBtn.Image = ""
             dlLbl.Text = "D"
-            dlBtn.BackgroundTransparency = 0.5; dlBtn.BackgroundColor3 = THEMES.default.input 
+            dlBtn.BackgroundTransparency = 0.5; dlBtn.BackgroundColor3 = THEMES.default.input
         else
             dlBtn.Image = getIcon(6953990751)
         end
@@ -688,42 +1189,49 @@ local function refreshWorkshop()
         stLbl.Text = ""; stLbl.TextColor3 = Color3.new(1,1,1); stLbl.Font = Enum.Font.Code; stLbl.TextSize = 12
         stLbl.ZIndex = 19; stLbl.Parent = stBtn
 
-        if useFallbackText then 
+        if useFallbackText then
             stBtn.Image = ""
             stLbl.Text = "S"
-            stBtn.BackgroundTransparency = 0.5; stBtn.BackgroundColor3 = THEMES.default.input 
+            stBtn.BackgroundTransparency = 0.5; stBtn.BackgroundColor3 = THEMES.default.input
         else
             stBtn.Image = getIcon(8517323802)
         end
 
-        dlBtn.MouseButton1Click:Connect(function()
-            if not isfolder("workspace") then makefolder("workspace") end
-            if not useFallbackText then dlBtn.Image = getIcon(12690727261) end
-            log("Downloading " .. p.name .. "...", "Info")
-            local success, err = pcall(function()
-                local source = game:HttpGet(p.downloadUrl)
-                if source:find("404: Not Found") then error("File not found on GitHub (404)") end
-                writefile("workspace/" .. p.name .. ".xconr", source)
+        if p.downloadUrl and not p.isSystem then
+            dlBtn.MouseButton1Click:Connect(function()
+                if not isfolder("workspace") then makefolder("workspace") end
+                if not useFallbackText then dlBtn.Image = getIcon(12690727261) end
+                log("Downloading " .. p.name .. "...", "Info")
+                local success, err = pcall(function()
+                    local source = game:HttpGet(p.downloadUrl)
+                    if source:find("404: Not Found") then error("File not found on GitHub (404)") end
+                    writefile("workspace/" .. p.name .. ".xconr", source)
+                end)
+                if success then
+                    log("Downloaded: " .. p.name, "Success")
+                else
+                    log("Download failed: " .. tostring(err), "Error")
+                    if not useFallbackText then dlBtn.Image = getIcon(6953990751) end
+                end
             end)
-            if success then
-                log("Downloaded: " .. p.name, "Success")
-            else
-                log("Download failed: " .. tostring(err), "Error")
-                if not useFallbackText then dlBtn.Image = getIcon(6953990751) end
-            end
-        end)
+        else
+            dlBtn.Visible = false
+        end
 
         stBtn.MouseButton1Click:Connect(function()
+            if p.isSystem and p.name == "Xcode" then
+                log("> xcode", "Echo")
+                runEvent("onExecute")
+                local f = commands["xcode"]
+                if f then pcall(f, {}) end
+                return
+            end
             local path = "workspace/" .. p.name .. ".xconr"
             if isfile and isfile(path) then
-                local cmdStr = "plugin load " .. p.name
-                log("> " .. cmdStr, "Echo")
+                log("> pl." .. p.name .. ".load", "Echo")
                 runEvent("onExecute")
-                local f = commands["plugin"]
-                if f then
-                    local ok, e = pcall(f, {"load", p.name})
-                    if not ok then log("Error: "..tostring(e), "Error") end
-                end
+                loadPlugin(p.name)
+                if saveConfig then pcall(saveConfig) end
                 if WorkshopPluginsScroll.Visible and refreshPluginsTab then
                     refreshPluginsTab()
                 end
@@ -736,10 +1244,27 @@ local function refreshWorkshop()
                 end
             end
         end)
+
+        if p.isCustom then
+            local delBtn = Instance.new("TextButton")
+            delBtn.Size = UDim2.new(0,40,0,20); delBtn.Position = UDim2.new(1,-50,0,50)
+            delBtn.BackgroundColor3 = Color3.fromRGB(200,50,50)
+            delBtn.TextColor3 = Color3.fromRGB(255,255,255)
+            delBtn.Text = "Del"; delBtn.Font = Enum.Font.Code
+            delBtn.TextSize = 11; delBtn.BorderSizePixel = 0
+            delBtn.ZIndex = 19; delBtn.Parent = item
+            Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0,3)
+            delBtn.MouseButton1Click:Connect(function()
+                deleteCustomItem("plugin", p.name)
+                if saveConfig then pcall(saveConfig) end
+                refreshWorkshop()
+            end)
+        end
     end
     WorkshopScroll.CanvasSize = UDim2.new(0,0,0, WorkshopListLayout.AbsoluteContentSize.Y + 10)
 end
 
+-- ============ REFRESH PLUGINS TAB ============
 refreshPluginsTab = function()
     for _, child in ipairs(WorkshopPluginsScroll:GetChildren()) do
         if child:IsA("Frame") then child:Destroy() end
@@ -763,6 +1288,11 @@ refreshPluginsTab = function()
         for _, p in ipairs(WORKSHOP_PLUGINS) do
             if p.name == name then info = p; break end
         end
+        if not info then
+            for _, p in ipairs(readCustomPlugins()) do
+                if p.name == name then info = p; break end
+            end
+        end
         local isLoaded = loadedPlugins[name] ~= nil
         local isCC = (name == "CustomCommand")
 
@@ -773,26 +1303,25 @@ refreshPluginsTab = function()
         item.BorderSizePixel = 0
         item.ZIndex = 17; item.Parent = WorkshopPluginsScroll
         Instance.new("UICorner", item).CornerRadius = UDim.new(0,6)
-        
+
         local clickArea = Instance.new("TextButton")
         clickArea.Size = UDim2.new(1,0,1,0)
         clickArea.BackgroundTransparency = 1
         clickArea.Text = ""
         clickArea.ZIndex = 18
         clickArea.Parent = item
-        
+
         clickArea.MouseButton1Click:Connect(function()
             if isLoaded then
-                log("> plugin unload " .. name, "Echo")
+                log("> pl." .. name .. ".unload", "Echo")
                 runEvent("onExecute")
-                local f = commands["plugin"]
-                if f then pcall(f, {"unload", name}) end
+                unloadPlugin(name)
             else
-                log("> plugin load " .. name, "Echo")
+                log("> pl." .. name .. ".load", "Echo")
                 runEvent("onExecute")
-                local f = commands["plugin"]
-                if f then pcall(f, {"load", name}) end
+                loadPlugin(name)
             end
+            if saveConfig then pcall(saveConfig) end
             refreshPluginsTab()
         end)
 
@@ -807,10 +1336,10 @@ refreshPluginsTab = function()
         imgLbl.Size = UDim2.new(1,0,1,0); imgLbl.BackgroundTransparency = 1
         imgLbl.Text = ""; imgLbl.TextColor3 = Color3.fromRGB(255,100,100)
         imgLbl.Font = Enum.Font.Code; imgLbl.TextSize = 12; imgLbl.ZIndex = 20; imgLbl.Parent = img
-        
+
         if useFallbackText then
             img.Image = ""
-            imgLbl.Text = "error"
+            imgLbl.Text = (name or "?"):sub(1,2)
         else
             if info then img.Image = getIcon(info.imageId) end
         end
@@ -834,7 +1363,7 @@ refreshPluginsTab = function()
             settingsLbl.Size = UDim2.new(1,0,1,0); settingsLbl.BackgroundTransparency = 1
             settingsLbl.Text = ""; settingsLbl.TextColor3 = Color3.new(1,1,1); settingsLbl.Font = Enum.Font.Code; settingsLbl.TextSize = 12
             settingsLbl.ZIndex = 21; settingsLbl.Parent = settingsBtn
-            
+
             if useFallbackText then
                 settingsBtn.Image = ""
                 settingsLbl.Text = "S"
@@ -922,7 +1451,7 @@ refreshPluginsTab = function()
                         if not ok then log("CustomCommand error: " .. tostring(e), "Error") end
                     end
                     pluginCommands[cmdName] = "CustomCommand"
-                    
+
                     log("Custom command created: " .. cmdName, "Success")
                     if saveConfig then pcall(saveConfig) end
                     box1.Text = ""; box2.Text = ""
@@ -934,27 +1463,178 @@ refreshPluginsTab = function()
     WorkshopPluginsScroll.CanvasSize = UDim2.new(0,0,0, WorkshopPluginsLayout.AbsoluteContentSize.Y + 10)
 end
 
-local function switchWorkshopTab(tab)
-    if tab == "main" then
-        WorkshopScroll.Visible = true
-        WorkshopPluginsScroll.Visible = false
-        WorkshopTabMain.BackgroundColor3 = THEMES.default.accent
-        WorkshopTabMain.TextColor3 = Color3.fromRGB(0,0,0)
-        WorkshopTabPlugins.BackgroundColor3 = THEMES.default.input
-        WorkshopTabPlugins.TextColor3 = THEMES.default.text
-    else
-        WorkshopScroll.Visible = false
-        WorkshopPluginsScroll.Visible = true
-        WorkshopTabPlugins.BackgroundColor3 = THEMES.default.accent
-        WorkshopTabPlugins.TextColor3 = Color3.fromRGB(0,0,0)
-        WorkshopTabMain.BackgroundColor3 = THEMES.default.input
-        WorkshopTabMain.TextColor3 = THEMES.default.text
-        refreshPluginsTab()
+-- ============ REFRESH LIBS TAB ============
+refreshLibsTab = function()
+    for _, child in ipairs(WorkshopLibsScroll:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
     end
+
+    local allLibs = {}
+    for _, l in ipairs(WORKSHOP_LIBS) do table.insert(allLibs, l) end
+    for _, l in ipairs(readCustomLibs()) do table.insert(allLibs, l) end
+
+    for _, l in ipairs(allLibs) do
+        local item = Instance.new("Frame")
+        item.Size = UDim2.new(1,-10,0,80); item.BackgroundColor3 = THEMES.default.input
+        item.BackgroundTransparency = 0.5; item.BorderSizePixel = 0
+        item.ZIndex = 17; item.Parent = WorkshopLibsScroll
+        Instance.new("UICorner", item).CornerRadius = UDim.new(0,6)
+
+        local img = Instance.new("ImageButton")
+        img.Size = UDim2.new(0,60,0,60); img.Position = UDim2.new(0,10,0,10)
+        img.BackgroundColor3 = Color3.fromRGB(30,30,30); img.BorderSizePixel = 0
+        img.ZIndex = 18; img.Parent = item
+        Instance.new("UICorner", img).CornerRadius = UDim.new(0,4)
+
+        local imgLbl = Instance.new("TextLabel")
+        imgLbl.Name = "FallbackText"
+        imgLbl.Size = UDim2.new(1,0,1,0); imgLbl.BackgroundTransparency = 1
+        imgLbl.Text = ""; imgLbl.TextColor3 = Color3.fromRGB(255,100,100)
+        imgLbl.Font = Enum.Font.Code; imgLbl.TextSize = 12; imgLbl.ZIndex = 19; imgLbl.Parent = img
+
+        if useFallbackText then
+            img.Image = ""
+            imgLbl.Text = (l.name or "?"):sub(1,2)
+        else
+            img.Image = getIcon(l.imageId)
+        end
+
+        local nameLbl = Instance.new("TextLabel")
+        nameLbl.Size = UDim2.new(1,-150,0,20); nameLbl.Position = UDim2.new(0,80,0,10)
+        nameLbl.BackgroundTransparency = 1; nameLbl.Text = l.name
+        nameLbl.TextColor3 = THEMES.default.text; nameLbl.Font = Enum.Font.Code
+        nameLbl.TextSize = 16; nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+        nameLbl.ZIndex = 18; nameLbl.Parent = item
+
+        local badges = {}
+        if l.isVerified then table.insert(badges, "Verified ✓") end
+        if l.isSystem then table.insert(badges, "System") end
+        if l.isCustom then table.insert(badges, "Custom") end
+        local authorText = l.author
+        if #badges > 0 then authorText = authorText .. " (" .. table.concat(badges, " • ") .. ")" end
+
+        local descLbl = Instance.new("TextLabel")
+        descLbl.Size = UDim2.new(1,-150,0,40); descLbl.Position = UDim2.new(0,80,0,30)
+        descLbl.BackgroundTransparency = 1; descLbl.Text = (l.desc or "") .. " | by " .. authorText
+        descLbl.TextColor3 = Color3.fromRGB(180,180,180); descLbl.Font = Enum.Font.Code
+        descLbl.TextSize = 12; descLbl.TextWrapped = true; descLbl.TextXAlignment = Enum.TextXAlignment.Left
+        descLbl.ZIndex = 18; descLbl.Parent = item
+
+        local dlBtn = Instance.new("ImageButton")
+        dlBtn.Size = UDim2.new(0,24,0,24); dlBtn.Position = UDim2.new(1,-60,0,10)
+        dlBtn.BackgroundTransparency = 1
+        dlBtn.ScaleType = Enum.ScaleType.Fit; dlBtn.ZIndex = 18; dlBtn.Parent = item
+
+        local dlLbl = Instance.new("TextLabel")
+        dlLbl.Name = "FallbackText"
+        dlLbl.Size = UDim2.new(1,0,1,0); dlLbl.BackgroundTransparency = 1
+        dlLbl.Text = ""; dlLbl.TextColor3 = Color3.new(1,1,1); dlLbl.Font = Enum.Font.Code; dlLbl.TextSize = 12
+        dlLbl.ZIndex = 19; dlLbl.Parent = dlBtn
+
+        if useFallbackText then
+            dlBtn.Image = ""
+            dlLbl.Text = "D"
+            dlBtn.BackgroundTransparency = 0.5; dlBtn.BackgroundColor3 = THEMES.default.input
+        else
+            dlBtn.Image = getIcon(6953990751)
+        end
+
+        local stBtn = Instance.new("ImageButton")
+        stBtn.Size = UDim2.new(0,24,0,24); stBtn.Position = UDim2.new(1,-30,0,10)
+        stBtn.BackgroundTransparency = 1
+        stBtn.ScaleType = Enum.ScaleType.Fit; stBtn.ZIndex = 18; stBtn.Parent = item
+
+        local stLbl = Instance.new("TextLabel")
+        stLbl.Name = "FallbackText"
+        stLbl.Size = UDim2.new(1,0,1,0); stLbl.BackgroundTransparency = 1
+        stLbl.Text = ""; stLbl.TextColor3 = Color3.new(1,1,1); stLbl.Font = Enum.Font.Code; stLbl.TextSize = 12
+        stLbl.ZIndex = 19; stLbl.Parent = stBtn
+
+        if useFallbackText then
+            stBtn.Image = ""
+            stLbl.Text = "S"
+            stBtn.BackgroundTransparency = 0.5; stBtn.BackgroundColor3 = THEMES.default.input
+        else
+            stBtn.Image = getIcon(8517323802)
+        end
+
+        if l.downloadUrl and not l.isSystem then
+            dlBtn.MouseButton1Click:Connect(function()
+                if not isfolder("workspace") then makefolder("workspace") end
+                if not isfolder("workspace/xcon_libs") then makefolder("workspace/xcon_libs") end
+                if not useFallbackText then dlBtn.Image = getIcon(12690727261) end
+                log("Downloading " .. l.name .. "...", "Info")
+                local success, err = pcall(function()
+                    local source = game:HttpGet(l.downloadUrl)
+                    if source:find("404: Not Found") then error("File not found on GitHub (404)") end
+                    writefile("workspace/xcon_libs/" .. (l.libId or l.name) .. ".xconr", source)
+                end)
+                if success then
+                    log("Downloaded: " .. l.name, "Success")
+                else
+                    log("Download failed: " .. tostring(err), "Error")
+                    if not useFallbackText then dlBtn.Image = getIcon(6953990751) end
+                end
+            end)
+        else
+            dlBtn.Visible = false
+        end
+
+        stBtn.MouseButton1Click:Connect(function()
+            if loadedLibs[l.libId] then
+                log("> lib." .. l.libId .. ".unload", "Echo")
+                runEvent("onExecute")
+                unloadLibrary(l.libId)
+            else
+                log("> lib." .. l.libId .. ".load", "Echo")
+                runEvent("onExecute")
+                loadLibrary(l.libId)
+            end
+            if saveConfig then pcall(saveConfig) end
+            refreshLibsTab()
+        end)
+
+        if l.isCustom then
+            local delBtn = Instance.new("TextButton")
+            delBtn.Size = UDim2.new(0,40,0,20); delBtn.Position = UDim2.new(1,-50,0,50)
+            delBtn.BackgroundColor3 = Color3.fromRGB(200,50,50)
+            delBtn.TextColor3 = Color3.fromRGB(255,255,255)
+            delBtn.Text = "Del"; delBtn.Font = Enum.Font.Code
+            delBtn.TextSize = 11; delBtn.BorderSizePixel = 0
+            delBtn.ZIndex = 19; delBtn.Parent = item
+            Instance.new("UICorner", delBtn).CornerRadius = UDim.new(0,3)
+            delBtn.MouseButton1Click:Connect(function()
+                deleteCustomItem("lib", l.name)
+                if saveConfig then pcall(saveConfig) end
+                refreshLibsTab()
+            end)
+        end
+    end
+    WorkshopLibsScroll.CanvasSize = UDim2.new(0,0,0, WorkshopLibsLayout.AbsoluteContentSize.Y + 10)
+end
+
+-- ============ SWITCH TABS ============
+local function switchWorkshopTab(tab)
+    WorkshopScroll.Visible = (tab == "main")
+    WorkshopPluginsScroll.Visible = (tab == "plugins")
+    WorkshopLibsScroll.Visible = (tab == "libs")
+
+    local function setActive(btn, active)
+        btn.BackgroundColor3 = active and THEMES.default.accent or THEMES.default.input
+        btn.TextColor3 = active and Color3.fromRGB(0,0,0) or THEMES.default.text
+    end
+    setActive(WorkshopTabMain, tab == "main")
+    setActive(WorkshopTabPlugins, tab == "plugins")
+    setActive(WorkshopTabLibs, tab == "libs")
+
+    if tab == "main" then refreshWorkshop()
+    elseif tab == "plugins" then refreshPluginsTab()
+    elseif tab == "libs" then refreshLibsTab() end
 end
 
 WorkshopTabMain.MouseButton1Click:Connect(function() switchWorkshopTab("main") end)
 WorkshopTabPlugins.MouseButton1Click:Connect(function() switchWorkshopTab("plugins") end)
+WorkshopTabLibs.MouseButton1Click:Connect(function() switchWorkshopTab("libs") end)
 
 WorkshopBackBtn.MouseButton1Click:Connect(function()
     WorkshopFrame.Visible = false
@@ -967,12 +1647,11 @@ local function openWorkshop()
     HideBtn.Visible = false; CloseBtn.Visible = false
     ExtraIcon.Visible = false; SettingsBtn.Visible = false; WorkshopBtn.Visible = false
     switchWorkshopTab("main")
-    refreshWorkshop()
 end
 
 WorkshopBtn.MouseButton1Click:Connect(openWorkshop)
 
--- ТЕМЫ
+-- ============ THEMES ROW ============
 local themeRow = Instance.new("Frame")
 themeRow.Size=UDim2.new(1,-20,0,60); themeRow.BackgroundTransparency=1; themeRow.ZIndex=11
 themeLabel = makeLabel(themeRow, "Theme", 0, 18)
@@ -1018,42 +1697,7 @@ refreshThemeButtons = function()
 end
 refreshThemeButtons()
 
--- ВЫБОР УСТРОЙСТВА
-local deviceRow = Instance.new("Frame")
-deviceRow.Size = UDim2.new(1,-20,0,75); deviceRow.BackgroundTransparency = 1; deviceRow.ZIndex = 11
-local deviceLabel = makeLabel(deviceRow, "Select device", 0, 18)
-
-local function updateDeviceVisuals()
-    if pcBtn then pcBtn.ImageColor3 = (currentDevice == "PC") and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
-    if phoneBtn then phoneBtn.ImageColor3 = (currentDevice == "Phone") and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
-end
-
-local function makeDeviceBtn(imgId, x, name)
-    local btn = Instance.new("ImageButton")
-    btn.Size = UDim2.new(0, 40, 0, 40); btn.Position = UDim2.new(0, x, 0, 22)
-    btn.BackgroundTransparency = 1
-    btn.Image = getIcon(imgId); btn.ScaleType = Enum.ScaleType.Fit
-    btn.ZIndex = 12; btn.Parent = deviceRow
-
-    btn.MouseButton1Click:Connect(function()
-        currentDevice = name
-        updateDeviceVisuals()
-        if name == "PC" then
-            PhoneIconBtn.Visible = false; consoleHidden = false; ConsoleFrame.Visible = true
-        else
-            if consoleHidden then ConsoleFrame.Visible = false; PhoneIconBtn.Visible = true end
-        end
-        if saveConfig then pcall(saveConfig) end
-    end)
-    return btn
-end
-
-pcBtn = makeDeviceBtn(12684119292, 20, "PC")
-phoneBtn = makeDeviceBtn(134410350720078, 70, "Phone")
-updateDeviceVisuals()
-addSettingRow(deviceRow)
-
--- ФИЛЬТР КОНСОЛИ
+-- ============ FILTERS ============
 local filterRow = Instance.new("Frame")
 filterRow.Size = UDim2.new(1,-20,0,95); filterRow.BackgroundTransparency = 1; filterRow.ZIndex = 11
 local filterLabel = makeLabel(filterRow, "Console Filter", 0, 18)
@@ -1100,7 +1744,7 @@ filterSuccessBtn = makeFilterBtn(108191615793694, 136, "success")
 filterEchoBtn = makeFilterBtn(124871982298256, 178, "echo")
 addSettingRow(filterRow)
 
--- КАСТОМНЫЙ ФОН
+-- ============ CUSTOM BG ============
 bgRow = Instance.new("Frame")
 bgRow.Size = UDim2.new(1,-20,0,60); bgRow.BackgroundTransparency=1; bgRow.ZIndex=11
 bgRow.Visible = false
@@ -1122,19 +1766,36 @@ bgApplyBtn = makeButton(bgRow, "Apply", 210, 22, 80, 26, function()
 end)
 addSettingRow(bgRow)
 
--- КОНФИГ
+-- ============ CONFIG ============
 local cfgRow = Instance.new("Frame")
 cfgRow.Size=UDim2.new(1,-20,0,40); cfgRow.BackgroundTransparency=1; cfgRow.ZIndex=11
 
 saveConfig = function()
     local ok, err = pcall(function()
-        local pluginList = {}
-        for name in pairs(loadedPlugins) do table.insert(pluginList, name) end
+        local pluginList, libList = {}, {}
+        local pluginSettings, libSettings = {}, {}
+
+        for name, data in pairs(loadedPlugins) do
+            table.insert(pluginList, name)
+            if data.settings and next(data.settings) then
+                pluginSettings[name] = data.settings
+            end
+        end
+        for id, data in pairs(loadedLibs) do
+            table.insert(libList, id)
+            if data.settings and next(data.settings) then
+                libSettings[id] = data.settings
+            end
+        end
+
         writefile(CONFIG_FILE, HttpService:JSONEncode({
             theme=currentTheme, binds=binds, device=currentDevice,
             events=STATES.events, premium=premiumEnabled, customBg=customBgId,
-            showPrint=showPrint, showWarn=showWarn, showError=showError, showSuccess=showSuccess, showEcho=showEcho,
+            showPrint=showPrint, showWarn=showWarn, showError=showError,
+            showSuccess=showSuccess, showEcho=showEcho,
             plugins=pluginList, pluginBackups=backupPlugins,
+            libs=libList, libBackups=backupLibs,
+            pluginSettings=pluginSettings, libSettings=libSettings,
             customCommands=customCommands,
         }))
     end)
@@ -1152,15 +1813,6 @@ local function applyConfig(cfg)
         customBgId = tostring(cfg.customBg)
         if bgBox then bgBox.Text = customBgId end
     end
-    if cfg.device then
-        currentDevice = cfg.device
-        updateDeviceVisuals()
-        if currentDevice == "PC" then
-            PhoneIconBtn.Visible = false; consoleHidden = false; ConsoleFrame.Visible = true
-        else
-            if consoleHidden then ConsoleFrame.Visible = false; PhoneIconBtn.Visible = true end
-        end
-    end
     if cfg.showPrint ~= nil then showPrint = cfg.showPrint; filterPrintBtn.ImageColor3 = showPrint and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
     if cfg.showWarn ~= nil then showWarn = cfg.showWarn; filterWarnBtn.ImageColor3 = showWarn and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
     if cfg.showError ~= nil then showError = cfg.showError; filterErrorBtn.ImageColor3 = showError and Color3.new(1,1,1) or Color3.fromRGB(100,100,100) end
@@ -1169,9 +1821,14 @@ local function applyConfig(cfg)
 
     if type(cfg.customCommands) == "table" then
         customCommands = {}
-        for k, v in pairs(cfg.customCommands) do
-            customCommands[k] = v
-        end
+        for k, v in pairs(cfg.customCommands) do customCommands[k] = v end
+    end
+
+    if type(cfg.pluginSettings) == "table" then
+        for name, s in pairs(cfg.pluginSettings) do pendingPluginSettings[name] = s end
+    end
+    if type(cfg.libSettings) == "table" then
+        for id, s in pairs(cfg.libSettings) do pendingLibSettings[id] = s end
     end
 
     if cfg.theme and THEMES[cfg.theme] then
@@ -1190,14 +1847,21 @@ local function applyConfig(cfg)
             if eventBoxes[k] then eventBoxes[k].Text = v end
         end
     end
+
+    if type(cfg.libBackups) == "table" then
+        backupLibs = {}
+        for _, n in ipairs(cfg.libBackups) do table.insert(backupLibs, n) end
+    end
     if type(cfg.pluginBackups) == "table" then
         backupPlugins = {}
         for _, n in ipairs(cfg.pluginBackups) do table.insert(backupPlugins, n) end
     end
+
+    if type(cfg.libs) == "table" then
+        for _, id in ipairs(cfg.libs) do pcall(loadLibrary, id) end
+    end
     if type(cfg.plugins) == "table" then
-        for _, name in ipairs(cfg.plugins) do
-            pcall(loadPlugin, name)
-        end
+        for _, name in ipairs(cfg.plugins) do pcall(loadPlugin, name) end
     end
 end
 
@@ -1215,7 +1879,18 @@ SaveBtn = makeButton(cfgRow, "Save config", 0, 0, 120, 26, saveConfig)
 LoadBtn = makeButton(cfgRow, "Load config", 130, 0, 120, 26, loadConfig)
 addSettingRow(cfgRow)
 
--- СОБЫТИЯ
+-- ============ CUSTOM STUDIO ROW ============
+local customRow = Instance.new("Frame")
+customRow.Size = UDim2.new(1,-20,0,40); customRow.BackgroundTransparency = 1; customRow.ZIndex = 11
+makeButton(customRow, "+ Custom Plugin", 0, 0, 140, 26, function()
+    openCustomEditor("plugin")
+end)
+makeButton(customRow, "+ Custom Library", 150, 0, 140, 26, function()
+    openCustomEditor("lib")
+end)
+addSettingRow(customRow)
+
+-- ============ EVENTS ============
 eventsTitleLabel = makeLabel(SettingsScroll, "Events (command or Lua code)", 0, 20)
 addSettingRow(eventsTitleLabel)
 
@@ -1239,7 +1914,112 @@ for _, evName in ipairs({"onKilled","onDied","onSpawn","onExecute","onJoin","onD
     addSettingRow(row)
 end
 
--- ===================== ПЛАГИНЫ =====================
+-- ============ CUSTOM EDITOR ============
+function openCustomEditor(typ)
+    local Editor = Instance.new("Frame")
+    Editor.Size = UDim2.new(1,0,1,0)
+    Editor.Position = UDim2.new(0,0,0,0)
+    Editor.BackgroundColor3 = THEMES[currentTheme].background
+    Editor.BorderSizePixel = 0
+    Editor.ZIndex = 30
+    Editor.Parent = ConsoleFrame
+    Instance.new("UICorner", Editor).CornerRadius = UDim.new(0,6)
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1,-20,0,30)
+    title.Position = UDim2.new(0,10,0,5)
+    title.BackgroundTransparency = 1
+    title.Text = "Create Custom " .. (typ == "plugin" and "Plugin" or "Library")
+    title.TextColor3 = THEMES[currentTheme].text
+    title.Font = Enum.Font.Code
+    title.TextSize = 16
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.ZIndex = 31
+    title.Parent = Editor
+
+    local function field(placeholder, y, height)
+        local box = Instance.new("TextBox")
+        box.Size = UDim2.new(1,-20,0,height or 26)
+        box.Position = UDim2.new(0,10,0,y)
+        box.BackgroundColor3 = THEMES[currentTheme].input
+        box.TextColor3 = THEMES[currentTheme].text
+        box.PlaceholderText = placeholder
+        box.PlaceholderColor3 = Color3.fromRGB(120,120,120)
+        box.Font = Enum.Font.Code
+        box.TextSize = 13
+        box.Text = ""
+        box.ClearTextOnFocus = false
+        box.ZIndex = 31
+        box.Parent = Editor
+        Instance.new("UICorner", box).CornerRadius = UDim.new(0,4)
+        return box
+    end
+
+    local nameBox   = field("Name", 40)
+    local authorBox = field("Author", 70)
+    local descBox   = field("Description", 100)
+    local imgBox    = field("Image Asset ID (optional)", 130)
+    local codeBox   = field("Lua code — return function(api) ... end", 160, 200)
+    codeBox.TextYAlignment = Enum.TextYAlignment.Top
+    codeBox.MultiLine = true
+
+    authorBox.Text = LocalPlayer.Name
+
+    local saveBtn = Instance.new("TextButton")
+    saveBtn.Size = UDim2.new(0,100,0,26)
+    saveBtn.Position = UDim2.new(0,10,1,-36)
+    saveBtn.BackgroundColor3 = THEMES[currentTheme].accent
+    saveBtn.TextColor3 = Color3.fromRGB(0,0,0)
+    saveBtn.Text = "Save"
+    saveBtn.Font = Enum.Font.Code
+    saveBtn.TextSize = 13
+    saveBtn.BorderSizePixel = 0
+    saveBtn.ZIndex = 31
+    saveBtn.Parent = Editor
+    Instance.new("UICorner", saveBtn).CornerRadius = UDim.new(0,4)
+
+    local cancelBtn = Instance.new("TextButton")
+    cancelBtn.Size = UDim2.new(0,100,0,26)
+    cancelBtn.Position = UDim2.new(0,120,1,-36)
+    cancelBtn.BackgroundColor3 = THEMES[currentTheme].input
+    cancelBtn.TextColor3 = THEMES[currentTheme].text
+    cancelBtn.Text = "Cancel"
+    cancelBtn.Font = Enum.Font.Code
+    cancelBtn.TextSize = 13
+    cancelBtn.BorderSizePixel = 0
+    cancelBtn.ZIndex = 31
+    cancelBtn.Parent = Editor
+    Instance.new("UICorner", cancelBtn).CornerRadius = UDim.new(0,4)
+
+    cancelBtn.MouseButton1Click:Connect(function() Editor:Destroy() end)
+
+    saveBtn.MouseButton1Click:Connect(function()
+        local nm = nameBox.Text:match("^%s*(.-)%s*$")
+        if nm == "" then log("Name is required", "Error"); return end
+        if codeBox.Text:match("^%s*$") then log("Code is required", "Error"); return end
+
+        local data = {
+            name = nm,
+            author = authorBox.Text:match("^%s*(.-)%s*$"),
+            desc = descBox.Text,
+            imageId = imgBox.Text:match("%d+") or "",
+            isVerified = false,
+            isSystem = false,
+        }
+        if data.author == "" then data.author = LocalPlayer.Name end
+
+        local ok = saveCustomItem(typ, data, codeBox.Text)
+        if ok then
+            Editor:Destroy()
+            if typ == "plugin" then
+                if WorkshopFrame and WorkshopFrame.Visible then refreshWorkshop() end
+            else
+                if WorkshopFrame and WorkshopFrame.Visible and refreshLibsTab then refreshLibsTab() end
+            end
+        end
+    end)
+end
+-- ============ PLUGIN API ============
 local function makePluginAPI(pluginName)
     local api = {}
     api.pluginName = pluginName
@@ -1289,15 +2069,47 @@ local function makePluginAPI(pluginName)
     api.getChar = getChar
     api.getPlayer = function() return LocalPlayer end
     api.getSettings = function()
-        return { theme = currentTheme, device = currentDevice,
-                 showPrint = showPrint, showWarn = showWarn,
-                 showError = showError, showSuccess = showSuccess, showEcho = showEcho }
+        return {
+            theme = currentTheme, device = currentDevice,
+            showPrint = showPrint, showWarn = showWarn,
+            showError = showError, showSuccess = showSuccess, showEcho = showEcho,
+            binds = binds,
+        }
     end
     api.setTheme = function(name) applyTheme(name); if saveConfig then pcall(saveConfig) end end
 
     api.resetTheme = function()
         currentTheme = "none"
         if refreshThemeButtons then refreshThemeButtons() end
+    end
+
+    api.setSetting = function(key, value)
+        local data = loadedPlugins[pluginName]
+        if not data then return false end
+        if not data.settings then data.settings = {} end
+        data.settings[tostring(key)] = value
+        if saveConfig then pcall(saveConfig) end
+        return true
+    end
+
+    api.getSetting = function(key, default)
+        local data = loadedPlugins[pluginName]
+        if not data or not data.settings then return default end
+        local v = data.settings[tostring(key)]
+        if v == nil then return default end
+        return v
+    end
+
+    api.getSettingsAll = function()
+        local data = loadedPlugins[pluginName]
+        return data and data.settings or {}
+    end
+
+    api.requireLib = function(libId)
+        if loadedLibs[libId] then return loadedLibs[libId].api or loadedLibs[libId] end
+        local ok = loadLibrary(libId)
+        if ok and loadedLibs[libId] then return loadedLibs[libId].api or loadedLibs[libId] end
+        return nil
     end
 
     api.hookEvent = function(evName, fn)
@@ -1319,6 +2131,7 @@ local function makePluginAPI(pluginName)
         inputFrame = InputFrame,
         commandBox = CommandBox,
         settingsFrame = SettingsFrame,
+        workshopFrame = WorkshopFrame,
         stroke = stroke,
         bgImage = bgImage,
         getIcon = getIcon,
@@ -1328,24 +2141,53 @@ local function makePluginAPI(pluginName)
     return api
 end
 
-local function loadPlugin(pluginName)
+-- ============ LOAD / UNLOAD PLUGIN ============
+local loadPlugin, unloadPlugin, listPlugins
+
+loadPlugin = function(pluginName)
     pluginName = tostring(pluginName or ""):gsub("%.xconr$", ""):match("^%s*(.-)%s*$")
     if pluginName == "" then return false end
-    if loadedPlugins[pluginName] then
-        log("Plugin already loaded: " .. pluginName, "Info")
+
+    local norm = normName(pluginName)
+    for existing in pairs(loadedPlugins) do
+        if normName(existing) == norm then
+            log("Plugin already loaded: " .. existing, "Error")
+            return false
+        end
+    end
+
+    local source = nil
+
+    -- 1) Custom
+    local customLua = CUSTOM_PLUGINS_DIR .. "/" .. slugify(pluginName) .. ".lua"
+    if isfile and isfile(customLua) then
+        local ok, raw = pcall(readfile, customLua)
+        if ok and raw then source = raw end
+    end
+
+    -- 2) Local workspace
+    if not source then
+        local path = "workspace/" .. pluginName .. PLUGIN_EXT
+        if isfile and isfile(path) then
+            local ok, raw = pcall(readfile, path)
+            if ok and raw then source = raw end
+        end
+    end
+
+    -- 3) GitHub
+    if not source then
+        local url = GITHUB_PLUGINS .. pluginName .. ".xconr"
+        local ok, raw = pcall(game.HttpGet, game, url, true)
+        if ok and raw and not raw:find("404: Not Found") and not raw:find("<!DOCTYPE") then
+            source = raw
+        end
+    end
+
+    if not source then
+        log("Plugin not found (local or GitHub): " .. pluginName, "Error")
         return false
     end
 
-    local path = "workspace/" .. pluginName .. PLUGIN_EXT
-    if not (isfile and isfile(path)) then
-        log("Plugin file not found: " .. path, "Error")
-        return false
-    end
-    
-    local ok, source = pcall(readfile, path)
-    if not ok then log("Read error: " .. tostring(source), "Error"); return false end
-    
-    -- Проверка на то, что скачался не HTML
     if source:find("<html") or source:find("404: Not Found") or source:find("<!DOCTYPE") then
         log("Compile error: File is not valid Lua (corrupted download). Delete it and redownload.", "Error")
         return false
@@ -1367,7 +2209,14 @@ local function loadPlugin(pluginName)
     end
 
     local meta = (type(result) == "table") and result or {}
-    loadedPlugins[pluginName] = {meta = meta, api = api}
+    loadedPlugins[pluginName] = { meta = meta, api = api, settings = {} }
+
+    if pendingPluginSettings[pluginName] then
+        for k, v in pairs(pendingPluginSettings[pluginName]) do
+            loadedPlugins[pluginName].settings[k] = v
+        end
+        pendingPluginSettings[pluginName] = nil
+    end
 
     if pluginName == "CustomCommand" then
         for name, code in pairs(customCommands) do
@@ -1389,8 +2238,16 @@ local function loadPlugin(pluginName)
     return true
 end
 
-local function unloadPlugin(pluginName, skipBackup)
+unloadPlugin = function(pluginName, skipBackup)
     pluginName = tostring(pluginName or ""):gsub("%.xconr$", ""):match("^%s*(.-)%s*$")
+
+    for _, p in ipairs(WORKSHOP_PLUGINS) do
+        if normName(p.name) == normName(pluginName) and p.isSystem then
+            log("System plugin cannot be unloaded: " .. p.name, "Error")
+            return false
+        end
+    end
+
     local data = loadedPlugins[pluginName]
     if not data then log("Plugin not loaded: " .. pluginName, "Error"); return false end
 
@@ -1423,21 +2280,22 @@ local function unloadPlugin(pluginName, skipBackup)
     return true
 end
 
-local function listPlugins()
-    log("Loaded plugins:", "Info")
-    local any = false
+listPlugins = function()
+    local lines = {}
     for name, data in pairs(loadedPlugins) do
-        any = true
         local v = (data.meta and data.meta.version) or "?"
-        log("  " .. name .. " v" .. tostring(v), "Default")
+        table.insert(lines, "  " .. name .. " v" .. tostring(v))
     end
-    if not any then log("  (none)", "Info") end
+    if #lines == 0 then return end
+    log("Loaded plugins:", "Info")
+    for _, line in ipairs(lines) do log(line, "Default") end
 end
 
-local function runEvent(name)
+-- ============ EVENTS ============
+local function runEvent(name, ...)
     if pluginEventHooks[name] then
         for _, fn in ipairs(pluginEventHooks[name]) do
-            pcall(fn, name)
+            pcall(fn, name, ...)
         end
     end
     local code = STATES.events[name]
@@ -1456,6 +2314,7 @@ local function runEvent(name)
     pcall(executeLua, code)
 end
 
+-- ============ SPEED / VELOCITY ============
 local function captureOriginalSpeed()
     local _, hum = getChar()
     if hum and not speedCaptured then
@@ -1507,6 +2366,7 @@ local function setVelocityActive(active)
     end
 end
 
+-- ============ BIND ============
 local function resolveKey(name)
     name = name:upper()
     local ok, kc = pcall(function() return Enum.KeyCode[name] end)
@@ -1575,6 +2435,7 @@ SettingsBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+-- ============ HELP ============
 commands["help"] = function()
     log("Commands:", "Info")
     log("  settings, bind <key> <cmd>, unload/exit, premium <1|0>", "Default")
@@ -1590,9 +2451,14 @@ commands["help"] = function()
     log("  equipitems, deleteduplicate/dduplicate/dd", "Default")
     log("  ejump/djump, esit/dsit, ezoom/dzoom", "Default")
     log("  velocity (BIND ONLY for PC; toggle command for Phone)", "Default")
-    log("  plugins | plugin <load|unload|reload|list|info> <name>", "Default")
-    log("  backup <load [name|all]|list|clear>", "Default")
-    log("  asset <image|default>", "Default")
+    log("  pl.<name>.<load|unload|reload>  — manage plugins", "Default")
+    log("  pl.list                          — list plugins", "Default")
+    log("  pl.backup.<list|load|loadall|clear> — plugin backups", "Default")
+    log("  lib.<id>.<load|unload|reload>    — manage libraries", "Default")
+    log("  lib.list                         — list libraries", "Default")
+    log("  lib.backup.<list|load|loadall|clear> — library backups", "Default")
+    log("  settings.<save|load|reset|list>  — config", "Default")
+    log("  custom.<plugin|lib>.new          — create custom", "Default")
 end
 commands["settings"] = function() openSettings() end
 commands["workshop"] = function() openWorkshop() end
@@ -1618,97 +2484,60 @@ commands["asset"] = function(args)
     end
 end
 
-commands["plugins"] = function() listPlugins() end
-commands["plugin"] = function(args)
-    local sub = (args[1] or ""):lower()
-    if sub == "reload" and args[2] then unloadPlugin(args[2], true); loadPlugin(args[2])
-    elseif sub == "load" and args[2] then loadPlugin(args[2])
-    elseif sub == "unload" and args[2] then unloadPlugin(args[2])
-    elseif sub == "info" and args[2] then
-        local pname = args[2]
-        if pname == "CustomCommand" then
-            log("CustomCommand - created commands:", "Info")
-            local any = false
-            for name, code in pairs(customCommands) do
-                log("  " .. name .. " -> " .. code, "Default")
-                any = true
-            end
-            if not any then log("  (none)", "Info") end
-        else
-            local data = loadedPlugins[pname]
-            if data then
-                log("Plugin " .. pname .. " loaded" .. (data.meta.version and (" v"..tostring(data.meta.version)) or ""), "Info")
-            else
-                local path = "workspace/" .. pname .. PLUGIN_EXT
-                if isfile and isfile(path) then
-                    log("Plugin " .. pname .. " is downloaded but not loaded", "Info")
-                else
-                    log("Plugin not found: " .. pname, "Error")
-                end
-            end
-        end
-    elseif sub == "list" or sub == "" then
-        log("Files in workspace (.xconr):", "Info")
-        if listfiles then
-            local ok, files = pcall(listfiles, "workspace")
-            if ok and files then
-                local found = false
-                for _, file in ipairs(files) do
-                    if file:match("%.xconr$") then
-                        local filename = file:match("[^/\\]+$")
-                        log("  " .. filename, "Default")
-                        found = true
-                    end
-                end
-                if not found then log("  (none)", "Info") end
-            else
-                log("  Error reading workspace folder", "Error")
-            end
-        else
-            log("  listfiles is not supported in this executor", "Error")
-        end
-    else log("Usage: plugin <list|load|unload|reload|info> <name>", "Error") end
-    if saveConfig then pcall(saveConfig) end
+-- ============ SETTINGS COMMANDS ============
+commands["settings.save"] = function()
+    saveConfig(); log("Config saved", "Success")
 end
-
-commands["backup"] = function(args)
-    local sub = (args[1] or "list"):lower()
-    if sub == "list" then
-        log("Plugin backups:", "Info")
-        if #backupPlugins == 0 then log("  (none)", "Info") end
-        for i, name in ipairs(backupPlugins) do log("  " .. i .. ". " .. name, "Default") end
-    elseif sub == "load" then
-        local target = args[2]
-        if target then
-            if target:lower() == "all" then
-                local list = {}
-                for _, n in ipairs(backupPlugins) do table.insert(list, n) end
-                backupPlugins = {}
-                for _, n in ipairs(list) do loadPlugin(n) end
-            else
-                for i, n in ipairs(backupPlugins) do
-                    if n:lower() == target:lower() then
-                        table.remove(backupPlugins, i); loadPlugin(n); break
-                    end
-                end
-            end
-        else
-            if #backupPlugins > 0 then
-                local n = table.remove(backupPlugins)
-                loadPlugin(n)
-            else
-                log("No plugin backups", "Error")
-            end
-        end
-    elseif sub == "clear" then
-        backupPlugins = {}
-        log("Backup list cleared", "Info")
+commands["settings.load"] = function()
+    if isfile and isfile(CONFIG_FILE) then
+        local ok, err = pcall(function()
+            applyConfig(HttpService:JSONDecode(readfile(CONFIG_FILE)))
+        end)
+        if ok then log("Config loaded", "Success", true) else log("Load error: "..tostring(err), "Error") end
     else
-        log("Usage: backup <load [name|all]|list|clear>", "Error")
+        log("No config file", "Error")
     end
-    if saveConfig then pcall(saveConfig) end
+end
+commands["settings.reset"] = function()
+    if isfile and isfile(CONFIG_FILE) then
+        pcall(function() delfile(CONFIG_FILE) end)
+        log("Config reset. Reload console to apply.", "Success")
+    else
+        log("No config file", "Error")
+    end
+end
+commands["settings.list"] = function()
+    local plCount, lbCount = 0, 0
+    for _ in pairs(loadedPlugins) do plCount += 1 end
+    for _ in pairs(loadedLibs) do lbCount += 1 end
+    log("=== Config ===", "Info")
+    log("  Theme: "..currentTheme, "Default")
+    log("  Device: "..currentDevice, "Default")
+    log("  Plugins: "..plCount, "Default")
+    log("  Libs: "..lbCount, "Default")
+    log("  Backups (plugins): "..#backupPlugins, "Default")
+    log("  Backups (libs): "..#backupLibs, "Default")
 end
 
+-- ============ CUSTOM STUDIO COMMANDS ============
+commands["custom.plugin.new"] = function() openCustomEditor("plugin") end
+commands["custom.lib.new"]    = function() openCustomEditor("lib") end
+commands["custom.plugin.delete"] = function(args)
+    local name = table.concat(args, " ")
+    if name == "" then log("Usage: custom.plugin.delete <name>", "Error"); return end
+    deleteCustomItem("plugin", name)
+    if saveConfig then pcall(saveConfig) end
+    if WorkshopFrame and WorkshopFrame.Visible then refreshWorkshop() end
+end
+commands["custom.lib.delete"] = function(args)
+    local name = table.concat(args, " ")
+    if name == "" then log("Usage: custom.lib.delete <name>", "Error"); return end
+    deleteCustomItem("lib", name)
+    if saveConfig then pcall(saveConfig) end
+    if WorkshopFrame and WorkshopFrame.Visible and refreshLibsTab then refreshLibsTab() end
+end
+
+-- ============ THEME / DEVICE / FILTER / PREMIUM ============
 commands["theme"] = function(args)
     local name = args[1]
     if not name then log("Usage: theme <default|winter|halloween|secret|win10|custom>", "Error"); return end
@@ -1734,7 +2563,6 @@ commands["device"] = function(args)
     if name == "pc" then currentDevice = "PC"
     elseif name == "phone" then currentDevice = "Phone"
     else log("Unknown device: " .. name, "Error"); return end
-    updateDeviceVisuals()
     if currentDevice == "PC" then
         PhoneIconBtn.Visible = false; consoleHidden = false; ConsoleFrame.Visible = true
     else
@@ -1794,6 +2622,7 @@ commands["premium"] = function(args)
     else log("Usage: premium <0|1>", "Error") end
 end
 
+-- ============ CMD_COLORS ============
 CMD_COLORS = CMD_COLORS or {
     R=Color3.fromRGB(255,0,0),    G=Color3.fromRGB(0,255,0),
     B=Color3.fromRGB(0,0,255),    Y=Color3.fromRGB(255,255,0),
@@ -1803,6 +2632,7 @@ CMD_COLORS = CMD_COLORS or {
     A=Color3.fromRGB(128,128,128),S=Color3.fromRGB(200,200,200),
 }
 
+-- ============ FLY / NOCLIP / ESP / SWIM / FLING / INFJUMP / SPASM / FB / NOFOG ============
 local flyBV, flyBG
 function toggleFly(on)
     if on == STATES.flying then return end
@@ -2607,6 +3437,7 @@ local function tpToPlayer(args)
 end
 commands["tp"] = tpToPlayer; commands["to"] = tpToPlayer; commands["goto"] = tpToPlayer
 
+-- ============ HIDE / SHOW ============
 local function setConsoleHidden(hidden)
     consoleHidden = hidden
     if currentDevice == "Phone" then
@@ -2620,12 +3451,11 @@ end
 
 HideBtn.MouseButton1Click:Connect(function() setConsoleHidden(true) end)
 
--- === ИСТОРИЯ КОМАНД (СТРЕЛКИ ВВЕРХ/ВНИЗ) ===
 UIS.InputBegan:Connect(function(input, gp)
     if input.KeyCode == Enum.KeyCode.RightControl then
         setConsoleHidden(not consoleHidden)
     end
-    
+
     if UIS:GetFocusedTextBox() == CommandBox then
         if input.KeyCode == Enum.KeyCode.Up then
             if #commandHistory > 0 then
@@ -2643,6 +3473,138 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
+-- ============ COMMAND PARSER ============
+local function handleCommand(text)
+    local args = {}
+    for w in text:gmatch("%S+") do table.insert(args, w) end
+    if #args == 0 then return end
+    local cmdName = args[1]:lower(); table.remove(args, 1)
+
+    log("> "..text, "Echo")
+    runEvent("onCommand", text)
+    runEvent("onExecute")
+
+    local handled = false
+    local lc = cmdName
+
+    -- pl.*
+    if lc == "pl" or lc == "pl.list" then
+        listPlugins(); handled = true
+    elseif lc:sub(1,3) == "pl." and lc:sub(1,10) ~= "pl.backup." then
+        local name, action = lc:match("^pl%.(.+)%.([%w_]+)$")
+        if name and action then
+            if action == "load" then loadPlugin(name)
+            elseif action == "unload" then unloadPlugin(name)
+            elseif action == "reload" then unloadPlugin(name, true); loadPlugin(name)
+            else log("Unknown pl action: "..action, "Error") end
+            if saveConfig then pcall(saveConfig) end
+            handled = true
+        end
+    end
+
+    -- lib.*
+    if not handled and (lc == "lib" or lc == "lib.list") then
+        listLibs(); handled = true
+    elseif not handled and lc:sub(1,4) == "lib." and lc:sub(1,11) ~= "lib.backup." then
+        local name, action = lc:match("^lib%.(.+)%.([%w_]+)$")
+        if name and action then
+            if action == "load" then loadLibrary(name)
+            elseif action == "unload" then unloadLibrary(name)
+            elseif action == "reload" then unloadLibrary(name, true); loadLibrary(name)
+            else log("Unknown lib action: "..action, "Error") end
+            if saveConfig then pcall(saveConfig) end
+            handled = true
+        end
+    end
+
+    -- pl.backup.*
+    if not handled and lc:sub(1,10) == "pl.backup." then
+        local action = lc:sub(11)
+        if action == "list" then
+            if #backupPlugins > 0 then
+                log("Plugin backups:", "Info")
+                for i, n in ipairs(backupPlugins) do log("  "..i..". "..n, "Default") end
+            end
+        elseif action == "load" then
+            local target = args[1]
+            if target then
+                for i, n in ipairs(backupPlugins) do
+                    if normName(n) == normName(target) then
+                        table.remove(backupPlugins, i); loadPlugin(n); break
+                    end
+                end
+            else
+                local list = {}
+                for _, n in ipairs(backupPlugins) do table.insert(list, n) end
+                backupPlugins = {}
+                for _, n in ipairs(list) do loadPlugin(n) end
+            end
+            if saveConfig then pcall(saveConfig) end
+        elseif action == "loadall" then
+            local list = {}
+            for _, n in ipairs(backupPlugins) do table.insert(list, n) end
+            backupPlugins = {}
+            for _, n in ipairs(list) do loadPlugin(n) end
+            if saveConfig then pcall(saveConfig) end
+        elseif action == "clear" then
+            backupPlugins = {}; log("Plugin backup cleared", "Info")
+            if saveConfig then pcall(saveConfig) end
+        else
+            log("Usage: pl.backup.<list|load|loadall|clear>", "Error")
+        end
+        handled = true
+    end
+
+    -- lib.backup.*
+    if not handled and lc:sub(1,11) == "lib.backup." then
+        local action = lc:sub(12)
+        if action == "list" then
+            if #backupLibs > 0 then
+                log("Library backups:", "Info")
+                for i, n in ipairs(backupLibs) do log("  "..i..". "..n, "Default") end
+            end
+        elseif action == "load" then
+            local target = args[1]
+            if target then
+                for i, n in ipairs(backupLibs) do
+                    if normName(n) == normName(target) then
+                        table.remove(backupLibs, i); loadLibrary(n); break
+                    end
+                end
+            else
+                local list = {}
+                for _, n in ipairs(backupLibs) do table.insert(list, n) end
+                backupLibs = {}
+                for _, n in ipairs(list) do loadLibrary(n) end
+            end
+            if saveConfig then pcall(saveConfig) end
+        elseif action == "loadall" then
+            local list = {}
+            for _, n in ipairs(backupLibs) do table.insert(list, n) end
+            backupLibs = {}
+            for _, n in ipairs(list) do loadLibrary(n) end
+            if saveConfig then pcall(saveConfig) end
+        elseif action == "clear" then
+            backupLibs = {}; log("Library backup cleared", "Info")
+            if saveConfig then pcall(saveConfig) end
+        else
+            log("Usage: lib.backup.<list|load|loadall|clear>", "Error")
+        end
+        handled = true
+    end
+
+    -- Обычные команды
+    if not handled then
+        local f = commands[cmdName]
+        if f then
+            local ok, e = pcall(f, args)
+            if not ok then log("Error: "..tostring(e), "Error") end
+        else
+            executeLua(text)
+        end
+    end
+end
+
 CommandBox.FocusLost:Connect(function(enterPressed)
     if not enterPressed then return end
     local text = CommandBox.Text; if text == "" then return end
@@ -2652,18 +3614,10 @@ CommandBox.FocusLost:Connect(function(enterPressed)
         if #commandHistory > CONFIG.MaxHistory then table.remove(commandHistory, 1) end
     end
     historyIndex = #commandHistory + 1
-    local args = {}; for w in text:gmatch("%S+") do table.insert(args, w) end
-    if #args == 0 then return end
-    local cmdName = args[1]:lower(); table.remove(args, 1)
-    log("> "..text,"Echo")
-    runEvent("onExecute")
-    local f = commands[cmdName]
-    if f then
-        local ok, e = pcall(f, args)
-        if not ok then log("Error: "..tostring(e),"Error") end
-    else executeLua(text) end
+    handleCommand(text)
 end)
 
+-- ============ RESIZE ============
 local resizing, startSize, startMouse = false, nil, nil
 ResizeHandle.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -2685,7 +3639,7 @@ CloseBtn.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- ===================== СТАРТОВАЯ АНИМАЦИЯ =====================
+-- ============ STARTUP ANIMATION ============
 local LoadingCard = Instance.new("Frame")
 LoadingCard.Size = UDim2.new(0, 320, 0, 190)
 LoadingCard.Position = UDim2.new(0.5, -160, 0.5, -95)
@@ -2730,7 +3684,7 @@ local loadVersion = Instance.new("TextLabel")
 loadVersion.Size = UDim2.new(1, 0, 0, 18)
 loadVersion.Position = UDim2.new(0, 0, 0, 86)
 loadVersion.BackgroundTransparency = 1
-loadVersion.Text = "v 2.8.2"
+loadVersion.Text = "v 3.0.0"
 loadVersion.Font = Enum.Font.Code
 loadVersion.TextSize = 13
 loadVersion.TextColor3 = Color3.fromRGB(120, 120, 120)
@@ -2787,8 +3741,8 @@ task.spawn(function()
         task.wait(0.05)
     end
 
-    setProgress(0.55, "loading assets...")
-    task.wait(0.4)
+    setProgress(0.55, "loading libraries...")
+    task.wait(0.3)
 
     setProgress(0.80, "finalizing...")
     if LocalPlayer.Character then
@@ -2819,10 +3773,13 @@ task.spawn(function()
     end
 end)
 
+-- ============ STARTUP ============
 task.defer(function()
     local success, err = pcall(function()
         task.wait(0.1)
         if isfile then loadConfig() end
+        task.wait(0.3)
+        autoLoadLibsFromGitHub()
         task.wait(0.5)
         captureOriginalSpeed()
     end)
@@ -2831,4 +3788,8 @@ task.defer(function()
     end
     task.wait(1)
     log("=== XCONSOLE READY ===", "Success", true)
+end)
+
+game:BindToClose(function()
+    if saveConfig then pcall(saveConfig) end
 end)
