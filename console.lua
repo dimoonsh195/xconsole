@@ -12,9 +12,9 @@ local CollectionService = game:GetService("CollectionService")
 local LocalPlayer = Players.LocalPlayer
 
 -- ============ GITHUB PATHS ============
-local GITHUB_BASE    = "https://raw.githubusercontent.com/dimoonsh195/xconsole/main/main/"
-local GITHUB_PLUGINS = GITHUB_BASE .. "plugins/"
-local GITHUB_LIBS    = GITHUB_BASE .. "libraries/"
+local GITHUB_REPO    = "https://raw.githubusercontent.com/dimoonsh195/xconsole/main/"
+local GITHUB_PLUGINS = GITHUB_REPO .. "plugins/"
+local GITHUB_LIBS    = GITHUB_REPO .. "libraries/"
 
 -- ============ WORKSHOP PLUGINS ============
 local WORKSHOP_PLUGINS = {
