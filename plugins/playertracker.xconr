@@ -1,0 +1,98 @@
+return function(api)
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+
+    local events, filter, window = {}, nil, nil
+
+    local function addEvent(text, colorType)
+        table.insert(events, {text=text, time=os.date("%H:%M:%S"), color=colorType})
+        if #events > 200 then table.remove(events, 1) end
+        if window and window.Visible then
+            local scroll = window:FindFirstChild("Scroll")
+            if scroll then
+                local lbl = Instance.new("TextLabel")
+                lbl.Size = UDim2.new(1,-5,0,16); lbl.BackgroundTransparency = 1
+                lbl.Text = "["..events[#events].time.."] "..text
+                lbl.TextColor3 = colorType == "Error" and Color3.fromRGB(255,100,100)
+                    or colorType == "Success" and Color3.fromRGB(100,255,100)
+                    or Color3.fromRGB(200,200,200)
+                lbl.Font = Enum.Font.Code; lbl.TextSize = 11
+                lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Parent = scroll
+            end
+        end
+    end
+
+    local function track(plr)
+        if plr == LocalPlayer then return end
+        plr.CharacterAdded:Connect(function(char)
+            addEvent(plr.Name.." spawned","Success")
+            local hum = char:WaitForChild("Humanoid",5)
+            if hum then
+                local last = hum.Health
+                hum.HealthChanged:Connect(function(h)
+                    if h < last then addEvent(plr.Name.." took damage ("..math.floor(h)..")","Info") end
+                    if h<=0 and last>0 then addEvent(plr.Name.." died","Error") end
+                    last = h
+                end)
+            end
+        end)
+        plr.CharacterRemoving:Connect(function() addEvent(plr.Name.." despawned","Info") end)
+    end
+
+    Players.PlayerAdded:Connect(function(p) addEvent(p.Name.." joined","Success"); track(p) end)
+    Players.PlayerRemoving:Connect(function(p) addEvent(p.Name.." left","Error") end)
+    for _, p in ipairs(Players:GetPlayers()) do track(p) end
+
+    local function openWindow()
+        if window then window:Destroy() end
+        window = Instance.new("Frame")
+        window.Size = UDim2.new(0,300,0,400); window.Position = UDim2.new(0,20,0,400)
+        window.BackgroundColor3 = Color3.fromRGB(20,20,20); window.BorderSizePixel = 0
+        window.Active = true; window.Draggable = true; window.Parent = api.ui.screenGui
+        Instance.new("UICorner", window).CornerRadius = UDim.new(0,6)
+
+        local t = Instance.new("TextLabel")
+        t.Size = UDim2.new(1,-40,0,30); t.Position = UDim2.new(0,10,0,0)
+        t.BackgroundTransparency = 1; t.Text = "PlayerTracker — dimoonsh ✓"
+        t.TextColor3 = Color3.fromRGB(255,255,255); t.Font = Enum.Font.Code
+        t.TextSize = 14; t.TextXAlignment = Enum.TextXAlignment.Left; t.Parent = window
+
+        local c = Instance.new("TextButton")
+        c.Size = UDim2.new(0,24,0,24); c.Position = UDim2.new(1,-30,0,3)
+        c.BackgroundColor3 = Color3.fromRGB(200,50,50); c.Text = "X"
+        c.TextColor3 = Color3.fromRGB(255,255,255); c.Font = Enum.Font.Code
+        c.TextSize = 14; c.BorderSizePixel = 0; c.Parent = window
+        Instance.new("UICorner", c).CornerRadius = UDim.new(0,4)
+        c.MouseButton1Click:Connect(function() window.Visible = false end)
+
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Name = "Scroll"
+        scroll.Size = UDim2.new(1,-20,1,-40); scroll.Position = UDim2.new(0,10,0,35)
+        scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
+        scroll.ScrollBarThickness = 4; scroll.CanvasSize = UDim2.new(0,0,0,0); scroll.Parent = window
+
+        local lay = Instance.new("UIListLayout")
+        lay.SortOrder = Enum.SortOrder.LayoutOrder; lay.Padding = UDim.new(0,2); lay.Parent = scroll
+
+        for _, ev in ipairs(events) do
+            if not filter or ev.text:lower():find(filter:lower(),1,true) then
+                local lbl = Instance.new("TextLabel")
+                lbl.Size = UDim2.new(1,-5,0,16); lbl.BackgroundTransparency = 1
+                lbl.Text = "["..ev.time.."] "..ev.text
+                lbl.TextColor3 = ev.color == "Error" and Color3.fromRGB(255,100,100)
+                    or ev.color == "Success" and Color3.fromRGB(100,255,100)
+                    or Color3.fromRGB(200,200,200)
+                lbl.Font = Enum.Font.Code; lbl.TextSize = 11
+                lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Parent = scroll
+            end
+        end
+        scroll.CanvasSize = UDim2.new(0,0,0, lay.AbsoluteContentSize.Y + 10)
+    end
+
+    api.registerCommand("pl.tracker.show", function() if window then window.Visible=true else openWindow() end end)
+    api.registerCommand("pl.tracker.hide", function() if window then window.Visible=false end end)
+    api.registerCommand("pl.tracker.clear", function() events = {} end)
+    api.registerCommand("pl.tracker.filter", function(args) filter = args[1]; if window then openWindow() end end)
+
+    return {version = "1.0"}
+end
