@@ -1,0 +1,205 @@
+return function(api)
+    local UIS = game:GetService("UserInputService")
+    local HttpService = game:GetService("HttpService")
+    local LocalPlayer = game.Players.LocalPlayer
+
+    local ITEMS = {
+        {id=47433,  name="Classic Sword"},
+        {id=100669, name="Gun"},
+        {id=128777, name="Medkit"},
+        {id=117673, name="Key"},
+        {id=129647, name="Bomb"},
+        {id=163275, name="Shield"},
+        {id=14005,  name="Torch"},
+        {id=128891, name="Crowbar"},
+        {id=129547, name="Grenade"},
+        {id=130931, name="Laser Gun"},
+    }
+    local loadedAssets, iconCache = {}, {}
+
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "ItemGiverGui"; ScreenGui.ResetOnSpawn = false
+    ScreenGui.IgnoreGuiInset = true; ScreenGui.DisplayOrder = 6000; ScreenGui.Enabled = false
+    ScreenGui.Parent = (function()
+        if type(gethui) == "function" then local ok,h = pcall(gethui); if ok and h then return h end end
+        return LocalPlayer:WaitForChild("PlayerGui")
+    end)()
+
+    local Main = Instance.new("Frame")
+    Main.Size = UDim2.new(0,420,0,500); Main.Position = UDim2.new(0.5,-210,0.5,-250)
+    Main.BackgroundColor3 = Color3.fromRGB(20,20,20); Main.BorderSizePixel = 0
+    Main.Active = true; Main.Draggable = true; Main.Parent = ScreenGui
+    Instance.new("UICorner", Main).CornerRadius = UDim.new(0,8)
+
+    local Header = Instance.new("Frame")
+    Header.Size = UDim2.new(1,0,0,40); Header.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    Header.BorderSizePixel = 0; Header.Parent = Main
+    Instance.new("UICorner", Header).CornerRadius = UDim.new(0,8)
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1,-100,0,40); Title.Position = UDim2.new(0,12,0,0)
+    Title.BackgroundTransparency = 1; Title.Text = "ItemGiver — dimoonsh ✓"
+    Title.TextColor3 = Color3.fromRGB(255,255,255); Title.Font = Enum.Font.Code
+    Title.TextSize = 16; Title.TextXAlignment = Enum.TextXAlignment.Left; Title.Parent = Header
+
+    local Close = Instance.new("TextButton")
+    Close.Size = UDim2.new(0,30,0,30); Close.Position = UDim2.new(1,-38,0,5)
+    Close.BackgroundColor3 = Color3.fromRGB(200,50,50); Close.Text = "X"
+    Close.TextColor3 = Color3.fromRGB(255,255,255); Close.Font = Enum.Font.Code
+    Close.TextSize = 16; Close.BorderSizePixel = 0; Close.Parent = Header
+    Instance.new("UICorner", Close).CornerRadius = UDim.new(0,6)
+
+    local Search = Instance.new("TextBox")
+    Search.Size = UDim2.new(1,-24,0,30); Search.Position = UDim2.new(0,12,0,48)
+    Search.BackgroundColor3 = Color3.fromRGB(35,35,35); Search.TextColor3 = Color3.fromRGB(255,255,255)
+    Search.PlaceholderText = "Поиск..."; Search.PlaceholderColor3 = Color3.fromRGB(120,120,120)
+    Search.Font = Enum.Font.Code; Search.TextSize = 14; Search.Text = ""
+    Search.ClearTextOnFocus = false; Search.Parent = Main
+    Instance.new("UICorner", Search).CornerRadius = UDim.new(0,6)
+
+    local Scroll = Instance.new("ScrollingFrame")
+    Scroll.Size = UDim2.new(1,-24,1,-140); Scroll.Position = UDim2.new(0,12,0,86)
+    Scroll.BackgroundTransparency = 1; Scroll.BorderSizePixel = 0
+    Scroll.ScrollBarThickness = 6; Scroll.CanvasSize = UDim2.new(0,0,0,0); Scroll.Parent = Main
+
+    local Grid = Instance.new("UIGridLayout")
+    Grid.CellSize = UDim2.new(0.5,-5,0,90); Grid.CellPadding = UDim2.new(0,5,0,5)
+    Grid.SortOrder = Enum.SortOrder.LayoutOrder; Grid.Parent = Scroll
+
+    local Context = Instance.new("Frame")
+    Context.Size = UDim2.new(0,140,0,36); Context.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    Context.BorderSizePixel = 0; Context.Visible = false; Context.ZIndex = 10
+    Context.Parent = ScreenGui
+    Instance.new("UICorner", Context).CornerRadius = UDim.new(0,6)
+
+    local GiveBtn = Instance.new("TextButton")
+    GiveBtn.Size = UDim2.new(1,0,1,0); GiveBtn.BackgroundTransparency = 1
+    GiveBtn.Text = "Выдать"; GiveBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    GiveBtn.Font = Enum.Font.Code; GiveBtn.TextSize = 14; GiveBtn.Parent = Context
+
+    local function loadAsset(id)
+        if loadedAssets[id] then return loadedAssets[id] end
+        local ok1, objs = pcall(function() return game:GetObjects("rbxassetid://"..id) end)
+        if ok1 and objs and objs[1] then loadedAssets[id] = objs[1]; return objs[1] end
+        local InsertService = game:GetService("InsertService")
+        local ok2, m = pcall(function() return InsertService:LoadAsset(id) end)
+        if ok2 and m then loadedAssets[id] = m; return m end
+        return nil
+    end
+
+    local function giveItem(item)
+        local bp = LocalPlayer:FindFirstChild("Backpack")
+        if not bp then api.log("No backpack","Error"); return end
+        local obj = loadAsset(item.id)
+        if not obj then api.log("Asset "..item.id.." unavailable","Error"); return end
+        local clone = obj:Clone()
+        if clone:IsA("Model") then
+            local tool = clone:FindFirstChildOfClass("Tool")
+            if tool then tool.Parent = bp; api.log("Given: "..tool.Name,"Success")
+            else
+                local nt = Instance.new("Tool"); nt.Name = item.name or "Item"
+                local h = clone:FindFirstChild("Handle") or clone.PrimaryPart
+                if h then h.Parent = nt else
+                    local ph = Instance.new("Part"); ph.Name = "Handle"; ph.Size = Vector3.new(1,1,1); ph.Parent = nt
+                end
+                nt.Parent = bp; api.log("Given: "..nt.Name.." (from model)","Success")
+            end
+        elseif clone:IsA("Tool") then
+            clone.Parent = bp; api.log("Given: "..clone.Name,"Success")
+        else api.log("Not Tool/Model","Error") end
+    end
+
+    local function fetchIcon(id, cb)
+        if iconCache[id] ~= nil then cb(iconCache[id]); return end
+        if not id or id == 0 then cb(nil); return end
+        local url = ("https://thumbnails.roblox.com/v1/assets?assetIds=%d&size=150x150&format=Png"):format(id)
+        task.spawn(function()
+            local ok, res = pcall(game.HttpGet, game, url)
+            if ok and res then
+                local ok2, data = pcall(function() return HttpService:JSONDecode(res) end)
+                if ok2 and data and data.data and data.data[1] and data.data[1].imageUrl then
+                    iconCache[id] = data.data[1].imageUrl; cb(data.data[1].imageUrl); return
+                end
+            end
+            iconCache[id] = false; cb(nil)
+        end)
+    end
+
+    local cards = {}
+    local function makeCard(item, idx)
+        local card = Instance.new("Frame")
+        card.BackgroundColor3 = Color3.fromRGB(35,35,35); card.BorderSizePixel = 0
+        card.LayoutOrder = idx; card.Parent = Scroll
+        Instance.new("UICorner", card).CornerRadius = UDim.new(0,6)
+
+        local img = Instance.new("ImageLabel")
+        img.Size = UDim2.new(0,70,0,70); img.Position = UDim2.new(0,5,0,5)
+        img.BackgroundColor3 = Color3.fromRGB(25,25,25); img.BorderSizePixel = 0
+        img.Image = ""; img.Parent = card
+        Instance.new("UICorner", img).CornerRadius = UDim.new(0,4)
+
+        local fb = Instance.new("TextLabel")
+        fb.Size = UDim2.new(1,0,1,0); fb.BackgroundTransparency = 1
+        fb.Text = (item.name or "?"):sub(1,2); fb.TextColor3 = Color3.fromRGB(255,255,255)
+        fb.Font = Enum.Font.Code; fb.TextSize = 20; fb.Parent = img
+
+        fetchIcon(item.id, function(url)
+            if url and img.Parent then img.Image = url; fb.Visible = false end
+        end)
+
+        local nl = Instance.new("TextLabel")
+        nl.Size = UDim2.new(1,-80,0,20); nl.Position = UDim2.new(0,80,0,10)
+        nl.BackgroundTransparency = 1; nl.Text = item.name; nl.TextColor3 = Color3.fromRGB(255,255,255)
+        nl.Font = Enum.Font.Code; nl.TextSize = 12; nl.TextXAlignment = Enum.TextXAlignment.Left
+        nl.TextWrapped = true; nl.Parent = card
+
+        local il = Instance.new("TextLabel")
+        il.Size = UDim2.new(1,-80,0,16); il.Position = UDim2.new(0,80,0,32)
+        il.BackgroundTransparency = 1; il.Text = "#"..item.id; il.TextColor3 = Color3.fromRGB(120,120,120)
+        il.Font = Enum.Font.Code; il.TextSize = 11; il.TextXAlignment = Enum.TextXAlignment.Left; il.Parent = card
+
+        local click = Instance.new("TextButton")
+        click.Size = UDim2.new(1,0,1,0); click.BackgroundTransparency = 1; click.Text = ""; click.Parent = card
+        click.MouseButton1Click:Connect(function() giveItem(item) end)
+        click.MouseButton2Click:Connect(function()
+            local m = UIS:GetMouseLocation()
+            Context.Position = UDim2.new(0, m.X, 0, m.Y); Context.Visible = true
+            GiveBtn.Text = "Выдать: "..(item.name or item.id)
+            GiveBtn.MouseButton1Click:Connect(function() giveItem(item); Context.Visible = false end)
+        end)
+        return card
+    end
+
+    local function refresh(f)
+        f = (f or ""):lower()
+        for _, c in ipairs(cards) do c:Destroy() end; cards = {}
+        local i = 0
+        for _, item in ipairs(ITEMS) do
+            if f == "" or (item.name or ""):lower():find(f,1,true) then i += 1; table.insert(cards, makeCard(item, i)) end
+        end
+        Scroll.CanvasSize = UDim2.new(0,0,0, Grid.AbsoluteContentSize.Y + 10)
+    end
+
+    Search:GetPropertyChangedSignal("Text"):Connect(function() refresh(Search.Text) end)
+    Close.MouseButton1Click:Connect(function() ScreenGui.Enabled = false; Context.Visible = false end)
+    UIS.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 and Context.Visible then
+            local m = UIS:GetMouseLocation(); local p = Context.AbsolutePosition; local s = Context.AbsoluteSize
+            if not (m.X>=p.X and m.X<=p.X+s.X and m.Y>=p.Y and m.Y<=p.Y+s.Y) then Context.Visible = false end
+        end
+    end)
+
+    local function open(f)
+        ScreenGui.Enabled = true; Search.Text = f or ""; refresh(f)
+    end
+
+    api.registerCommand("pl.itemgiver", function() open("") end, {"itemgiver"})
+    api.registerCommand("pl.itemgiver.search", function(args) open(table.concat(args," ")) end)
+    api.registerCommand("pl.itemgiver.give", function(args)
+        local id = tonumber(args[1]); if not id then api.log("Usage: pl.itemgiver.give <id>","Error"); return end
+        giveItem({id=id, name="Asset "..id})
+    end)
+
+    return {version = "2.0"}
+end
