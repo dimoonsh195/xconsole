@@ -1,0 +1,52 @@
+local Signal = {}
+Signal.__index = Signal
+
+local Connection = {}
+Connection.__index = Connection
+
+function Connection.new(signal, fn)
+    return setmetatable({_signal = signal, _fn = fn, _connected = true}, Connection)
+end
+
+function Connection:Disconnect()
+    if not self._connected then return end
+    self._connected = false
+    local list = self._signal._handlers
+    for i = #list, 1, -1 do
+        if list[i] == self then table.remove(list, i) end
+    end
+end
+
+function Signal.new()
+    return setmetatable({_handlers = {}}, Signal)
+end
+
+function Signal:Connect(fn)
+    local c = Connection.new(self, fn)
+    table.insert(self._handlers, c)
+    return c
+end
+
+function Signal:Once(fn)
+    local c
+    c = self:Connect(function(...)
+        c:Disconnect()
+        fn(...)
+    end)
+    return c
+end
+
+function Signal:Fire(...)
+    for _, c in ipairs(self._handlers) do
+        if c._connected then
+            task.spawn(function() pcall(c._fn, ...) end)
+        end
+    end
+end
+
+function Signal:DisconnectAll()
+    for _, c in ipairs(self._handlers) do c._connected = false end
+    self._handlers = {}
+end
+
+return Signal
