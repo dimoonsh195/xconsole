@@ -1,0 +1,51 @@
+local ObjectPool = {}
+ObjectPool.__index = ObjectPool
+
+function ObjectPool.new(template, initialSize)
+    local self = setmetatable({}, ObjectPool)
+    self._template = template
+    self._free = {}
+    self._active = {}
+    self._created = 0
+    for i = 1, (initialSize or 0) do
+        local obj = template:Clone()
+        table.insert(self._free, obj)
+        self._created += 1
+    end
+    return self
+end
+
+function ObjectPool:Get(parent)
+    local obj = table.remove(self._free)
+    if not obj then
+        obj = self._template:Clone()
+        self._created += 1
+    end
+    if parent then obj.Parent = parent end
+    table.insert(self._active, obj)
+    return obj
+end
+
+function ObjectPool:Release(obj)
+    for i, a in ipairs(self._active) do
+        if a == obj then
+            table.remove(self._active, i)
+            obj.Parent = nil
+            table.insert(self._free, obj)
+            return true
+        end
+    end
+    return false
+end
+
+function ObjectPool:Clear()
+    for _, obj in ipairs(self._active) do obj:Destroy() end
+    for _, obj in ipairs(self._free) do obj:Destroy() end
+    self._active = {}; self._free = {}
+end
+
+function ObjectPool:Stats()
+    return { created = self._created, active = #self._active, free = #self._free }
+end
+
+return ObjectPool
