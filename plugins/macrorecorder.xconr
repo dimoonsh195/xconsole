@@ -1,0 +1,78 @@
+return function(api)
+    local HttpService = game:GetService("HttpService")
+    local DIR = "workspace/xcon_macros"
+    if isfolder and not isfolder(DIR) then pcall(makefolder, DIR) end
+
+    local recording, timerStart = nil, nil
+
+    local function saveMacro(name, events)
+        pcall(writefile, DIR.."/"..name..".json", HttpService:JSONEncode({name=name, events=events}))
+        api.log("Macro saved: "..name, "Success")
+    end
+    local function loadMacro(name)
+        local p = DIR.."/"..name..".json"
+        if not (isfile and isfile(p)) then return nil end
+        local ok, raw = pcall(readfile, p); if not ok then return nil end
+        local ok2, data = pcall(function() return HttpService:JSONDecode(raw) end)
+        return ok2 and data or nil
+    end
+
+    api.hookEvent("onCommand", function(cmdText)
+        if recording then
+            table.insert(recording.events, {cmd = cmdText, t = os.clock() - recording.startTime})
+        end
+    end)
+
+    api.registerCommand("pl.macro.start", function(args)
+        local name = args[1] or ("macro_"..os.time())
+        recording = {name=name, events={}, startTime=os.clock()}
+        api.log("Recording started: "..name, "Success")
+    end)
+
+    api.registerCommand("pl.macro.stop", function()
+        if not recording then api.log("Not recording","Error"); return end
+        saveMacro(recording.name, recording.events); recording = nil
+    end)
+
+    api.registerCommand("pl.macro.play", function(args)
+        local name = args[1]; if not name then api.log("Usage: pl.macro.play <name>","Error"); return end
+        local data = loadMacro(name); if not data then api.log("Macro not found","Error"); return end
+        api.log("Playing: "..name.." ("..#data.events.." steps)","Info")
+        task.spawn(function()
+            local last = 0
+            for _, ev in ipairs(data.events) do
+                local w = ev.t - last; if w > 0 then task.wait(w) end; last = ev.t
+                local parts = {}; for x in ev.cmd:gmatch("%S+") do table.insert(parts, x) end
+                local cn = parts[1] and parts[1]:lower(); table.remove(parts, 1)
+                local ok = api.runCommand(cn, parts)
+                if not ok then api.log("Step failed: "..ev.cmd,"Error") end
+            end
+            api.log("Macro finished: "..name,"Success")
+        end)
+    end)
+
+    api.registerCommand("pl.macro.timer.start", function()
+        timerStart = os.clock(); api.log("Timer started","Info")
+    end)
+    api.registerCommand("pl.macro.timer.stop", function()
+        if not timerStart then api.log("Timer not started","Error"); return end
+        local e = os.clock() - timerStart; timerStart = nil
+        api.log(string.format("Elapsed: %.2f sec", e), "Success")
+    end)
+    api.registerCommand("pl.macro.list", function()
+        if not listfiles then return end
+        local ok, files = pcall(listfiles, DIR); if not ok or not files then return end
+        local any = false
+        for _, f in ipairs(files) do
+            local n = f:match("([^/\\]+)%.json$"); if n then any = true; api.log("  "..n,"Default") end
+        end
+        if not any then return end
+    end)
+    api.registerCommand("pl.macro.delete", function(args)
+        local name = args[1]; if not name then return end
+        local p = DIR.."/"..name..".json"
+        if isfile and isfile(p) then pcall(delfile, p); api.log("Deleted: "..name,"Info") end
+    end)
+
+    return {version = "1.0"}
+end
