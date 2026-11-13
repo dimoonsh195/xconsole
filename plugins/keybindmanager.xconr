@@ -1,0 +1,100 @@
+return function(api)
+    local window
+
+    local function openWindow()
+        if window then window:Destroy() end
+        window = Instance.new("Frame")
+        window.Size = UDim2.new(0,350,0,400); window.Position = UDim2.new(0,640,0,20)
+        window.BackgroundColor3 = Color3.fromRGB(20,20,20); window.BorderSizePixel = 0
+        window.Active = true; window.Draggable = true; window.Parent = api.ui.screenGui
+        Instance.new("UICorner", window).CornerRadius = UDim.new(0,6)
+
+        local t = Instance.new("TextLabel")
+        t.Size = UDim2.new(1,-40,0,30); t.Position = UDim2.new(0,10,0,0)
+        t.BackgroundTransparency = 1; t.Text = "KeybindManager — dimoonsh ✓"
+        t.TextColor3 = Color3.fromRGB(255,255,255); t.Font = Enum.Font.Code
+        t.TextSize = 14; t.TextXAlignment = Enum.TextXAlignment.Left; t.Parent = window
+
+        local c = Instance.new("TextButton")
+        c.Size = UDim2.new(0,24,0,24); c.Position = UDim2.new(1,-30,0,3)
+        c.BackgroundColor3 = Color3.fromRGB(200,50,50); c.Text = "X"
+        c.TextColor3 = Color3.fromRGB(255,255,255); c.Font = Enum.Font.Code
+        c.TextSize = 14; c.BorderSizePixel = 0; c.Parent = window
+        Instance.new("UICorner", c).CornerRadius = UDim.new(0,4)
+        c.MouseButton1Click:Connect(function() window.Visible = false end)
+
+        local keyBox = Instance.new("TextBox")
+        keyBox.Size = UDim2.new(0,80,0,24); keyBox.Position = UDim2.new(0,10,0,35)
+        keyBox.BackgroundColor3 = Color3.fromRGB(35,35,35); keyBox.TextColor3 = Color3.fromRGB(255,255,255)
+        keyBox.PlaceholderText = "key"; keyBox.Font = Enum.Font.Code; keyBox.TextSize = 12
+        keyBox.Text = ""; keyBox.Parent = window
+        Instance.new("UICorner", keyBox).CornerRadius = UDim.new(0,4)
+
+        local cmdBox = Instance.new("TextBox")
+        cmdBox.Size = UDim2.new(1,-180,0,24); cmdBox.Position = UDim2.new(0,95,0,35)
+        cmdBox.BackgroundColor3 = Color3.fromRGB(35,35,35); cmdBox.TextColor3 = Color3.fromRGB(255,255,255)
+        cmdBox.PlaceholderText = "command"; cmdBox.Font = Enum.Font.Code; cmdBox.TextSize = 12
+        cmdBox.Text = ""; cmdBox.Parent = window
+        Instance.new("UICorner", cmdBox).CornerRadius = UDim.new(0,4)
+
+        local add = Instance.new("TextButton")
+        add.Size = UDim2.new(0,70,0,24); add.Position = UDim2.new(1,-80,0,35)
+        add.BackgroundColor3 = Color3.fromRGB(100,200,100); add.TextColor3 = Color3.fromRGB(0,0,0)
+        add.Text = "+ Add"; add.Font = Enum.Font.Code; add.TextSize = 12
+        add.BorderSizePixel = 0; add.Parent = window
+        Instance.new("UICorner", add).CornerRadius = UDim.new(0,4)
+
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1,-20,1,-70); scroll.Position = UDim2.new(0,10,0,65)
+        scroll.BackgroundTransparency = 1; scroll.BorderSizePixel = 0
+        scroll.ScrollBarThickness = 4; scroll.CanvasSize = UDim2.new(0,0,0,0); scroll.Parent = window
+
+        local lay = Instance.new("UIListLayout")
+        lay.SortOrder = Enum.SortOrder.LayoutOrder; lay.Padding = UDim.new(0,2); lay.Parent = scroll
+
+        local function refresh()
+            for _, ch in ipairs(scroll:GetChildren()) do if ch:IsA("Frame") then ch:Destroy() end end
+            local idx = 0
+            local s = api.getSettings().binds or {}
+            for k, v in pairs(s) do
+                idx += 1
+                local row = Instance.new("Frame")
+                row.Size = UDim2.new(1,-5,0,22); row.BackgroundColor3 = Color3.fromRGB(35,35,35)
+                row.BorderSizePixel = 0; row.LayoutOrder = idx; row.Parent = scroll
+                Instance.new("UICorner", row).CornerRadius = UDim.new(0,3)
+
+                local lbl = Instance.new("TextLabel")
+                lbl.Size = UDim2.new(1,-30,1,0); lbl.Position = UDim2.new(0,5,0,0)
+                lbl.BackgroundTransparency = 1; lbl.Text = k.."  →  "..v
+                lbl.TextColor3 = Color3.fromRGB(255,255,255); lbl.Font = Enum.Font.Code
+                lbl.TextSize = 11; lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Parent = row
+
+                local del = Instance.new("TextButton")
+                del.Size = UDim2.new(0,20,0,20); del.Position = UDim2.new(1,-24,0,1)
+                del.BackgroundColor3 = Color3.fromRGB(200,50,50); del.Text = "X"
+                del.TextColor3 = Color3.fromRGB(255,255,255); del.Font = Enum.Font.Code
+                del.TextSize = 10; del.BorderSizePixel = 0; del.Parent = row
+                Instance.new("UICorner", del).CornerRadius = UDim.new(0,3)
+                del.MouseButton1Click:Connect(function()
+                    api.runCommand("bind", {"clear"})
+                    refresh()
+                end)
+            end
+            scroll.CanvasSize = UDim2.new(0,0,0, lay.AbsoluteContentSize.Y + 10)
+        end
+
+        add.MouseButton1Click:Connect(function()
+            local k = keyBox.Text:match("%S+"); local cm = cmdBox.Text:match("%S.*")
+            if not k or not cm then return end
+            local ok = api.runCommand("bind", {k, cm})
+            if ok then keyBox.Text = ""; cmdBox.Text = ""; refresh() end
+        end)
+
+        refresh()
+    end
+
+    api.registerCommand("pl.keybind.show", function() if window then window.Visible=true else openWindow() end end)
+    api.registerCommand("pl.keybind.hide", function() if window then window.Visible=false end end)
+
+    return {version = "1.0"}
+end
