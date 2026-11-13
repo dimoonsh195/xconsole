@@ -1,0 +1,90 @@
+return function(api)
+    local HttpService = game:GetService("HttpService")
+    local RunService = game:GetService("RunService")
+    local DIR = "workspace/xcon_auto"
+    if isfolder and not isfolder(DIR) then pcall(makefolder, DIR) end
+
+    local triggers = {}
+
+    local function parse(cond)
+        local hp = cond:match("^hp%s*([<>])%s*(%d+)$")
+        if hp then return {type="hp", op=hp, val=tonumber(hp)} end
+        local ev = cond:match("^every%s+(%d+)s$"); if ev then return {type="every", val=tonumber(ev)} end
+        local pos = cond:match("^pos_changed%s*>%s*(%d+)$"); if pos then return {type="pos", val=tonumber(pos)} end
+        local j = cond:match("^player_join%s+(.+)$"); if j then return {type="join", val=j} end
+        return nil
+    end
+
+    local function saveT(t)
+        pcall(writefile, DIR.."/"..t.name..".json",
+            HttpService:JSONEncode({name=t.name, condition=t.condition, code=t.code, enabled=t.enabled}))
+    end
+    local function loadT(name)
+        local p = DIR.."/"..name..".json"
+        if not (isfile and isfile(p)) then return nil end
+        local ok, raw = pcall(readfile, p); if not ok then return nil end
+        local ok2, d = pcall(function() return HttpService:JSONDecode(raw) end)
+        if ok2 and d then d._p = parse(d.condition) end
+        return ok2 and d or nil
+    end
+
+    local function run(code) local ok, e = api.executeLua(code); if not ok then api.log("Trigger error: "..tostring(e),"Error") end end
+
+    RunService.Heartbeat:Connect(function()
+        local _, hum, hrp = api.getChar()
+        for _, t in pairs(triggers) do
+            if t.enabled and t._p then
+                local c = t._p
+                if c.type == "hp" and hum then
+                    if (c.op=="<" and hum.Health<c.val) or (c.op==">" and hum.Health>c.val) then run(t.code); t.enabled=false end
+                elseif c.type == "every" then
+                    if not t.last or os.clock()-t.last >= c.val then t.last = os.clock(); run(t.code) end
+                elseif c.type == "pos" and hrp then
+                    if t.lastPos and (hrp.Position-t.lastPos).Magnitude > c.val then run(t.code) end
+                    t.lastPos = hrp.Position
+                end
+            end
+        end
+    end)
+
+    api.hookEvent("onJoin", function(_, plr)
+        for _, t in pairs(triggers) do
+            if t.enabled and t._p and t._p.type == "join" and plr and plr.Name:lower()==t._p.val:lower() then run(t.code) end
+        end
+    end)
+
+    api.registerCommand("pl.auto.add", function(args)
+        local name, cond = args[1], args[2]; local code = table.concat(args," ",3)
+        if not name or not cond or code=="" then api.log("Usage: pl.auto.add <name> <condition> <code>","Error"); return end
+        local p = parse(cond); if not p then api.log("Unknown condition: "..cond,"Error"); return end
+        triggers[name] = {name=name, condition=cond, code=code, enabled=true, _p=p}
+        saveT(triggers[name]); api.log("Trigger added: "..name,"Success")
+    end)
+    api.registerCommand("pl.auto.remove", function(args)
+        local name = args[1]; if not name then return end
+        triggers[name] = nil; local p = DIR.."/"..name..".json"
+        if isfile and isfile(p) then pcall(delfile, p) end
+        api.log("Removed: "..name,"Info")
+    end)
+    api.registerCommand("pl.auto.enable", function(args)
+        local n = args[1]; if triggers[n] then triggers[n].enabled=true; api.log("Enabled: "..n,"Success") end
+    end)
+    api.registerCommand("pl.auto.disable", function(args)
+        local n = args[1]; if triggers[n] then triggers[n].enabled=false; api.log("Disabled: "..n,"Info") end
+    end)
+    api.registerCommand("pl.auto.list", function()
+        for n, t in pairs(triggers) do api.log(string.format("%s [%s] %s", n, t.enabled and "on" or "off", t.condition),"Default") end
+    end)
+
+    if listfiles then
+        local ok, files = pcall(listfiles, DIR)
+        if ok and files then
+            for _, f in ipairs(files) do
+                local nm = f:match("([^/\\]+)%.json$")
+                if nm then local t = loadT(nm); if t then triggers[nm] = t end end
+            end
+        end
+    end
+
+    return {version = "1.0"}
+end
