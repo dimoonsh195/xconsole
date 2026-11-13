@@ -1,0 +1,25 @@
+return {
+    version = "1.0",
+    wrap = function(fn, keyFn)
+        local cache = {}
+        return function(...)
+            local key
+            if keyFn then
+                key = keyFn(...)
+            else
+                local parts = {}
+                for i = 1, select("#", ...) do
+                    table.insert(parts, tostring((select(i, ...))))
+                end
+                key = table.concat(parts, "|")
+            end
+            if cache[key] ~= nil then return cache[key] end
+            local result = fn(...)
+            cache[key] = result
+            return result
+        end
+    end,
+    clear = function(wrapped)
+        -- нельзя очистить извне, нужен новый wrap
+    end,
+}

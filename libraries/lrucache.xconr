@@ -1,0 +1,41 @@
+local LRUCache = {}
+LRUCache.__index = LRUCache
+
+function LRUCache.new(maxSize)
+    return setmetatable({_max = maxSize or 100, _data = {}, _order = {}}, LRUCache)
+end
+
+function LRUCache:Get(key)
+    local v = self._data[key]
+    if v == nil then return nil end
+    for i, k in ipairs(self._order) do
+        if k == key then table.remove(self._order, i); break end
+    end
+    table.insert(self._order, 1, key)
+    return v
+end
+
+function LRUCache:Set(key, value)
+    if self._data[key] == nil then
+        if #self._order >= self._max then
+            local oldest = table.remove(self._order)
+            if oldest then self._data[oldest] = nil end
+        end
+    else
+        for i, k in ipairs(self._order) do
+            if k == key then table.remove(self._order, i); break end
+        end
+    end
+    self._data[key] = value
+    table.insert(self._order, 1, key)
+end
+
+function LRUCache:Clear()
+    self._data = {}; self._order = {}
+end
+
+function LRUCache:Size()
+    return #self._order
+end
+
+return LRUCache

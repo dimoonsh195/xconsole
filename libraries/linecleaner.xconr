@@ -1,0 +1,11 @@
+return {
+    version = "1.0",
+    clean = function(code)
+        if type(code) ~= "string" then return code end
+        local lines = {}
+        for line in code:gmatch("[^\r\n]+") do
+            if line:match("%S") then table.insert(lines, line) end
+        end
+        return table.concat(lines, "\n")
+    end,
+}

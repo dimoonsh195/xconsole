@@ -1,0 +1,28 @@
+local ThreadPool = {}
+ThreadPool.__index = ThreadPool
+
+function ThreadPool.new(size)
+    return setmetatable({_size = size or 4, _queue = {}, _workers = {}}, ThreadPool)
+end
+
+function ThreadPool:Submit(fn, ...)
+    local args = {...}
+    table.insert(self._queue, {fn = fn, args = args})
+    task.spawn(function() self:_process() end)
+end
+
+function ThreadPool:_process()
+    if self._processing then return end
+    self._processing = true
+    while #self._queue > 0 do
+        local task_ = table.remove(self._queue, 1)
+        pcall(task_.fn, table.unpack(task_.args))
+    end
+    self._processing = false
+end
+
+function ThreadPool:WaitAll()
+    while #self._queue > 0 or self._processing do task.wait(0.05) end
+end
+
+return ThreadPool
