@@ -1,0 +1,52 @@
+local Janitor = {}
+Janitor.__index = Janitor
+
+function Janitor.new()
+    local self = setmetatable({}, Janitor)
+    self._items = {}
+    self._cleaned = false
+    return self
+end
+
+function Janitor:Add(item, method)
+    if self._cleaned then return item end
+    if item == nil then return end
+    table.insert(self._items, {item = item, method = method})
+    return item
+end
+
+function Janitor:Remove(item)
+    for i, entry in ipairs(self._items) do
+        if entry.item == item then
+            table.remove(self._items, i)
+            return true
+        end
+    end
+    return false
+end
+
+function Janitor:Cleanup()
+    if self._cleaned then return end
+    self._cleaned = true
+    for i = #self._items, 1, -1 do
+        local entry = self._items[i]
+        local item = entry.item
+        local method = entry.method
+        if item then
+            pcall(function()
+                if method and type(item[method]) == "function" then
+                    item[method](item)
+                elseif typeof(item) == "RBXScriptConnection" then
+                    item:Disconnect()
+                elseif typeof(item) == "Instance" then
+                    item:Destroy()
+                elseif type(item) == "function" then
+                    item()
+                end
+            end)
+        end
+    end
+    self._items = {}
+end
+
+return Janitor
